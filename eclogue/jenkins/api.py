@@ -21,9 +21,7 @@ class JenkinsApi(object):
         artifacts = job.get_last_stable_build().get_artifacts()
         for artifact in artifacts:
             save_dir = self.job_space(job_name)
-            print(artifact, save_dir)
             artifact.save_to_dir(save_dir)
-        print('??????')
         # last_build = job.get_last_stable_build()
         # print(last_build.splite(' #'))
 
