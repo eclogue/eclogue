@@ -10,4 +10,4 @@ node_modules/
 .umi/
 .idea/
 .venv/
-config/development.yaml
+/config/development.yaml
