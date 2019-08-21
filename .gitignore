@@ -1,0 +1,13 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+.vscode/
+vendor/
+node_modules/
+*.log
+/playbook
+.umi/
+.idea/
+.venv/
+config/development.yaml

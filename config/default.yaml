@@ -1,0 +1,39 @@
+project: linger
+author: shisang
+email: adming@admin.com
+repo: https://github.com
+home_path: {{ home_path }}
+log:
+  eclogue: {{ home_path }}/storage/logs
+  ansible: {{ home_path }}/storage/logs
+workspace:
+  tmp: {{ home_path }}/storage/tmp
+  playbook: {{ home_path }}/storage/tmp
+  base_dir: {{ home_path }}/storage/eclogue
+  job: {{ home_path }}/storage/eclogue/job
+  build: {{ home_path }}/storage/eclogue/job
+jenkins:
+  default:
+    base_url: xx
+    username: xx
+    password: xx
+gitlab:
+  token: xx
+  base_url: https://gitlab.com
+vault:
+  secret: xx
+
+mongodb:
+  uri: 'mongodb://root:password@localhost/?authSource=admin&authMechanism=SCRAM-SHA-1'
+  db: 'eclogue'
+jwt:
+  key: '2:sha256:50000$testset'
+  iss: 'https://devops.eclogueio.com'
+  aud: 'https://eclogueio.com'
+  header:
+    alg: 'HS256'
+redis:
+  conn:
+    host: localhost
+    port: 6379
+    decode_responses: !!bool "true"

@@ -1,0 +1,41 @@
+---
+verbosity: 0
+inventory:
+  - "/etc/ansible/hosts"
+listhosts:
+subset:
+module_path:
+extra_vars: []
+forks: 5
+ask_vault_pass: false
+vault_password_files: []
+vault_ids: []
+one_line:
+tree:
+ask_pass: false
+private_key_file:
+remote_user:
+connection: smart
+timeout: 10
+ssh_common_args: ''
+sftp_extra_args: ''
+scp_extra_args: ''
+ssh_extra_args: ''
+sudo: false
+sudo_user:
+su: false
+su_user:
+become: false
+become_method: sudo
+become_user: root
+ask_sudo_pass: false
+ask_su_pass: false
+become_ask_pass: false
+poll_interval: 15
+seconds: 0
+check: false
+syntax:
+diff: false
+basedir:
+module_args: ''
+module_name:
