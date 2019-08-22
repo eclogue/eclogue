@@ -1,4 +1,4 @@
-from eclogue.app import create_app
+from eclogue import create_app
 instance = create_app()
 
 # instance.register_blueprint(main)

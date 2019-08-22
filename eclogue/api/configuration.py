@@ -5,6 +5,8 @@ from eclogue.middleware import jwt_required, login_user
 from eclogue.model import db
 from eclogue.models.configuration import Configuration
 from eclogue.lib.logger import logger
+from eclogue.models.playbook import Playbook
+from eclogue.models.book import Book
 
 
 @jwt_required
@@ -14,19 +16,75 @@ def list_config():
     size = int(query.get('pageSize', 50))
     offset = (page - 1) * size
     keyword = query.get('keyword')
+    is_admin = login_user.get('is_admin')
+    start = query.get('start')
+    end = query.get('end')
+    print('start', start, end)
+    maintainer = query.get('maintainer')
     where = {}
     if keyword:
         where['name'] = {
             '$regex': keyword
         }
+
+    if not is_admin:
+        where['maintainer'] = {
+            '$in': [login_user.get('username')]
+        }
+    elif maintainer:
+        where['maintainer'] = {
+            '$in': [maintainer]
+        }
+
+    date = []
+    if start:
+        date.append({
+            'created_at': {
+                '$gte': int(time.mktime(time.strptime(start, '%Y-%m-%d')))
+            }
+        })
+
+    if end:
+        date.append({
+            'created_at': {
+                '$lte': int(time.mktime(time.strptime(end, '%Y-%m-%d')))
+            }
+        })
+
+    if date:
+        where['$and'] = date
+
+    print(where)
+
     cursor = db.collection('configurations').find(where, skip=offset, limit=size)
     total = cursor.count()
+    bucket = []
+
+    def get_registry(record):
+        if not record:
+            return None
+
+        book_id = record.get('book_id')
+        book = Book().find_by_id(book_id) or {}
+
+        return {
+            '_id': record['_id'],
+            'playbook': record.get('name'),
+            'path': record.get('path'),
+            'book_name': book.get('name'),
+            'book_id': book_id,
+        }
+
+    for item in cursor:
+        register = db.collection('playbook').find({'register': {'$in': [str(item['_id'])]}})
+        item['registry'] = list(map(get_registry, register))
+        bucket.append(item)
 
     return jsonify({
         'message': 'ok',
         'code': 0,
         'data': {
-            'list': list(cursor),
+            'list': bucket,
             'total': total,
             'page': page,
             'pageSize': size
@@ -133,7 +191,6 @@ def get_config_info(_id):
         'code': 0,
         'data': record,
     })
-
 
 
 def update_configuration(_id):

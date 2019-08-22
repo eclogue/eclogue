@@ -258,3 +258,45 @@ def import_galaxy():
         'code': 0,
         # 'data': record
     })
+
+
+@jwt_required
+def rename(_id):
+    oid = ObjectId(_id)
+    body = request.get_json()
+    file_path = body.get('path')
+    if not file_path:
+        return jsonify({
+            'message': 'invalid param path',
+            'code': 104001,
+        }), 400
+
+    upset = {
+        '$set': {
+            'path': file_path
+        }
+    }
+    record = db.collection('playbook').find_one({'_id': oid})
+    if not record:
+        return jsonify({
+            'message': 'record not found',
+            'code': 104040,
+        }), 400
+
+    if record.get('is_dir') is True:
+        records = db.collection('playbook').find({'parent': record.get('path')})
+        for doc in records:
+            new_path = doc['path'].replace(record['path'], file_path)
+            db.collection('playbook').update_one({'_id': doc['_id']}, {
+                '$set': {
+                    'path': new_path
+                }
+            })
+
+    db.collection('playbook').update_one({'_id': oid}, upset)
+
+    return jsonify({
+        'message': 'ok',
+        'code': 0,
+        'data': record
+})

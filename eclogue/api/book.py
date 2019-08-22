@@ -19,12 +19,48 @@ from eclogue.lib.logger import logger
 @jwt_required
 def books():
     query = request.args
-    page = query.get('page', 1)
-    size = query.get('pageSize', 20)
+    page = int(query.get('page', 1))
+    size = int(query.get('pageSize', 50))
+    offset = (page - 1) * size
+    keyword = query.get('keyword')
+    is_admin = login_user.get('is_admin')
+    start = query.get('start')
+    end = query.get('end')
+    print('start', start, end)
+    maintainer = query.get('maintainer')
     where = {}
-    name = query.get('name')
-    if name:
-        where['name'] = name
+    if keyword:
+        where['name'] = {
+            '$regex': keyword
+        }
+
+    if not is_admin:
+        where['maintainer'] = {
+            '$in': [login_user.get('username')]
+        }
+    elif maintainer:
+        where['maintainer'] = {
+            '$in': [maintainer]
+        }
+
+    date = []
+    if start:
+        date.append({
+            'created_at': {
+                '$gte': int(time.mktime(time.strptime(start, '%Y-%m-%d')))
+            }
+        })
+
+    if end:
+        date.append({
+            'created_at': {
+                '$lte': int(time.mktime(time.strptime(end, '%Y-%m-%d')))
+            }
+        })
+
+    if date:
+        where['$and'] = date
+
     offset = (int(page) - 1) * int(size)
     cursor = db.collection('books').find(where, skip=offset, limit=size)
     total = cursor.count()
