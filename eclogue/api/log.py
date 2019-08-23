@@ -7,8 +7,9 @@ from eclogue.middleware import jwt_required
 @jwt_required
 def log_query():
     query = request.args or {}
-    log_type = query.get('type')
+    log_type = query.get('logType')
     keyword = query.get('keyword')
+    level = query.get('level')
     q = query.get('q')
     page = int(query.get('page', 1))
     limit = int(query.get('pageSize', 50))
@@ -16,6 +17,9 @@ def log_query():
     where = dict()
     if log_type:
         where['loggerName'] = log_type
+
+    if level:
+        where['level'] = level.upper()
 
     if keyword:
         where['message'] = {
@@ -26,6 +30,7 @@ def log_query():
         q = dict(parse.parse_qsl(q))
         where.update(q)
 
+    print(where)
     cursor = db.collection('logs').find(where, skip=skip, limit=limit)
     total = cursor.count()
 
