@@ -10,12 +10,10 @@ from eclogue.api.user import search_user, get_user_info, bind_role, \
     add_user, get_current_roles, get_profile, bind_hosts
 import eclogue.api.inventory as cmdb
 from eclogue.api.credential import credentials, add_credential, update_credential
-from eclogue.api.playbook import get_playbook, get_tags, edit_file, remove_file
 from eclogue.api.job import get_jobs, get_job, add_jobs, check_job, \
     job_detail, runner_doc, runner_module, add_adhoc, test_job
 from eclogue.api.app import get_apps, add_apps
 from eclogue.api.console import run_task
-from eclogue.api.playbook import import_galaxy
 import eclogue.api.team as team
 import eclogue.api.notification as notification
 import eclogue.api.docker as docker
@@ -34,14 +32,14 @@ routes = [
     ('/playbook/dumper', Catheter.drop, ['DELETE']),
     ('/playbook/keys', add_key, ['POST']),
     ('/playbook/rename/<_id>', playbook.rename, ['PATCH']),
-    ('/playbook/upload', Catheter.upload, ['POST']),
-    ('/playbook/folder', Catheter.add_folder, ['POST']),
-    ('/playbook/setup', Catheter.setup, ['POST']),
-    ('/playbook/galaxy', import_galaxy, ['get']),
-    ('/playbook/tags', get_tags, ['post']),
-    ('/playbook/<_id>/file', edit_file, ['put']),
-    ('/playbook/<_id>/file', remove_file, ['delete']),
-    ('/playbook/edit/<_id>', Catheter.get_file, ['GET']),
+    ('/playbook/upload', playbook.upload, ['POST']),
+    ('/playbook/folder', playbook.add_folder, ['POST']),
+    # ('/playbook/setup', Catheter.setup, ['POST']),
+    ('/playbook/galaxy', playbook.import_galaxy, ['get']),
+    ('/playbook/tags', playbook.get_tags, ['post']),
+    ('/playbook/<_id>/file', playbook.edit_file, ['put']),
+    ('/playbook/<_id>/file', playbook.remove_file, ['delete']),
+    ('/playbook/edit/<_id>', playbook.get_file, ['GET']),
     ('/tasks', task.monitor, ['get']),
     ('/tasks/queue', task.get_queue_tasks, ['get']),
     ('/tasks/history', task.get_task_history, ['get']),
@@ -53,7 +51,7 @@ routes = [
     ('/books/<_id>', book.book_detail, ['get']),
     ('/books/<_id>', book.edit_book, ['put']),
     ('/books', book.books, ['get']),
-    ('/books/<_id>/playbook', get_playbook, ['GET']),
+    ('/books/<_id>/playbook', book.get_playbook, ['GET']),
     ('/books/<_id>/download', book.download_book, ['GET']),
     ('/books/<_id>/playbook', book.upload_playbook, ['post']),
     ('/books/<_id>/entries', get_entry, ['GET']),

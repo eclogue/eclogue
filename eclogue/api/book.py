@@ -1,6 +1,8 @@
 import time
 import datetime
 import os
+import pymongo
+
 from bson import ObjectId
 from tempfile import NamedTemporaryFile
 from flask import request, jsonify, send_file
@@ -354,3 +356,29 @@ def download_book(_id):
         make_zip(dirname, fd.name)
 
         return send_file(fd.name, attachment_filename=filename)
+
+@jwt_required
+def get_playbook(_id):
+    if not _id:
+        return jsonify({
+            'message': 'invalid id',
+            'code': 154000
+        }), 400
+
+    book = db.collection('books').find_one({'_id': ObjectId(_id)})
+    if not book or not int(book.get('status')):
+        return jsonify({
+            'message': 'invalid id',
+            'code': 154001,
+        }), 400
+
+    cursor = db.collection('playbook').find({'book_id': str(book.get('_id'))})
+    cursor = cursor.sort([('is_edit', pymongo.ASCENDING), ('path', pymongo.ASCENDING)])
+    # for item in cursor:
+    #     db.collection('playbook').update_one({'_id': item['_id']}, {'$set': {'book_id': str(item.get('book_id'))}})
+    return jsonify({
+        'message': 'ok',
+        'code': 0,
+        'data': list(cursor),
+    })
+

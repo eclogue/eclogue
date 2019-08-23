@@ -1,4 +1,5 @@
 from flask import request, jsonify
+from urllib import parse
 from eclogue.model import db
 from eclogue.middleware import jwt_required
 
@@ -9,13 +10,12 @@ def log_query():
     log_type = query.get('type')
     keyword = query.get('keyword')
     q = query.get('q')
-    kwargs = {}
     page = int(query.get('page', 1))
     limit = int(query.get('pageSize', 50))
     skip = (page - 1) * limit
     where = dict()
     if log_type:
-        where['name'] = log_type
+        where['loggerName'] = log_type
 
     if keyword:
         where['message'] = {
@@ -23,7 +23,8 @@ def log_query():
         }
 
     if q:
-        where.update(kwargs)
+        q = dict(parse.parse_qsl(q))
+        where.update(q)
 
     cursor = db.collection('logs').find(where, skip=skip, limit=limit)
     total = cursor.count()

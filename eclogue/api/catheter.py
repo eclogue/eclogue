@@ -109,7 +109,6 @@ class Catheter(object):
                 'code': 104040
             }), 404
 
-        print('&&&&&&&&&&&', record.get('register'))
         if record.get('register'):
             record['configVariables'] = configuration.get_variables(record.get('register'))
 

@@ -37,15 +37,13 @@ class MongoFormatter(logging.Formatter):
         """Formats LogRecord into python dictionary."""
         # Standard document
         # pprint.pprint(record.__dict__)
+        message = record.getMessage()
+        hostname = socket.gethostname()
         if record.name == 'ansible':
             message = record.getMessage()
             for lp in sys.path:
                 message = message.replace(lp, os.path.relpath(lp, config.home_path))
 
-            return message
-
-        message = record.getMessage()
-        hostname = socket.gethostname()
         document = {
             'hostname': hostname,
             'ip': socket.gethostbyname(hostname),
