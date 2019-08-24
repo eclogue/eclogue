@@ -1,3 +1,5 @@
+import time
+
 from flask import request, jsonify
 from urllib import parse
 from eclogue.model import db
@@ -11,6 +13,8 @@ def log_query():
     keyword = query.get('keyword')
     level = query.get('level')
     q = query.get('q')
+    start = query.get('start')
+    end = query.get('end')
     page = int(query.get('page', 1))
     limit = int(query.get('pageSize', 50))
     skip = (page - 1) * limit
@@ -30,7 +34,24 @@ def log_query():
         q = dict(parse.parse_qsl(q))
         where.update(q)
 
-    print(where)
+    date = []
+    if start:
+        date.append({
+            'created_at': {
+                '$gte': int(time.mktime(time.strptime(start, '%Y-%m-%d')))
+            }
+        })
+
+    if end:
+        date.append({
+            'created_at': {
+                '$lte': int(time.mktime(time.strptime(end, '%Y-%m-%d')))
+            }
+        })
+
+    if date:
+        where['$and'] = date
+
     cursor = db.collection('logs').find(where, skip=skip, limit=limit)
     total = cursor.count()
 

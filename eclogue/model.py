@@ -57,13 +57,14 @@ class Model(object):
         return db.collection(cls.name)
 
     def find_by_id(self, _id):
-        if type(_id) == str:
-            _id = ObjectId(_id)
+        if not ObjectId.is_valid(_id):
+            return None
+        _id = ObjectId(_id)
 
         return self.collection.find_one({'_id': _id})
 
     def find_by_ids(self, ids):
-        ids = list(map(lambda i: i if type(i) == object else ObjectId(i), ids))
+        ids = self.check_ids(ids)
         where = {
             '_id': {
                 '$in': ids
@@ -71,6 +72,15 @@ class Model(object):
         }
 
         return list(self.collection.find(where))
+
+    @staticmethod
+    def check_ids(ids):
+        result = []
+        for i in ids:
+            if ObjectId.is_valid(i):
+                result.append(ObjectId(i))
+
+        return result
 
     def save(self):
         return self.collection.insert_one(self._attr)

@@ -16,12 +16,13 @@ from eclogue.ansible.host import parser_inventory
 from eclogue.lib.inventory import get_inventory_from_cmdb, get_inventory_by_book
 from eclogue.models.host import host_model, Host
 from eclogue.lib.logger import logger
+from eclogue.models.region import region_model
+from eclogue.models.group import Group
 
 
 def get_inventory():
     query = request.args
     type = query.get('type', 'cmdb')
-    print(type, query)
     if type == 'file':
         booke_id = query.get('book')
         book = db.collection('books').find_one({'_id': ObjectId(booke_id)})
@@ -33,7 +34,6 @@ def get_inventory():
 
         hosts = get_inventory_by_book(book.get('_id'), book_name=book.get('name'))
     else:
-        keyword = query.get('keyword')
         hosts = get_inventory_from_cmdb()
 
     return jsonify({
@@ -99,7 +99,6 @@ def edit_inventory(_id):
         }), 400
     changed = {}
     diff = DeepDiff(body, record)
-    print(diff.to_dict())
 
     return jsonify({
         'message': 'ok',
@@ -110,7 +109,6 @@ def edit_inventory(_id):
 @jwt_required
 def explore():
     payload = request.get_json()
-
     form = request.form
     payload = payload or form
     if not payload:
@@ -126,6 +124,7 @@ def explore():
             'message': 'param credential required',
             'code': 144000,
         }), 400
+
     credential = db.collection('credentials').find_one({'_id': ObjectId(credential)})
     if not credential or not credential.get('status'):
         return jsonify({
@@ -135,6 +134,7 @@ def explore():
     vault = Vault({
         'vault_pass': config.vault.get('secret')
     })
+
     body = credential['body']
     body[credential['type']] = vault.decrypt_string(body[credential['type']])
 
@@ -144,7 +144,7 @@ def explore():
         maintainer = payload.get('maintainer')
         ssh_host = payload.get('ssh_host')
         ssh_user = payload.get('ssh_user')
-        ssh_port = payload.get('ssh_port', 22)
+        ssh_port = payload.get('ssh_port') or 22
         if not ssh_host or not ssh_user or not ssh_port:
             return jsonify({
                 'message': 'illegal ssh connection params',
@@ -157,10 +157,10 @@ def explore():
                 'code': 144000,
             }), 400
 
-        group_record = db.collection('groups').find_one({'_id': {'$in': [ObjectId(group)]}})
+        group_record = Group().find_by_ids(group)
         if not group_record:
             return jsonify({
-                'message': 'invalid region',
+                'message': 'invalid group',
                 'code': 144000,
             }), 400
 
@@ -183,17 +183,19 @@ def explore():
             item['ansible_ssh_host'] = ssh_host
             item['ansible_ssh_user'] = ssh_user
             item['ansible_ssh_port'] = ssh_port
-            item['group'] = [group_record['_id']]
+            item['group'] = list(map(lambda i: str(i['_id']), group_record))
+
             return item
 
         data = list(map(func, data))
         db.collection('machines').insert_many(data)
+
         return jsonify({
             'message': 'ok',
             'code': 0,
             'data': result,
             'records': data
-        }), 400
+        })
 
     files = request.files
     if not files:
@@ -287,37 +289,36 @@ def test():
 def regions():
     query = request.args
     keyword = query.get('keyword')
+    start = query.get('start')
+    end = query.get('end')
+    platform = query.get('platform')
     where = dict()
-    time_condition = {}
-    keyword_condition = {
-        '$or': [
-            {
-                'platform': {
-                    '$regex': keyword
-                },
-            },
-            {
-                'name': {
-                    '$regex': keyword
-                }
-            }
-        ]
-    }
-    if query.get('start'):
-        start = query.get('start')
-        start = datetime.datetime.strptime(start, '%Y-%m-%d')
-        time_condition['$gte'] = int(time.mktime(start.timetuple()))
+    if platform:
+        where['platform'] = platform
 
-    if query.get('end'):
-        end = query.get('end')
-        end = datetime.datetime.strptime(end, '%Y-%m-%d')
-        time_condition['$lte'] = int(time.mktime(end.timetuple()))
-    if len(time_condition.keys()):
-        where['$and'] = [{'created_at': time_condition}]
-        if keyword:
-            where['$and'].append(keyword_condition)
-    elif keyword:
-        where = keyword_condition
+    if keyword:
+        where['name'] = {
+            '$regex': keyword
+        }
+
+    date = []
+    if start:
+        date.append({
+            'created_at': {
+                '$gte': int(time.mktime(time.strptime(start, '%Y-%m-%d')))
+            }
+        })
+
+    if end:
+        date.append({
+            'created_at': {
+                '$lte': int(time.mktime(time.strptime(end, '%Y-%m-%d')))
+            }
+        })
+
+    if date:
+        where['$and'] = date
+
     records = db.collection('regions').find(where)
 
     return jsonify({
@@ -384,31 +385,45 @@ def update_region(_id):
 @jwt_required
 def groups():
     query = request.args or {}
+    keyword = query.get('keyword')
+    start = query.get('start')
+    end = query.get('end')
+    page = int(query.get('page', 1))
+    limit = int(query.get('pageSize', 50))
+    region = query.get('region')
     where = dict()
-    if query.get('keyword'):
-        where['name'] = {'$regex': query.get('keyword')}
-    if query.get('region'):
+    if region:
         where['region'] = query.get('region')
-    time_condition = {}
-    if query.get('start'):
-        start = query.get('start')
-        start = datetime.datetime.strptime(start, '%Y-%m-%d')
-        time_condition['$gte'] = int(time.mktime(start.timetuple()))
 
-    if query.get('end'):
-        end = query.get('end')
-        end = datetime.datetime.strptime(end, '%Y-%m-%d')
-        time_condition['$lte'] = int(time.mktime(end.timetuple()))
-    if time_condition.keys():
-        where['created_at'] = time_condition
-    page = abs(int(query.get('page', 1)))
-    size = abs(int(query.get('pageSize', 25)))
-    offset = (page - 1) * size
+    if keyword:
+        where['name'] = {
+            '$regex': keyword
+        }
+
+    date = []
+    if start:
+        date.append({
+            'created_at': {
+                '$gte': int(time.mktime(time.strptime(start, '%Y-%m-%d')))
+            }
+        })
+
+    if end:
+        date.append({
+            'created_at': {
+                '$lte': int(time.mktime(time.strptime(end, '%Y-%m-%d')))
+            }
+        })
+
+    if date:
+        where['$and'] = date
+
+    offset = (page - 1) * limit
     is_all = query.get('all')
     if is_all and login_user.get('is_admin'):
         records = db.collection('groups').find({})
     else:
-        records = db.collection('groups').find(where, limit=size, skip=offset)
+        records = db.collection('groups').find(where, limit=limit, skip=offset)
     total = records.count()
     records = list(records)
     for group in records:
@@ -421,7 +436,7 @@ def groups():
         'data': {
             'list': list(records),
             'page': page,
-            'pagesize': size,
+            'pagesize': limit,
             'total': total
         }
     })
@@ -509,7 +524,6 @@ def preview_inventory():
     payload = request.get_json()
     inventory_type = payload.get('inventory_type', 'file')
     inventory = payload.get('inventory', None)
-    print('vvvviiiiiiiiiv', inventory)
     if not inventory:
         return {
             'message': 'invalid param inventory',
@@ -552,7 +566,6 @@ def host_tree():
         }
     }]
     result = db.collection('user_hosts').aggregate(condition)
-    print(result)
 
     return jsonify({
         'message': 'ok',
@@ -588,48 +601,105 @@ def get_group_hosts(_id):
 
 @jwt_required
 def get_devices():
-    query = request.query_string
-    skip = 0
-    limit = 20
-    result = db.collection('machines').find().skip(skip=skip).limit(limit)
-    result = list(result)
-    collection = db.collection('groups')
-    for device in result:
-        where = {
-            '_id': {
-                '$in': device.get('group') or []
+    query = request.args
+    page = int(query.get('page', 1))
+    limit = int(query.get('pageSize', 50))
+    skip = (page - 1) * limit
+    where = {}
+    hostname = query.get('hostname')
+    group = query.get('group')
+    region = query.get('region')
+    status = query.get('status')
+    start = query.get('start')
+    end = query.get('end')
+    if hostname:
+        where['hostname'] = hostname
+
+    if status:
+        where['status'] = status
+
+    date = []
+    if start:
+        date.append({
+            'created_at': {
+                '$gte': int(time.mktime(time.strptime(start, '%Y-%m-%d')))
             }
+        })
+
+    if end:
+        date.append({
+            'created_at': {
+                '$lte': int(time.mktime(time.strptime(end, '%Y-%m-%d')))
+            }
+        })
+
+    if date:
+        where['$and'] = date
+
+    if region:
+        record = region_model.find_by_id(region)
+        if not record:
+            return jsonify({
+                'message': 'illegal param',
+                'code': 104001
+            }), 400
+
+        group_records = Group().collection.find({'region': region})
+        g_ids = []
+        for item in group_records:
+            g_ids.append(item['_id'])
+
+        where['group'] = {
+            '$in': g_ids,
         }
 
-        groups = collection.find(where)
-        groups = list(groups)
-        if groups:
-            groups = map(lambda i: i['name'], groups)
-            device['group_names'] = list(groups)
+    if group:
+        where['group'] = {
+            '$in': [group],
+        }
+
+    print(where)
+    result = db.collection('machines').find(where).skip(skip=skip).limit(limit)
+    total = result.count()
+    result = list(result)
+    collection = Group()
+    for device in result:
+        ids = device.get('group') or []
+        print('iIIIIIIIIIIIIIIIIIIIIIII', ids)
+        if ids != ['ungrouped']:
+            records = collection.find_by_ids(ids)
+            records = list(records)
+            records = map(lambda i: i['name'], records)
+            device['group_names'] = list(records)
         else:
             device['group_names'] = ['ungrouped']
 
     return jsonify({
         'message': 'ok',
         'code': 0,
-        'data': result,
+        'data': {
+            'list': result,
+            'total': total,
+            'page': page,
+            'pageSize': limit,
+        },
     })
 
 
 @jwt_required
 def get_host_groups(user_id):
     current_user_id = login_user.get('user_id')
-    query = request.args
-    page = int(query.get('page', 1))
-    limit = int(query.get('pageSize', 20))
-    skip = (page - 1) * limit
+    # query = request.args
+    # page = int(query.get('page', 1))
+    # limit = int(query.get('pageSize', 20))
+    # skip = (page - 1) * limit
     if current_user_id != user_id:
         return jsonify({
             'message': 'invalid user',
             'code': 104030
         })
 
-    tree = host_model.get_host_tree(user_id, skip=skip, limit=limit)
+    tree = get_inventory_from_cmdb()
 
     return jsonify({
         'message': 'ok',

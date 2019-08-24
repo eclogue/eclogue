@@ -3,7 +3,7 @@ from collections import namedtuple
 from ansible.parsing.vault import get_file_vault_secret
 from ansible.parsing.dataloader import DataLoader
 from ansible.parsing.vault import VaultEditor, VaultLib, VaultSecret, match_encrypt_secret
-import pprint
+from eclogue.lib.logger import logger
 
 OPTION_FLAGS = ['verbosity', 'ask_vault_pass', 'vault_password_files', 'vault_ids', 'new_vault_password_file',
                 'new_vault_id', 'output_file',
@@ -87,12 +87,18 @@ class Vault(object):
             self.editor.decrypt_file(f, output_file=self.options.output_file)
 
     def decrypt_string(self, text):
-        plaintext = self.editor.vault.decrypt(text)
-        return str(plaintext, 'utf-8')
+        try:
+            plaintext = self.editor.vault.decrypt(text)
+
+            return str(plaintext, 'utf-8')
+        except Exception as e:
+            logger.error('decrypt string execption: ' + str(e), extra={'text': text})
+            raise e
 
     def encrypt_string(self, text):
         text = bytes(text, 'utf-8')
         bytestext = self.editor.encrypt_bytes(text, self.encrypt_secret, vault_id=self.encrypt_vault_id)
+
         return str(bytestext, 'utf-8')
 
     def setup_vault_secrets(self, loader, vault_ids, vault_password_files=None, vault_pass=None):
