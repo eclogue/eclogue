@@ -85,8 +85,8 @@ def get_roles_by_book(_id):
 @jwt_required
 def edit_inventory(_id):
     user = login_user
-    body = request.get_json()
-    if not body:
+    payload = request.get_json()
+    if not payload:
         return jsonify({
             'message': 'miss required params',
             'code': 124001,
@@ -97,12 +97,19 @@ def edit_inventory(_id):
             'message': 'record not found',
             'code': 124041
         }), 400
-    changed = {}
-    diff = DeepDiff(body, record)
+
+    payload.pop('_id')
+    payload['updated_at'] = time.time()
+    update = {
+        '$set': payload
+    }
+    db.collection('machines').update_one({'_id': record['_id']}, update=update)
+    logger.info('update machine', extra={'record': record, 'changed': payload})
 
     return jsonify({
         'message': 'ok',
         'code': 0,
+        # 'data': diff
     })
 
 

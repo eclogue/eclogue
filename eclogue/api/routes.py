@@ -12,7 +12,6 @@ import eclogue.api.inventory as cmdb
 from eclogue.api.credential import credentials, add_credential, update_credential
 from eclogue.api.job import get_jobs, get_job, add_jobs, check_job, \
     job_detail, runner_doc, runner_module, add_adhoc, test_job
-from eclogue.api.app import get_apps, add_apps
 from eclogue.api.console import run_task
 import eclogue.api.team as team
 import eclogue.api.notification as notification
@@ -23,6 +22,7 @@ import eclogue.api.configuration as configuration
 import eclogue.api.task as task
 import eclogue.api.book as book
 import eclogue.api.playbook as playbook
+import eclogue.api.app as application
 
 routes = [
     ('/login', Auth.login, ['POST']),
@@ -57,8 +57,9 @@ routes = [
     ('/books/<_id>/entries', get_entry, ['GET']),
     ('/books/<name>/inventory', cmdb.get_inventory_by_book, ['GET']),
     ('/books/<_id>/roles', cmdb.get_roles_by_book, ['GET']),
-    ('/inventory', cmdb.explore, ['post']),
     ('/search/users', search_user, ['get']),
+    ('/cmdb/inventory', cmdb.explore, ['post']),
+    ('/cmdb/inventory/<_id>', cmdb.edit_inventory, ['put']),
     ('/cmdb/regions', cmdb.regions, ['get']),
     ('/cmdb/regions', cmdb.add_region, ['post']),
     ('/cmdb/regions/<_id>', cmdb.update_region, ['put']),
@@ -85,8 +86,9 @@ routes = [
     ('/credentials', credentials, ['get']),
     ('/credentials', add_credential, ['post']),
     ('/credentials/_id', update_credential, ['put']),
-    ('/apps', get_apps, ['get']),
-    ('/apps', add_apps, ['post']),
+    ('/apps', application.get_apps, ['get']),
+    ('/apps', application.add_apps, ['post']),
+    ('/apps/<_id>', application.update_app, ['put']),
     ('/configurations', configuration.list_config, ['get']),
     ('/configurations/<playbook_id>/register', configuration.get_register_config, ['get']),
     ('/configurations/<_id>', configuration.update_configuration, ['put']),

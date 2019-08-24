@@ -13,6 +13,10 @@ def get_apps():
     size = int(query.get('pageSize', 50))
     offset = (page - 1) * size
     keyword = query.get('keyword')
+    start = query.get('start')
+    end = query.get('end')
+    app_type = query.get('type')
+    status = query.get('status')
     where = {}
     if keyword:
         where = {
@@ -20,6 +24,30 @@ def get_apps():
                 '$regex': keyword
             }
         }
+
+    if app_type:
+        where['type'] = app_type
+
+    if status is not None:
+        where['status'] = status
+
+    date = []
+    if start:
+        date.append({
+            'created_at': {
+                '$gte': int(time.mktime(time.strptime(start, '%Y-%m-%d')))
+            }
+        })
+
+    if end:
+        date.append({
+            'created_at': {
+                '$lte': int(time.mktime(time.strptime(end, '%Y-%m-%d')))
+            }
+        })
+
+    if date:
+        where['$and'] = date
 
     cursor = db.collection('apps').find(where, skip=offset, limit=size)
     total = cursor.count()
@@ -95,8 +123,7 @@ def add_apps():
     description = payload.get('description')
     # @todo
     # maintainer = payload.get('maintainer') or []
-    maintainer = []
-    maintainer.append(current_user)
+    maintainer = [current_user]
     maintainer = set(maintainer)
     data = {
         'name': name,
@@ -121,7 +148,85 @@ def add_apps():
     })
 
 
+@jwt_required
 def update_app(_id):
-    pass
+    payload = request.get_json()
+    if not payload:
+        return jsonify({
+            'message': 'empty params',
+            'code': 174000,
+        }), 400
+
+    record = db.collection('apps').find_one({'_id': ObjectId(_id)})
+    if not record:
+        return jsonify({
+            'message': 'record not found',
+            'code': 104040
+        }), 404
+
+    name = payload.get('name')
+    app_type = payload.get('type')
+    params = payload.get('params')
+    repo = payload.get('repo')
+    server = payload.get('server')
+    document = payload.get('document')
+    protocol = payload.get('protocol')
+    port = payload.get('port')
+    description = payload.get('description')
+    integration = Integration(app_type, params)
+    check = integration.check_app_params()
+    update = {}
+    if not check:
+        return jsonify({
+            'message': 'invalid ' + app_type + 'params',
+            'code': 174003
+        }), 400
+
+    if name != record.get('name'):
+        existed = db.collection('apps').find_one({'name': name})
+        if existed:
+            return jsonify({
+                'message': 'name existed',
+                'code': 104001
+            }), 400
+
+        update['name'] = name
+
+    if app_type:
+        update['type'] = app_type
+
+    if params:
+        update['params'] = params
+
+    if server:
+        update['server'] = server
+
+    if document:
+        update['document'] = document
+
+    if repo:
+        update['repo'] = repo
+
+    if port:
+        update['port'] = port
+
+    if protocol:
+        update['protocol'] = protocol
+
+    if description:
+        update['description'] = description
+
+    if update:
+        update['updated_at'] = time.time()
+
+    data = {'$set': update}
+    # maintainer = payload.get('maintainer') or []
+    db.collection('apps').update_one({'_id': record['_id']}, update=data)
+    logger.info('add apps', extra={'record': record, 'changed': update})
+
+    return jsonify({
+        'message': 'ok',
+        'code': 0,
+    })
 
 
