@@ -80,7 +80,6 @@ class JenkinsApi(object):
                 continue
 
             file_path = artifact.save_to_dir(save_dir, strict_validation)
-            print('jjjjenkin save artifacts   :: ', file_path)
             extract(file_path, save_dir)
             # os.unlink(file_path)
 

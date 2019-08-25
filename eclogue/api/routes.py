@@ -111,8 +111,8 @@ routes = [
     ('/roles/<_id>', update_role, ['put']),
     ('/notifications', notification.get_notify, ['get']),
     ('/notifications/read', notification.mark_read, ['put']),
-    ('/docker', docker.test_docker, ['get']),
+    # ('/docker', docker.test_docker, ['get']),
     ('/test/git', test_job, ['get']),
     ('/logs', log.log_query, ['get']),
-
+    ('/test', application.test_docker, ['get']),
 ]

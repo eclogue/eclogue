@@ -114,10 +114,13 @@ def gen_password():
 
 def extract(filename, target):
     print('extract file::', filename, target)
+    if not os.path.isfile(filename):
+        raise Exception('try to extra illegal filename')
+
     if filename.endswith('.zip'):
         with zipfile.ZipFile(filename) as zf:
             zf.extractall(target)
-    elif filename.find('.tar') > -1:
+    elif tarfile.is_tarfile(filename):
         with tarfile.open(filename) as tar:
             tar.extractall(target)
 

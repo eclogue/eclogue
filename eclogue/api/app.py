@@ -5,6 +5,7 @@ from eclogue.model import db
 from eclogue.middleware import jwt_required, login_user
 from eclogue.lib.integration import Integration
 from eclogue.lib.logger import logger
+from eclogue.docker.client import Docker
 
 
 def get_apps():
@@ -230,3 +231,15 @@ def update_app(_id):
     })
 
 
+def test_docker():
+    client = Docker({
+        'base_url': None,
+        'image': 'alpine:latest',
+    })
+    # result = client.run(command='pwd', working_dir='/usr/lib', detach=False)
+    # print(result)
+    client.install('/usr/lib')
+
+    return jsonify({
+        'message': 'ok'
+    })
