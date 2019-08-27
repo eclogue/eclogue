@@ -672,7 +672,6 @@ def get_devices():
     collection = Group()
     for device in result:
         ids = device.get('group') or []
-        print('iIIIIIIIIIIIIIIIIIIIIIII', ids)
         if ids != ['ungrouped']:
             records = collection.find_by_ids(ids)
             records = list(records)

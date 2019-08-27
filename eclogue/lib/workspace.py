@@ -14,7 +14,7 @@ from eclogue.jenkins.api import JenkinsApi
 class Workspace(object):
 
     def __init__(self, home_path=None):
-        self._base_dir = home_path or config.workspace.get('home_path', '/var/lib/eclogue')
+        self._base_dir = home_path or config.workspace.get('base_dir', '/var/lib/eclogue')
         self._spaces = {
             'workspace': 0o755,
             'jobs': 0o755,

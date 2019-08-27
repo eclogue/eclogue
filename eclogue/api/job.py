@@ -18,6 +18,7 @@ from eclogue.ansible.playbook import check_playbook
 from eclogue.models.job import Job
 from eclogue.lib.logger import logger
 from flask_log_request_id import current_request_id
+from eclogue.lib.integration import Integration
 
 
 @jwt_required
@@ -94,9 +95,45 @@ def get_jobs():
     page = int(query.get('page', 1))
     size = int(query.get('pageSize', 50))
     offset = (page - 1) * size
-    where = {
-        'maintainer': {'$in': [username]}
-    }
+    is_admin = login_user.get('is_admin')
+    keyword = query.get('keyword')
+    status = query.get('status')
+    job_type = query.get('type')
+    start = query.get('start')
+    end = query.get('end')
+    where = {}
+    if not is_admin:
+        where['maintainer'] = {'$in': [username]}
+
+    if keyword:
+        where['name'] = {
+            '$regex': keyword
+        }
+
+    if status is not None:
+        where['status'] = status
+
+    if job_type:
+        where['type'] = job_type
+
+    date = []
+    if start:
+        date.append({
+            'created_at': {
+                '$gte': int(time.mktime(time.strptime(start, '%Y-%m-%d')))
+            }
+        })
+
+    if end:
+        date.append({
+            'created_at': {
+                '$lte': int(time.mktime(time.strptime(end, '%Y-%m-%d')))
+            }
+        })
+
+    if date:
+        where['$and'] = date
+
     jobs = db.collection('jobs').find(where, skip=offset, limit=size)
     total = jobs.count()
     jobs = list(jobs)
@@ -289,6 +326,8 @@ def job_detail(_id):
             app = db.collection('apps').find_one({'_id': ObjectId(app_id)})
             if app:
                 template['app_name'] = app.get('name')
+                template['app_params'] = app.get('params')
+
         inventory_type = template.get('inventory_type')
         inventory = template.get('inventory')
         if inventory_type == 'file':
@@ -296,6 +335,7 @@ def job_detail(_id):
         else:
             inventory_content = parse_cmdb_inventory(inventory)
         template['inventory_content'] = inventory_content
+
     page = int(query.get('page', 1))
     size = int(query.get('pageSize', 20))
     offset = (page - 1) * size
