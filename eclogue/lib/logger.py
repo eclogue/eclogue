@@ -7,6 +7,7 @@ import sys
 from flask_log_request_id import RequestIDLogFilter
 from eclogue.config import config
 from eclogue.middleware import login_user
+from eclogue.model import db
 
 
 def get_logger(name='eclogue'):
@@ -89,9 +90,9 @@ class MongoHandler(logging.Handler):
     def emit(self, record):
         """Inserting new logging record to mongo database."""
         try:
-            print(record)
             data = self.format(record)
-            # db.collection('logs').insert_one(data)
+            db.collection('logs').insert_one(data)
+            print(data)
         except Exception as e:
             print(e)
             self.handleError(record)

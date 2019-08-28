@@ -62,9 +62,6 @@ class GitDownload(object):
         return result
 
     def install(self):
-        # result = self.run_command(['git', 'status'])
-        # print(result)
-        # return False
         url = self.repository
         dest = self.cwd
         cache_dir = self.cache_dir + '/' + self.project
@@ -168,18 +165,24 @@ class GitDownload(object):
 
     def parse_repository(self):
         url = self.options.get('repository')
+        tag = self.options.get('tag')
+        branch = self.options.get('branch')
+        sha = self.options.get('sha')
+        target = tag or branch or sha
         if url.find('#') < 0:
             project = os.path.basename(url)
             project = project.replace('.git', '')
-            return [url, project, 'master']
+            target = target or 'master'
 
-        result = url.split('#')
-        print('ssssssssssss', result)
-        repository, version = result
-        project = os.path.basename(repository)
-        project = project.replace('.git', '')
+            return [url, project, target]
+        else:
+            result = url.split('#')
+            repository, version = result
+            project = os.path.basename(repository)
+            project = project.replace('.git', '')
+            target = target or version
 
-        return [repository, project, version]
+            return [repository, project, target]
 
     def current_branch(self):
         cmd = ['git', 'symbolic-ref', '-q', 'HEAD']

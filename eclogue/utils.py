@@ -126,6 +126,7 @@ def extract(filename, target):
 
 
 def mkdir(path, mode=0o700):
+    print('mkdirrrrrrrrrrrrrr>>>>>>>', path)
     if not path or os.path.exists(path):
         return []
 

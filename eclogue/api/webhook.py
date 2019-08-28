@@ -3,9 +3,9 @@ from flask import jsonify, request
 from eclogue.middleware import jwt_required, login_user
 from eclogue.models.job import Job
 from eclogue.model import db
-from eclogue.gitlab.api import GitlabApi
 from eclogue.lib.workspace import Workspace
 from eclogue.lib.helper import load_ansible_playbook
+from eclogue.lib.integration import Integration
 
 def gitlab_job(token):
     payload = request.get_json()
@@ -53,20 +53,21 @@ def gitlab_job(token):
             'code': 104003
         }), 400
 
-    if params.get('extract') == 'artifacts':
-        wk = Workspace()
-        filename = wk.get_gitlab_artifacts_file(record.get('name'), project_id, job_id)
-        gitlab = GitlabApi().dowload_artifact(project_id, job_id, filename)
-
-    if params.get('extract') == 'docker':
-        pass
+    # if params.get('extract') == 'artifacts':
+    #     wk = Workspace()
+    #     filename = wk.get_gitlab_artifacts_file(record.get('name'), project_id, job_id)
+    #     gitlab = GitlabApi().dowload_artifact(project_id, job_id, filename)
+    #
+    # if params.get('extract') == 'docker':
+    #     pass
+    integration = Integration(app_info.get('type'), params)
+    integration.install()
 
     ansible_params = load_ansible_playbook(record)
-    payload = load_ansible_playbook(body)
-    if payload.get('message') is not 'ok':
+    if ansible_params.get('message') is not 'ok':
         return jsonify(payload), 400
 
-    data = payload.get('data')
+    data = ansible_params.get('data')
     options = data.get('options')
     private_key = data.get('private_key')
     wk = Workspace()
@@ -74,8 +75,14 @@ def gitlab_job(token):
     print('xxxxx-----~~~~~~~', res, data)
     if not res:
         return jsonify({
-            'message': 'book not found',
+            'message': 'load book failed',
             'code': 104000,
         }), 400
 
     entry = wk.get_book_entry(data.get('book_name'), data.get('entry'))
+
+    return jsonify({
+        'message': 'ok',
+        'code': 0,
+        'data': 1
+    })

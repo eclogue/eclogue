@@ -1,6 +1,7 @@
 import time
 import datetime
 import base64
+import yaml
 
 from bson import ObjectId
 from tempfile import NamedTemporaryFile
@@ -19,6 +20,7 @@ from eclogue.models.job import Job
 from eclogue.lib.logger import logger
 from flask_log_request_id import current_request_id
 from eclogue.lib.integration import Integration
+from jinja2 import Template
 
 
 @jwt_required
@@ -525,13 +527,40 @@ def add_adhoc():
     })
 
 
-def test_job():
+def job_webhook():
     _id = '5d4058b4b9a76b7eea946b99'
-    record = Job().find_by_id(_id)
+    query = request.args
+    token = query.get('token')
+    payload = request.get_json()
+    if not payload or not token:
+        return jsonify({
+            'message': 'invalid params',
+            'code': 104000
+        }), 400
+
+    record = Job().collection.find_one({'token': token})
     tempate = record.get('template')
     app_id = tempate.get('app')
     app_info = db.collection('apps').find_one({'_id': ObjectId(app_id)})
+    if not app_info:
+        return jsonify({
+            'message': 'app not found, please check your app',
+            'code': 104001
+        }), 400
+
     app_type = app_info.get('type')
+    app_params = app_info.get('params')
+    income = app_params.get('income')
+    income_params = dict()
+    if income:
+        print('bbbbbefore', income)
+        income = Template(income)
+        tpl = income.render(**payload)
+        print('tttt-------+', tpl, payload)
+        income_params = yaml.safe_load(tpl)
+    print('iiiiiiiii=======+>', income_params)
+    task_id = run_job(str(record.get('_id')), **income_params)
+
     # if app_type == 'jenkins':
     #     build_id = '19'
     #     job_name = 'upward'
@@ -543,10 +572,10 @@ def test_job():
     # else:
     #     run_job(_id)
 
-    logger.error('test', extra={'a': {'b': 1}})
-    print(login_user)
+    # logger.error('test', extra={'a': {'b': 1}})
 
     return jsonify({
         'message': 'ok',
-        'code': 11111
+        'code': 0,
+        'data': task_id
     })

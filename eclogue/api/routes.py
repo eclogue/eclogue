@@ -11,7 +11,7 @@ from eclogue.api.user import search_user, get_user_info, bind_role, \
 import eclogue.api.inventory as cmdb
 from eclogue.api.credential import credentials, add_credential, update_credential
 from eclogue.api.job import get_jobs, get_job, add_jobs, check_job, \
-    job_detail, runner_doc, runner_module, add_adhoc, test_job
+    job_detail, runner_doc, runner_module, add_adhoc
 from eclogue.api.console import run_task
 import eclogue.api.team as team
 import eclogue.api.notification as notification
@@ -23,6 +23,7 @@ import eclogue.api.task as task
 import eclogue.api.book as book
 import eclogue.api.playbook as playbook
 import eclogue.api.app as application
+import eclogue.api.job as job
 
 routes = [
     ('/login', Auth.login, ['POST']),
@@ -112,7 +113,7 @@ routes = [
     ('/notifications', notification.get_notify, ['get']),
     ('/notifications/read', notification.mark_read, ['put']),
     # ('/docker', docker.test_docker, ['get']),
-    ('/test/git', test_job, ['get']),
+    ('/webhooks/job', job.job_webhook, ['post']),
     ('/logs', log.log_query, ['get']),
     ('/test', application.test_docker, ['get']),
 ]

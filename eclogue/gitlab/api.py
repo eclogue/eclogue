@@ -1,7 +1,7 @@
 import os
-import gitlab
 import zipfile
 
+from gitlab import Gitlab
 from eclogue.config import config
 from eclogue.lib.workspace import Workspace
 
@@ -16,11 +16,15 @@ class GitlabApi(object):
 
         base_url = self._config.get('base_url')
         token = self._config.get('token')
-        self._gitlab = gitlab.Gitlab(base_url, private_token=token)
+        self._gitlab = Gitlab(base_url, private_token=token)
 
     @property
     def gitlab(self):
         return self._gitlab
+
+    @property
+    def config(self):
+        return self._config
 
     @property
     def projects(self):
@@ -67,7 +71,9 @@ class GitlabApi(object):
 
         return True
 
-    def install(self, project_id, job_id, workspace='job'):
+    def install(self, workspace='job'):
+        project_id = self.config.get('project_id')
+        job_id = self.config.get('job_id')
         if workspace == 'job':
             home_path = self.job_space(project_id)
         else:

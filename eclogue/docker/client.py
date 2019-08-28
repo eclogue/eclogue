@@ -16,6 +16,10 @@ class Docker(object):
         self.client = Docker.get_client(self.options.get('base_url'))
         self.container = None
 
+    @property
+    def config(self):
+        return self._config
+
     @staticmethod
     def get_image(image):
         image = image.split(':')
@@ -71,13 +75,14 @@ class Docker(object):
 
         return os.path.join(prefix, 'docker', name)
 
-    def install(self, working_dir, workspace='job'):
+    def install(self, workspace='job'):
         app_path = self.image.replace(':', '/')
         if workspace == 'job':
             home_path = self.job_space(app_path)
         else:
             home_path = self.build_space(app_path)
 
+        working_dir = self.config.get('working_dir')
         Workspace.mkdir(home_path)
         filename = md5(str(uuid.uuid4()))
         store = home_path + '/' + filename + '.tar'
@@ -88,3 +93,6 @@ class Docker(object):
 
             extract(store, home_path)
             os.unlink(store)
+            # @todo store to mongodb gridfs
+            if self.config.get('task_id'):
+                pass

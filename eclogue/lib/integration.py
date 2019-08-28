@@ -80,10 +80,10 @@ class Integration(object):
         else:
             return True
 
-    def install(self, *args, **kwargs):
+    def install(self):
         app = self.app
         if hasattr(app, 'install'):
-            return app.install(*args, **kwargs)
+            return app.install()
 
     @staticmethod
     def get_app(app_type, app_params):
