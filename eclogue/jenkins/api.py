@@ -88,7 +88,6 @@ class JenkinsApi(object):
 
     def save_artifacts(self, save_dir, job_name, build_id=None, strict_validation=False, artifact_name=None):
         is_cache = self.config.get('cache')
-        print('>>>>>>>>>>>>>>>>>>+', is_cache)
         if is_cache:
             cache_files = db.collection('artifacts').find({
                 'job_name': job_name,
@@ -128,7 +127,6 @@ class JenkinsApi(object):
                 with open(path, mode='rb') as stream:
 
                     file_id = db.save_file(filename=filename, fileobj=stream)
-                    print('<<<<<<<<<file_id', file_id)
                     store_info = {
                         'app_type': 'jenkins',
                         'file_id': file_id,

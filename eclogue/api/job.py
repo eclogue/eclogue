@@ -232,7 +232,7 @@ def add_jobs():
             'code': 104001,
         }), 400
 
-    token = str(base64.b64encode(bytes(current_request_id)))
+    token = str(base64.b64encode(bytes(current_request_id(), 'utf8')), 'utf8')
     new_record = {
         'name': name,
         'token': token,
@@ -310,6 +310,7 @@ def check_job(_id):
         })
 
 
+@jwt_required
 def job_detail(_id):
     query = request.args
     record = db.collection('jobs').find_one({'_id': ObjectId(_id)})
@@ -342,12 +343,13 @@ def job_detail(_id):
     size = int(query.get('pageSize', 20))
     offset = (page - 1) * size
     tasks = get_tasks_by_job(_id, offset=offset, limit=size)
-
+    # print(list(tasks))
     return jsonify({
         'message': 'ok',
         'code': 0,
         'data': {
             'job': record,
+            # 'tasks': [],
             'tasks': list(tasks),
         }
     })
@@ -539,6 +541,12 @@ def job_webhook():
         }), 400
 
     record = Job().collection.find_one({'token': token})
+    if not record:
+        return jsonify({
+            'message': 'illegal token',
+            'code': 104010
+        }), 401
+
     tempate = record.get('template')
     app_id = tempate.get('app')
     app_info = db.collection('apps').find_one({'_id': ObjectId(app_id)})
@@ -551,13 +559,16 @@ def job_webhook():
     app_type = app_info.get('type')
     app_params = app_info.get('params')
     income = app_params.get('income')
-    income_params = dict()
+    income_params = {'cache': True}
     if income:
         print('bbbbbefore', income)
         income = Template(income)
         tpl = income.render(**payload)
         print('tttt-------+', tpl, payload)
-        income_params = yaml.safe_load(tpl)
+        tpl = yaml.safe_load(tpl)
+        if tpl:
+            income_params.update(tpl)
+
     print('iiiiiiiii=======+>', income_params)
     task_id = run_job(str(record.get('_id')), **income_params)
 

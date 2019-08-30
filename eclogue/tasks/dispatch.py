@@ -21,19 +21,19 @@ tiger = TaskTiger(connection=redis_client, config={
 }, setup_structlog=False)
 
 
-def run_job(job_id, **kwargs):
+def run_job(_id, **kwargs):
     db = Mongo()
-    record = db.collection('jobs').find_one({'_id': ObjectId(job_id)})
+    record = db.collection('jobs').find_one({'_id': ObjectId(_id)})
     if not record:
         return False
 
-    request_id = str(current_request_id)
-    params = (job_id, request_id)
-    queue_name = get_queue_by_job(job_id)
+    request_id = str(current_request_id())
+    params = (_id, request_id)
+    queue_name = get_queue_by_job(_id)
     task = Task(tiger, func=run_task, args=params, kwargs=kwargs, queue=queue_name,
-                unique=False, lock=True, lock_key=job_id)
+                unique=False, lock=True, lock_key=_id)
     task_record = {
-        'job_id': job_id,
+        'job_id': _id,
         'state': QUEUED,
         'queue': queue_name,
         'result': '',
@@ -52,7 +52,7 @@ def import_galaxy():
     pass
 
 
-def run_task(job_id, request_id, **kwargs):
+def run_task(_id, request_id, **kwargs):
     db = Mongo()
     task_record = db.collection('tasks').find_one({'request_id': request_id})
     if not task_record:
@@ -60,7 +60,7 @@ def run_task(job_id, request_id, **kwargs):
     task_id = task_record.get('_id')
     try:
         print('????????????', 1)
-        record = db.collection('jobs').find_one({'_id': ObjectId(job_id)})
+        record = db.collection('jobs').find_one({'_id': ObjectId(_id)})
         template = record.get('template')
         body = {
             'template': record.get('template'),
@@ -69,15 +69,12 @@ def run_task(job_id, request_id, **kwargs):
 
         payload = load_ansible_playbook(body)
         if payload.get('message') is not 'ok':
-            print('????????????', 2)
             raise Exception('load ansible options error: ' + payload.get('message'))
 
         app_id = template.get('app')
         if app_id:
-            print('????????????', 3)
             app_info = db.collection('apps').find_one({'_id': ObjectId(app_id)})
             if not app_info:
-                print('????????????', 4)
                 raise Exception('app not found: %s'.format(app_id))
 
             app_type = app_info.get('type')
@@ -87,7 +84,6 @@ def run_task(job_id, request_id, **kwargs):
 
             integration = Integration(app_type, app_params)
             integration.install()
-            print('????????????', 5)
 
         data = payload.get('data')
         options = data.get('options')
@@ -111,14 +107,43 @@ def run_task(job_id, request_id, **kwargs):
             options['private-key'] = fd.name
             options['tags'] = ['uptime']
             extra = {
-                'request_id': request_id,
                 'inventory': data.get('inventory'),
-                'options': options
             }
-            logger.info('ansible-playbook run with args', extra=extra)
+            logger.info('ansible-playbook run with inventory:', extra=extra)
             play = PlayBookRunner(data.get('inventory'), options)
             play.run(entry)
             result = play.get_result()
+            dumper = play.dump_result()
+            # for hostname, values in dumper.items():
+            #     changed = values.get('changed')
+            #     state = values.get('state')
+            #     rc = values.get('rc')
+            #     stderr = values.get('stderr')
+            #     stdout = values.get('stdout')
+            #     start = values.get('start')
+            #     end = values.get('end')
+            #     logger.info('')
+            # logger.info('run result:' + dumper)
+            for hostname, values in dumper.items():
+                changed = values.get('changed')
+                state = values.get('state')
+                rc = values.get('rc', -1)
+                stderr = values.get('stderr')
+                stdout = values.get('stdout')
+                start = values.get('start')
+                end = values.get('end')
+                logs = []
+                title = '[{state}] | {hostname} | (changed) {changed} | {rc} | {start} | {end} |>>'
+                title = title.format(state=state, hostname=hostname, changed=changed, rc=rc, start=start, end=end)
+                logs.append(title)
+                if stdout:
+                    logs.append('   {}'.format(stdout))
+
+                if stderr:
+                    logs.append('    {}'.format(stderr))
+
+                logger.info('\n'.join(logs))
+
             update = {
                 '$set': {
                     'result': result,

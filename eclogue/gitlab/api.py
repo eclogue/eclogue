@@ -1,9 +1,12 @@
 import os
 import zipfile
+import time
 
 from gitlab import Gitlab
 from eclogue.config import config
+from eclogue.model import db
 from eclogue.lib.workspace import Workspace
+from eclogue.utils import extract, mkdir
 
 
 class GitlabApi(object):
@@ -54,6 +57,32 @@ class GitlabApi(object):
     def dowload_artifact(self, project_id, job_id, store):
         # project_id = '13539397'
         # job_id = '261939258'
+        is_cache = self.config.get('cache')
+        print('cccccccccccc###########3', is_cache)
+        save_dir = os.path.dirname(store)
+        if is_cache:
+            cache_files = db.collection('artifacts').find({
+                'project_id': project_id,
+                'job_id': job_id,
+                'app_type': 'gitlab'
+            })
+            cache_files = list(cache_files)
+            print('xxxx', cache_files)
+            if cache_files:
+                for record in cache_files:
+                    file_id = record.get('file_id')
+                    if not file_id:
+                        continue
+
+                    print(save_dir, record['filename'])
+                    filename = os.path.join(save_dir, record['filename'])
+                    with open(filename, 'wb') as stream:
+                        db.fs_bucket().download_to_stream(file_id, stream)
+                        extract(filename, save_dir)
+                        os.unlink(filename)
+
+                return True
+
         project = self.projects.get(project_id)
         # pipeline = project.jobs.get(job_id)
         jobs = project.jobs
@@ -61,11 +90,24 @@ class GitlabApi(object):
         if job.status != 'success':
             raise Exception('gitlab job status must be success, %s got'.format(job.status))
 
-        print(job.status)
-        with open(store, "wb") as f:
+        with open(store, 'wb') as f:
             job.artifacts(streamed=True, action=f.write)
 
-        with zipfile.ZipFile(store, "r") as zip_ref:
+        if is_cache:
+            with open(store, mode='rb') as fd:
+                name = os.path.basename(store)
+                file_id = db.save_file(filename=name, fileobj=fd)
+                store_info = {
+                    'app_type': 'jenkins',
+                    'file_id': file_id,
+                    'project_id': project_id,
+                    'job_id': job_id,
+                    'filename': name,
+                    'created_at': time.time()
+                }
+                db.collection('artifacts').insert_one(store_info)
+
+        with zipfile.ZipFile(store, 'r') as zip_ref:
             zip_ref.extractall(os.path.dirname(store))
             os.unlink(store)
 

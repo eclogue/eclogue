@@ -257,6 +257,9 @@ class PlayBookRunner(AdHocRunner):
 
         return self.results_raw
 
+    def dump_result(self):
+        return self.callback.dumper
+
     def _play_prereqs(self, options):
 
         loader = DataLoader()
@@ -288,24 +291,38 @@ class ResultsCollector(CallbackBase):
         self.host_ok = {}
         self.host_unreachable = {}
         self.host_failed = {}
+        self.dumper = {}
         # self.formatter = FormatCollector()
 
     def v2_runner_on_unreachable(self, result):
         super(ResultsCollector, self).v2_runner_on_unreachable(result)
-        self.host_unreachable[result._host.get_name()] = result
+        hostname = result._host.get_name()
+        self.host_unreachable[hostname] = result
         # self.formatter.v2_runner_on_unreachable(result)
+        dumper = self.get_result(result)
+        dumper.update({'state': 'unreachable'})
+        self.dumper[hostname] = dumper
 
     def v2_runner_on_ok(self, result, *args, **kwargs):
         super(ResultsCollector, self).v2_runner_on_ok(result)
-        self.host_ok[result._host.get_name()] = result
+        hostname = result._host.get_name()
+        self.host_ok[hostname] = result
+        dumper = self.get_result(result)
+        dumper.update({'state': 'success'})
+        print('>>>>>>>>>>>>>>>>>', dumper)
+        self.dumper[hostname] = dumper
         # self.formatter.v2_runner_on_ok(result)
 
     def v2_runner_on_failed(self, result, *args, **kwargs):
         super(ResultsCollector, self).v2_runner_on_failed(result)
-        self.host_failed[result._host.get_name()] = result
+        hostname = result._host.get_name()
+        self.host_failed[hostname] = result
+        dumper = self.get_result(result)
+        dumper.update({'state': 'failed'})
+        self.dumper[hostname] = dumper
         # self.formatter.v2_runner_on_failed(result)
 
-    def get_result(self):
-        return self._dump_results()
+    def get_result(self, result):
+        return json.loads(self._dump_results(result._result))
 
 

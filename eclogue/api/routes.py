@@ -10,8 +10,6 @@ from eclogue.api.user import search_user, get_user_info, bind_role, \
     add_user, get_current_roles, get_profile, bind_hosts
 import eclogue.api.inventory as cmdb
 from eclogue.api.credential import credentials, add_credential, update_credential
-from eclogue.api.job import get_jobs, get_job, add_jobs, check_job, \
-    job_detail, runner_doc, runner_module, add_adhoc
 from eclogue.api.console import run_task
 import eclogue.api.team as team
 import eclogue.api.notification as notification
@@ -44,6 +42,7 @@ routes = [
     ('/tasks', task.monitor, ['get']),
     ('/tasks/queue', task.get_queue_tasks, ['get']),
     ('/tasks/history', task.get_task_history, ['get']),
+    ('/tasks/<_id>/logs', task.task_logs, ['get']),
     ('/tasks/<_id>/retry', task.retry, ['post']),
     ('/tasks/<_id>/<state>/cancel', task.cancel, ['delete']),
     ('/inventory/dumper', dump_inventory, ['GET', 'POST']),
@@ -77,13 +76,13 @@ routes = [
     ('/devices', cmdb.get_devices, ['GET']),
     ('/devices/<_id>', get_device_info, ['GET']),
     ('/jobs/preview/inventory', cmdb.preview_inventory, ['post']),
-    ('/jobs', get_jobs, ['get']),
-    ('/jobs', add_jobs, ['post']),
-    ('/jobs/<_id>', get_job, ['get']),
-    ('/jobs/<_id>', check_job, ['post']),
-    ('/jobs/<_id>/tasks', job_detail, ['get']),
-    ('/jobs/runner/doc', runner_doc, ['get']),
-    ('/jobs/runner/modules', runner_module, ['get']),
+    ('/jobs', job.get_jobs, ['get']),
+    ('/jobs', job.add_jobs, ['post']),
+    ('/jobs/<_id>', job.get_job, ['get']),
+    ('/jobs/<_id>', job.check_job, ['post']),
+    ('/jobs/<_id>/tasks', job.job_detail, ['get']),
+    ('/jobs/runner/doc', job.runner_doc, ['get']),
+    ('/jobs/runner/modules', job.runner_module, ['get']),
     ('/credentials', credentials, ['get']),
     ('/credentials', add_credential, ['post']),
     ('/credentials/_id', update_credential, ['put']),

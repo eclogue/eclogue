@@ -1,3 +1,5 @@
+import yaml
+import json
 from bson import ObjectId
 from flask import jsonify, request
 from eclogue.model import db
@@ -8,6 +10,7 @@ from eclogue.middleware import jwt_required, login_user
 from eclogue.models.job import Job
 
 
+@jwt_required
 def monitor():
     """
     :return: json response
@@ -44,6 +47,7 @@ def monitor():
     })
 
 
+@jwt_required
 def get_job_tasks(_id):
     query = request.args
     job = db.collection('tasks').find_one({'_id': ObjectId(_id)})
@@ -79,6 +83,7 @@ def get_job_tasks(_id):
     })
 
 
+@jwt_required
 def get_queue_tasks():
     query = request.args
     queue = query.get('queue')
@@ -153,6 +158,7 @@ def get_task_history():
     })
 
 
+@jwt_required
 def retry(_id, state):
     record = db.collection('tasks').find_one({'_id': ObjectId(_id)})
     if not record:
@@ -172,6 +178,7 @@ def retry(_id, state):
     })
 
 
+@jwt_required
 def cancel(_id, state):
     record = db.collection('tasks').find_one({'_id': ObjectId(_id)})
     if not record:
@@ -193,3 +200,48 @@ def cancel(_id, state):
 
 def pause_queue():
     pass
+
+
+def task_logs(_id):
+    if not ObjectId.is_valid(_id):
+        return jsonify({
+            'message': 'invalid id',
+            'code': 104000
+        }), 400
+
+    query = request.args
+    page = int(query.get('page', 1))
+    limit = 1000
+    skip = (page - 1) * limit
+    obj_id = ObjectId(_id)
+    print(obj_id)
+    record = db.collection('tasks').find_one({'_id': obj_id})
+    if not record:
+        return jsonify({
+            'message': 'record not found',
+            'code': 104040
+        }), 404
+    request_id = record.get('request_id')
+    logs = db.collection('logs').find({'request_id': request_id}, skip=skip, limit=limit)
+    total = logs.count()
+    records = []
+    for log in logs:
+
+        hostname = log.get('hostname')
+        level = log.get('level')
+        message = log.get('message')
+        timestamp = log.get('timestamp')
+        line_format = '{0}[{1}] \n   {2} [{3}] \n'.format(hostname, level, message, timestamp)
+        records.append(line_format)
+
+    return jsonify({
+        'message': 'ok',
+        'code': 0,
+        'data': {
+            'list': records,
+            'total': total,
+            'page': page,
+            'pageSize': limit,
+            'state': record.get('state')
+        }
+    })

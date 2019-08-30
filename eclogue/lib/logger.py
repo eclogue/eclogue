@@ -99,4 +99,3 @@ class MongoHandler(logging.Handler):
 
 
 logger = get_logger()
-# logger.error('fffffuck')
