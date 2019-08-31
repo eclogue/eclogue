@@ -1,6 +1,6 @@
 import time
 from bson import ObjectId
-from flask import request, jsonify
+from flask import request, jsonify, current_app
 from eclogue.model import db
 from eclogue.middleware import jwt_required, login_user
 from eclogue.lib.integration import Integration
@@ -232,13 +232,15 @@ def update_app(_id):
 
 
 def test_docker():
-    client = Docker({
-        'base_url': None,
-        'image': 'alpine:latest',
-    })
-    # result = client.run(command='pwd', working_dir='/usr/lib', detach=False)
-    # print(result)
-    client.install('/usr/lib')
+    # print(current_app.logger.handlers)
+    logger.info('aaaatest23412288886666')
+    # client = Docker({
+    #     'base_url': None,
+    #     'image': 'alpine:latest',
+    # })
+    # # result = client.run(command='pwd', working_dir='/usr/lib', detach=False)
+    # # print(result)
+    # client.install('/usr/lib')
 
     return jsonify({
         'message': 'ok'

@@ -1,3 +1,4 @@
+import json
 from time import time
 from bson import ObjectId
 import uuid
@@ -53,13 +54,14 @@ def import_galaxy():
 
 
 def run_task(_id, request_id, **kwargs):
+    extra = {'request_id': request_id}
     db = Mongo()
     task_record = db.collection('tasks').find_one({'request_id': request_id})
     if not task_record:
         return False
+
     task_id = task_record.get('_id')
     try:
-        print('????????????', 1)
         record = db.collection('jobs').find_one({'_id': ObjectId(_id)})
         template = record.get('template')
         body = {
@@ -91,7 +93,7 @@ def run_task(_id, request_id, **kwargs):
         wk = Workspace()
         res = wk.load_book_from_db(name=data.get('book_name'), roles=data.get('roles'))
         if not res:
-            raise Exception('install playbook failed, book name: %s'.format(data.get('book_name')))
+            raise Exception('install playbook failed, book name: {}'.format(data.get('book_name')))
 
         entry = wk.get_book_entry(data.get('book_name'), data.get('entry'))
         with NamedTemporaryFile('w+t', delete=False) as fd:
@@ -106,24 +108,15 @@ def run_task(_id, request_id, **kwargs):
             fd.seek(0)
             options['private-key'] = fd.name
             options['tags'] = ['uptime']
-            extra = {
-                'inventory': data.get('inventory'),
-            }
-            logger.info('ansible-playbook run with inventory:', extra=extra)
+            # report = {
+            #     'inventory': data.get('inventory'),
+            #     'request_id': request_id,
+            # }
+            # logger.info('ansible-playbook run with inventory:\n' + json.dumps(data.get('inventory')), extra=report)
             play = PlayBookRunner(data.get('inventory'), options)
             play.run(entry)
             result = play.get_result()
             dumper = play.dump_result()
-            # for hostname, values in dumper.items():
-            #     changed = values.get('changed')
-            #     state = values.get('state')
-            #     rc = values.get('rc')
-            #     stderr = values.get('stderr')
-            #     stdout = values.get('stdout')
-            #     start = values.get('start')
-            #     end = values.get('end')
-            #     logger.info('')
-            # logger.info('run result:' + dumper)
             for hostname, values in dumper.items():
                 changed = values.get('changed')
                 state = values.get('state')
@@ -142,7 +135,7 @@ def run_task(_id, request_id, **kwargs):
                 if stderr:
                     logs.append('    {}'.format(stderr))
 
-                logger.info('\n'.join(logs))
+                logger.info('\n'.join(logs), extra=extra)
 
             update = {
                 '$set': {
@@ -160,7 +153,7 @@ def run_task(_id, request_id, **kwargs):
 
         }
         db.collection('tasks').update_one({'_id': task_id}, update=update)
-        logger.error('run task with exception: %s'.format(str(e)), extra={'request_id': request_id})
+        logger.error('run task with exception: %s'.format(str(e)), extra=extra)
 
         raise e
 

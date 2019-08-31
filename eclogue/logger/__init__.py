@@ -11,6 +11,19 @@ from eclogue.model import db
 
 
 def get_logger(name='eclogue'):
+    # path = config.log.get(name)
+    # filename = os.path.join(path, name + '.log')
+    # log_obj = logging.getLogger(name)
+    # log_obj.setLevel(logging.DEBUG)
+    # file_handler = logging.FileHandler(filename=filename)
+    # file_handler.setLevel(logging.INFO)
+    # log_obj.addHandler(file_handler)
+    # mongo_handler = MongoHandler()
+    # mongo_handler.addFilter(RequestIDLogFilter())
+    # mongo_handler.setLevel(logging.INFO)
+    # log_obj.addHandler(mongo_handler)
+    # cfg = config.logging
+    # logging.config.dictConfig(cfg)
     log_obj = logging.getLogger(name)
 
     return log_obj
@@ -41,7 +54,7 @@ class MongoFormatter(logging.Formatter):
             'threadName': record.threadName,
             'message': message,
             'loggerName': record.name,
-            'fileName': os.path.relpath(record.pathname, config.home_path),
+            'fileName': record.pathname,
             'module': record.module,
             'method': record.funcName,
             'lineNumber': record.lineno,
@@ -79,8 +92,11 @@ class MongoHandler(logging.Handler):
         try:
             data = self.format(record)
             db.collection('logs').insert_one(data)
-        except Exception:
+            print(data)
+        except Exception as e:
+            print(e)
             self.handleError(record)
 
 
 logger = get_logger()
+formatter = MongoFormatter()

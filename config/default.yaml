@@ -6,6 +6,55 @@ home_path: {{ home_path }}
 log:
   eclogue: {{ home_path }}/storage/logs
   ansible: {{ home_path }}/storage/logs
+logging:
+  version: 1
+  loggers:
+    eclogue:
+      level: DEBUG
+      handlers:
+        - file
+        - console
+        - mongo
+    console:
+      level: DEBUG
+      handlers:
+        - console
+        - consoleError
+  handlers:
+    mongo:
+      (): eclogue.lib.logger.MongoHandler
+      level: INFO
+      formatter: mongo
+      filters:
+        - requestId
+    console:
+      class: logging.StreamHandler
+      level: DEBUG
+      formatter: simple
+      stream: ext://sys.stdout
+    consoleError:
+      class: logging.StreamHandler
+      level: ERROR
+      formatter: simple
+      stream: ext://sys.stderr
+    file:
+      class: logging.handlers.RotatingFileHandler
+      filename: {{ home_path }}/storage/logs/eclogue.log
+      level: DEBUG
+#      progarate: yes
+  root:
+    level: DEBUG
+    handlers:
+      - console
+      - consoleError
+  formatters:
+    simple:
+      formate: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    mongo:
+      (): eclogue.lib.logger.MongoFormatter
+  filters:
+    requestId:
+      (): flask_log_request_id.RequestIDLogFilter
 workspace:
   tmp: {{ home_path }}/storage/tmp
   playbook: {{ home_path }}/storage/tmp

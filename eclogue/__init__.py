@@ -1,13 +1,19 @@
 import json
 import datetime
-import importlib
-import sys
+import logging.config
+
 from flask import Flask
+from bson import ObjectId
 from flask_log_request_id import RequestID
 from eclogue.config import config
 from eclogue.middleware import Middleware
-from bson.objectid import ObjectId
-sys.modules['ansible.utils.display'] = importlib.import_module('eclogue.ansible.display')
+# sys.modules['ansible.utils.display'] = importlib.import_module('eclogue.ansible.display')
+from eclogue.api import router
+from eclogue.api.routes import routes
+
+
+cfg = config.logging
+logging.config.dictConfig(cfg)
 
 
 class JSONEncoder(json.JSONEncoder):
@@ -21,8 +27,7 @@ class JSONEncoder(json.JSONEncoder):
 
 
 def create_app():
-    from eclogue.api import router
-    from eclogue.api.routes import routes
+    # dictConfig(config.logging)
     instance = Flask(__name__)
     instance.json_encoder = JSONEncoder
     instance.config.from_object(config)
@@ -34,3 +39,5 @@ def create_app():
     # api.add_resource(Menus, '/menus')
 
     return instance
+
+
