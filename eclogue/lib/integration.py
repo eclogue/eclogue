@@ -2,7 +2,7 @@ from eclogue.jenkins.api import JenkinsApi
 from eclogue.gitlab.api import GitlabApi
 from eclogue.vcs.versioncontrol import GitDownload
 from eclogue.docker.client import Docker
-from eclogue.lib.logger import logger
+from eclogue.lib.logger import get_logger
 
 
 class Integration(object):
@@ -11,6 +11,7 @@ class Integration(object):
         self.app_type = app_type
         self.app_params = app_params
         self.app = self.get_app(app_type, app_params)
+        self.logger = get_logger('console')
 
     def _check_jenkins_params(self, params):
         job_name = params.get('job_name')
@@ -63,7 +64,7 @@ class Integration(object):
 
             return True
         except Exception as e:
-            logger.error('check git params error: ' + str(e))
+            self.logger.error('check git params error: ' + str(e))
             return False
 
     def check_app_params(self):
@@ -83,6 +84,7 @@ class Integration(object):
     def install(self):
         app = self.app
         if hasattr(app, 'install'):
+            self.logger.info('start to install {} app'.format(self.app_type))
             return app.install()
 
     @staticmethod

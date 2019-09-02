@@ -39,7 +39,6 @@ class Vault(object):
 
     def __init__(self, options):
         self.options = get_default_options()
-        print('opions', options)
         self.get_options(options)
         self.editor = None
         self.encrypt_secret = None

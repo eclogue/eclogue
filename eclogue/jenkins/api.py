@@ -8,7 +8,7 @@ from jenkinsapi.custom_exceptions import UnknownJob, NotFound
 from eclogue.config import config
 from eclogue.utils import extract, mkdir
 from eclogue.model import db
-
+from eclogue.lib.logger import get_logger
 
 class JenkinsApi(object):
     def __init__(self, options=None):
@@ -18,6 +18,7 @@ class JenkinsApi(object):
         self._jenkins = Jenkins(baseurl=options.get('base_url'),
                               username=options.get('username'),
                               password=options.get('password'))
+        self.logger = get_logger('console')
 
     @property
     def jenkins(self):
@@ -29,16 +30,13 @@ class JenkinsApi(object):
 
     def get_builds(self, job_name):
         job = self.jenkins.get_job(job_name)
-        artifacts = job.get_last_stable_build().get_artifacts()
-        for artifact in artifacts:
-            save_dir = self.job_space(job_name)
-            artifact.save_to_dir(save_dir)
-        # last_build = job.get_last_stable_build()
-        # print(last_build.splite(' #'))
+        last_build = job.get_last_stable_build()
+        print(last_build.splite(' #'))
 
-        # mjn = build.get_master_job_name()
+        mjn = last_build.get_master_job_name()
         # search_artifact_by_regexp(re.compile('(.*?).tar.gz'))
-        # print(mjn)
+
+        print(mjn)
 
     def job_space(self, name):
         job_space = self._config.get('job_space')
@@ -70,7 +68,6 @@ class JenkinsApi(object):
         return build.get_artifacts()
 
     def install(self, workspace='job'):
-        print('install-----0')
         job_name = self.config.get('job_name')
         build_id = self.config.get('build_id')
         if not job_name or not build_id:
@@ -81,13 +78,15 @@ class JenkinsApi(object):
         else:
             save_dir = self.build_space(job_name)
 
+        self.logger.info('start install jenkins app')
         mkdir(save_dir)
         self.save_artifacts(save_dir, job_name, build_id=build_id)
-        print('install-----1')
+
         return save_dir
 
     def save_artifacts(self, save_dir, job_name, build_id=None, strict_validation=False, artifact_name=None):
         is_cache = self.config.get('cache')
+        self.logger.info('use cached:{}'.format(is_cache))
         if is_cache:
             cache_files = db.collection('artifacts').find({
                 'job_name': job_name,
@@ -101,7 +100,8 @@ class JenkinsApi(object):
                     if not file_id:
                         continue
 
-                    print(save_dir, record['filename'])
+                    msg = 'load file from cached, save_dir:{}, filename:{}'.format(save_dir, record['filename'])
+                    self.logger.info(msg)
                     filename = os.path.join(save_dir, record['filename'])
                     with open(filename, 'wb') as stream:
                         db.fs_bucket().download_to_stream(file_id, stream)
@@ -117,6 +117,9 @@ class JenkinsApi(object):
                 continue
 
             file_path = artifact.save_to_dir(save_dir, strict_validation)
+            msg = 'download artifacts from {}, save_dir:{}, filename:{}'
+            msg = msg.format(self.config.get('base_url'), save_dir, artifact.filename)
+            self.logger.info(msg)
             extract(file_path, save_dir)
             store_files.append({'filename': artifact.filename, 'path': file_path})
 

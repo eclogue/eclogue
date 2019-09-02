@@ -214,24 +214,23 @@ def task_logs(_id):
     limit = 1000
     skip = (page - 1) * limit
     obj_id = ObjectId(_id)
-    print(obj_id)
     record = db.collection('tasks').find_one({'_id': obj_id})
     if not record:
         return jsonify({
             'message': 'record not found',
             'code': 104040
         }), 404
-    request_id = record.get('request_id')
-    logs = db.collection('logs').find({'request_id': request_id}, skip=skip, limit=limit)
+
+    task_id = str(record.get('_id'))
+    logs = db.collection('logs').find({'task_id': task_id}, skip=skip, limit=limit)
     total = logs.count()
     records = []
     for log in logs:
-
         hostname = log.get('hostname')
         level = log.get('level')
         message = log.get('message')
         timestamp = log.get('timestamp')
-        line_format = '{0}[{1}] \n   {2} [{3}] \n'.format(hostname, level, message, timestamp)
+        line_format = '{0}[{1}]{2}\n[{3}]\n'.format(timestamp, hostname, level, message)
         records.append(line_format)
 
     return jsonify({

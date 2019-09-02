@@ -4,6 +4,8 @@ import time
 import configparser
 import yaml
 import re
+import sys
+
 from eclogue.model import db
 from bson import ObjectId
 from eclogue.ansible.host import parser_inventory
@@ -11,7 +13,7 @@ from eclogue.ansible.vault import Vault
 from eclogue.config import config
 from eclogue.lib.integration import Integration
 from jinja2 import Template
-
+from eclogue.lib.logger import get_logger
 
 def ini_yaml(text):
     config = configparser.RawConfigParser(allow_no_value=True)
@@ -172,8 +174,13 @@ def load_ansible_playbook(payload):
 
     variables = extra.get('extraVars') or {}
     # variables.update({'node': inventory_record.get('limit')})
-    if type(variables) == dict:
+    print('fuck tttttttpppppppppppppp', type(variables), variables)
+    if type(variables) in [dict, list]:
         variables = yaml.safe_dump(variables)
+
+    print('xxx55555555555', type(variables))
+    # variables = variables.replace('\'', '"')
+
     app = template.get('app')
     if app:
         # @todo status=1
@@ -241,7 +248,7 @@ def load_ansible_playbook(payload):
     options['diff'] = template.get('diff', False)
     # options['vault'] = template.get('vault')
 
-    options['extra_vars'] = [extra_vars]
+    options['extra_vars'] = (json.dumps(extra_vars),)
 
     return {
         'message': 'ok',
@@ -259,6 +266,16 @@ def load_ansible_playbook(payload):
             'extra': extra,
         }
     }
+
+
+def _load_extra_vars(data):
+    print('xxxxxxxbbbbbbb', data)
+    extra_vars = []
+    for key, value in data.items():
+        extra_vars.append(key + '=' + str(value).replace('\'', '"'))
+
+    print(extra_vars)
+    return ' '.join(extra_vars)
 
 
 def load_inventory(content, group='all'):
@@ -373,7 +390,7 @@ def parse_cmdb_inventory(inventory):
                     'ansible_ssh_port': record.get('ansible_ssh_port', '22'),
                 }
         else:
-            group_name += '@node'
+            group_name += '_node'
             record = db.collection('machines').find_one({'_id': ObjectId(_id)})
             if record:
                 hosts[record['node_name']] = {

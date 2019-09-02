@@ -8,7 +8,9 @@ import random
 
 from eclogue.model import db
 from eclogue.config import config
+from eclogue.lib.logger import get_logger
 
+logger = get_logger('console')
 
 def collection_array(cursor):
     data = []
@@ -113,7 +115,7 @@ def gen_password():
 
 
 def extract(filename, target):
-    print('extract file::', filename, target)
+    logger.info('extract file, filename: {}, extract:{}'.format(filename, target))
     if not os.path.isfile(filename):
         raise Exception('try to extra illegal filename')
 
@@ -126,7 +128,7 @@ def extract(filename, target):
 
 
 def mkdir(path, mode=0o700):
-    print('mkdirrrrrrrrrrrrrr>>>>>>>', path)
+    logger.info('mkdir, path:{}'.format(path))
     if not path or os.path.exists(path):
         return []
 

@@ -13,14 +13,15 @@ class HostsManager(InventoryManager):
     # def __init__(self, loader, sources=None):
     #     super().__init__(loader=loader, sources=sources)
 
-    def _setup_inventory_plugins(self):
-        plugin = ContentInventoryPlugin()
-        self._inventory_plugins.append(plugin)
-        super()._setup_inventory_plugins()
+    def _fetch_inventory_plugins(self):
+        plugins = [ContentInventoryPlugin()]
+        plugins.extend(super()._fetch_inventory_plugins())
+        print('ggggggggggggssssssss', plugins)
+
+        return plugins
 
     def parse_sources(self, cache=False):
         ''' iterate over inventory sources and parse each one to populate it'''
-        self._setup_inventory_plugins()
         parsed = False
         # allow for multiple inventory parsing
         for source in self._sources:
@@ -39,5 +40,3 @@ class HostsManager(InventoryManager):
                 raise AnsibleError("No inventory was parsed, please check your configuration and options.")
             else:
                 print("No inventory was parsed, only implicit localhost is available")
-
-        self._inventory_plugins = []

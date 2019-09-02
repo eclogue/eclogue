@@ -5,7 +5,7 @@ from ansible.utils.display import Display as AnsibleDisplay
 from ansible.utils.color import stringc
 from eclogue.lib.logger import get_logger
 
-logger = get_logger('ansible')
+logger = get_logger('console')
 
 
 class Display(AnsibleDisplay):
@@ -18,7 +18,6 @@ class Display(AnsibleDisplay):
         Note: msg *must* be a unicode string to prevent UnicodeError tracebacks.
         function extend from ansible.utils.display
         """
-        print('fffuckkkkk-----------------------------------', msg)
         message = msg
         if color:
             message = stringc(msg, color)

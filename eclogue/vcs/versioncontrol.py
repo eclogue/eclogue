@@ -2,7 +2,7 @@ import os
 
 from git.cmd import Git
 from eclogue.lib.workspace import Workspace
-from eclogue.lib.logger import logger
+from eclogue.lib.logger import logger, get_logger
 from eclogue.config import config
 
 
@@ -11,7 +11,6 @@ class GitDownload(object):
     def __init__(self, options, build_type='job'):
         self.options = options
         repository, project, version = self.parse_repository()
-        print(repository, project, version)
         self.repository = repository
         self.project = project
         self.version = version
@@ -20,6 +19,7 @@ class GitDownload(object):
         self.workspace = self.cwd
         self.git = Git(working_dir=self.cwd)
         self.refs = None
+        self.logger = get_logger('console')
 
     def job_space(self, *args, **kwargs):
         prefix = config.workspace.get('job')
@@ -47,18 +47,18 @@ class GitDownload(object):
                 if result.startswith('.'):
                     return True
                 return False
-        except Exception as e:
-            print('eeeeeeeeeee', e)
+        except Exception:
             return False
 
     def run_command(self, command, *args, **kwargs):
         if type(command) == str:
             command = command.split(' ')
 
-        print('executing command=====>', command, self.git._working_dir)
+        self.logger.info(' '.join(command))
 
         result = self.git.execute(command, *args, **kwargs)
-        print('execute result:$$$$$$$$$$', result)
+        self.logger.info(result)
+
         return result
 
     def install(self):
@@ -76,14 +76,12 @@ class GitDownload(object):
                 cache_dir
             ]
 
-            result = Git().execute(command)
-            logger.debug(result)
+            Git().execute(command)
             command = ['git', 'remote', 'add', 'eclogue', self.repository]
+            self.logger.info('execute command:{}'.format(' '.join(command)))
             self.run_command(command)
-            logger.debug(result)
             command = ['git', 'fetch', 'eclogue']
-            result = self.run_command(command)
-            logger.debug(result)
+            self.run_command(command)
             command = ['git', 'remote', 'set-url', '--push', 'origin', url]
             self.run_command(command)
 
@@ -149,11 +147,6 @@ class GitDownload(object):
         if not sha:
             raise Exception('invalid sha')
 
-        # self.run_command(
-        #     ['fetch', '-q', self.repository, ],
-        #     cwd=dest,
-        # )
-
     def get_revision(self, rev=None):
         if rev is None:
             rev = 'HEAD'
@@ -196,14 +189,17 @@ class GitDownload(object):
     def sync_mirror(self):
         dirname = self.cache_dir + '/' + self.project
         if not self.is_cached():
-            Git().execute(['git', 'clone', '--mirror', self.repository, dirname])
             git = Git(dirname)
+            git.execute(['git', 'clone', '--mirror', self.repository, dirname])
             command = ['git', 'remote', 'add', 'eclogue', self.repository]
             git.execute(command)
+            self.logger.info(' '.join(command))
             command = ['git', 'remote', 'set-url', '--push', 'origin', self.repository]
             git.execute(command)
+            self.logger.info(' '.join(command))
             command = ['git', 'remote', 'update', '--prune', 'origin']
             git.execute(command)
+            self.logger.info(' '.join(command))
 
     def check(self):
         git = Git()

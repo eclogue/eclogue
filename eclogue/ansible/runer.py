@@ -1,4 +1,5 @@
 import json
+import yaml
 import ansible.constants as C
 from collections import namedtuple, Iterable
 from ansible.executor.playbook_executor import PlaybookExecutor
@@ -8,12 +9,13 @@ from ansible.errors import AnsibleError
 from ansible.plugins.callback import CallbackBase
 from ansible.vars.manager import VariableManager
 from ansible.parsing.dataloader import DataLoader
-from ansible.utils.vars import load_extra_vars, load_options_vars
+from ansible.utils.display import Display
 from ansible.playbook.play import Play
 from ansible.executor.task_queue_manager import TaskQueueManager
 from eclogue.ansible.inventory import HostsManager
-from eclogue.ansible.display import Display, logger
-
+from eclogue.ansible.display import logger
+from ansible import context
+from optparse import Values
 
 C.HOST_KEY_CHECKING = False
 display = Display()
@@ -83,39 +85,55 @@ def get_default_options(type):
         common_options.update(adhoc_options)
     Options = namedtuple('Options', sorted(common_options))
     options = Options(**common_options)
-    return options
+    return common_options
+
+
 
 
 class AdHocRunner(object):
     """
     This is a General object for parallel execute modules.
     """
-    def __init__(self, resource, options, name='adhoc'):
+    def __init__(self, resource, options, name='adhoc', callback=None):
         if type(resource) == dict:
             self.resource = json.dumps(resource)
         else:
             self.resource = resource
+        self.display = display
         self.inventory = None
         self.name = name
         self.variable_manager = None
         self.passwords = None
-        self.callback = ResultsCollector()
+        self.callback = None
         self.results_raw = {}
         self.loader = DataLoader()
-        self.options = self.get_options(options, name)
+        # self.options = self.get_options(options, name)
+        if options.get('extra_vars'):
+            print('ttttttttttype::', type(options.get('extra_vars')), options.get('extra_vars'))
+            # options['extra_vars'] = yaml.safe_dump(options.get('extra_vars'))
+
+        self.get_options(options, name)
+        print('xxxx', self.options)
+        context._init_global_context(Values(self.options))
         self.passwords = options.get('vault_pass') or {}
         self.inventory = HostsManager(loader=self.loader, sources=self.resource)
         self.variable_manager = VariableManager(loader=self.loader, inventory=self.inventory)
 
+        verbosity = options.get('verbosity')
+        print('vvvvvvv', verbosity)
+        display.verbosity = verbosity
+        print('xxxxxxxxxxxx', context.CLIARGS['extra_vars'])
+
     def get_options(self, options, name=None):
         self.options = get_default_options(name)
-        for k, v in options.items():
-            if not hasattr(self.options, k):
-                continue
-            item = {k: v}
-            self.options = self.options._replace(**item)
-
-        return self.options
+        self.options.update(options)
+        # for k, v in options.items():
+        #     if not hasattr(self.options, k):
+        #         continue
+        #     item = {k: v}
+        #     self.options = self.options._replace(**item)
+        #
+        # return self.options
 
     def run(self, pattern, tasks, gather_facts='no'):
         """
@@ -144,7 +162,6 @@ class AdHocRunner(object):
                 inventory=self.inventory,
                 variable_manager=self.variable_manager,
                 loader=self.loader,
-                options=self.options,
                 passwords=self.passwords,
                 stdout_callback=self.callback,
             )
@@ -200,10 +217,9 @@ class PlayBookRunner(AdHocRunner):
             inventory=inventory,
             variable_manager=variable_manager,
             loader=loader,
-            options=self.options,
             passwords=self.passwords
         )
-        if executor._tqm:
+        if executor._tqm and self.callback:
             executor._tqm._stdout_callback = self.callback
         try:
             results = executor.run()
@@ -211,7 +227,7 @@ class PlayBookRunner(AdHocRunner):
                 return self.callback
             for p in results:
                 for idx, play in enumerate(p['plays']):
-                    play_context = PlayContext(play=play, options=self.options)
+                    play_context = PlayContext(play=play)
                     all_vars = variable_manager.get_vars(play=play)
                     for block in play.compile():
                         block = block.filter_tagged_tasks(play_context, all_vars)
@@ -277,22 +293,21 @@ class PlayBookRunner(AdHocRunner):
             variable_manager.safe_basedir = True
 
         # load vars from cli options
-        variable_manager.extra_vars = load_extra_vars(loader=loader, options=options)
-        variable_manager.options_vars = load_options_vars(options, '2.7.4')
+        # variable_manager._extra_vars = load_extra_vars(loader=loader)
+        # variable_manager.options_vars = load_options_vars('2.8.4')
 
         return loader, inventory, variable_manager
 
 
 class ResultsCollector(CallbackBase):
 
-    def __init__(self):
-        super(ResultsCollector, self).__init__()
+    def __init__(self, display=None, options=None):
+        super(ResultsCollector, self).__init__(display=display, options=options)
         self._display = Display()
         self.host_ok = {}
         self.host_unreachable = {}
         self.host_failed = {}
         self.dumper = {}
-        # self.formatter = FormatCollector()
 
     def v2_runner_on_unreachable(self, result):
         super(ResultsCollector, self).v2_runner_on_unreachable(result)
@@ -309,7 +324,6 @@ class ResultsCollector(CallbackBase):
         self.host_ok[hostname] = result
         dumper = self.get_result(result)
         dumper.update({'state': 'success'})
-        print('>>>>>>>>>>>>>>>>>', dumper)
         self.dumper[hostname] = dumper
         # self.formatter.v2_runner_on_ok(result)
 

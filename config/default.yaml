@@ -13,13 +13,12 @@ logging:
       level: DEBUG
       handlers:
         - file
-        - console
         - mongo
     console:
       level: DEBUG
+      propagate: 0
       handlers:
         - console
-        - consoleError
   handlers:
     mongo:
       (): eclogue.lib.logger.MongoHandler
@@ -27,26 +26,13 @@ logging:
       formatter: mongo
       filters:
         - requestId
-    console:
-      class: logging.StreamHandler
-      level: DEBUG
-      formatter: simple
-      stream: ext://sys.stdout
-    consoleError:
-      class: logging.StreamHandler
-      level: ERROR
-      formatter: simple
-      stream: ext://sys.stderr
     file:
       class: logging.handlers.RotatingFileHandler
       filename: {{ home_path }}/storage/logs/eclogue.log
       level: DEBUG
-#      progarate: yes
-  root:
-    level: DEBUG
-    handlers:
-      - console
-      - consoleError
+    console:
+      (): eclogue.lib.logger.ConsoleHandler
+      level: DEBUG
   formatters:
     simple:
       formate: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'

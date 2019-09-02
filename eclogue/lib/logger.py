@@ -5,6 +5,7 @@ import socket
 import sys
 import os
 
+from io import StringIO
 from eclogue.config import config
 from eclogue.middleware import login_user
 from eclogue.model import db
@@ -24,7 +25,6 @@ class MongoFormatter(logging.Formatter):
     def format(self, record):
         """Formats LogRecord into python dictionary."""
         # Standard document
-        # pprint.pprint(record.__dict__)
         message = record.getMessage()
         hostname = socket.gethostname()
         if record.name == 'ansible':
@@ -46,7 +46,6 @@ class MongoFormatter(logging.Formatter):
             'method': record.funcName,
             'lineNumber': record.lineno,
             'processName': record.processName,
-            'currentUser': None if not login_user else login_user.get('username')
         }
 
         # Standard document decorated with exception info
@@ -65,6 +64,13 @@ class MongoFormatter(logging.Formatter):
             if contextual_extra:
                 for key in contextual_extra:
                     document[key] = record.__dict__[key]
+
+        user = None
+        if not document.get('currentUser') and login_user:
+            user = login_user.get('username')
+
+        document['currentUser'] = user
+
         return document
 
 
@@ -82,5 +88,24 @@ class MongoHandler(logging.Handler):
         except Exception:
             self.handleError(record)
 
+
+class ConsoleHandler(logging.StreamHandler):
+
+    def __init__(self, level=logging.DEBUG):
+        logging.Handler.__init__(self, level=level)
+        # self.formatter = MongoFormatter()
+        self.stream = None
+
+    def emit(self, record):
+        try:
+            msg = self.format(record)
+            stream = sys.stdout
+            self.setStream(stream=stream)
+            stream.write(msg + self.terminator)
+            self.flush()
+        except RecursionError:  # See issue 36272
+            raise
+        except Exception:
+            self.handleError(record)
 
 logger = get_logger()
