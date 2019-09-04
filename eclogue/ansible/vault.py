@@ -58,7 +58,6 @@ class Vault(object):
         encrypt_secret = match_encrypt_secret(vault_secrets,
                                               encrypt_vault_id=encrypt_vault_id)
 
-        print(encrypt_secret, encrypt_vault_id, vault_secrets)
         self.encrypt_vault_id = encrypt_secret[0]
         self.encrypt_secret = encrypt_secret[1]
         loader.set_vault_secrets(vault_secrets)

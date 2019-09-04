@@ -4,8 +4,9 @@ from ansible.inventory.manager import InventoryManager
 from ansible.utils.path import unfrackpath
 from ansible.errors import AnsibleError, AnsibleOptionsError, AnsibleParserError
 from eclogue.ansible.plugin import ContentInventoryPlugin
-from eclogue.lib.logger import logger
+from eclogue.lib.logger import get_logger
 
+logger = get_logger('console')
 
 
 class HostsManager(InventoryManager):
@@ -16,7 +17,6 @@ class HostsManager(InventoryManager):
     def _fetch_inventory_plugins(self):
         plugins = [ContentInventoryPlugin()]
         plugins.extend(super()._fetch_inventory_plugins())
-        print('ggggggggggggssssssss', plugins)
 
         return plugins
 
@@ -39,4 +39,4 @@ class HostsManager(InventoryManager):
             if C.INVENTORY_UNPARSED_IS_FAILED:
                 raise AnsibleError("No inventory was parsed, please check your configuration and options.")
             else:
-                print("No inventory was parsed, only implicit localhost is available")
+                logger.error("No inventory was parsed, only implicit localhost is available")

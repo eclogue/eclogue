@@ -1,5 +1,5 @@
 import json
-import yaml
+import os
 import ansible.constants as C
 from collections import namedtuple, Iterable
 from ansible.executor.playbook_executor import PlaybookExecutor
@@ -21,7 +21,7 @@ C.HOST_KEY_CHECKING = False
 display = Display()
 
 
-def get_default_options(type):
+def get_default_options(name):
     pb_options = {
         'listtasks': None,
         'start_at_task': None,
@@ -79,15 +79,12 @@ def get_default_options(type):
         'vault_pass': None,
         'limit': None,
     }
-    if type == 'playbook':
+    if name == 'playbook':
         common_options.update(pb_options)
     else:
         common_options.update(adhoc_options)
-    Options = namedtuple('Options', sorted(common_options))
-    options = Options(**common_options)
+
     return common_options
-
-
 
 
 class AdHocRunner(object):
@@ -104,25 +101,17 @@ class AdHocRunner(object):
         self.name = name
         self.variable_manager = None
         self.passwords = None
-        self.callback = None
+        self.callback = callback
         self.results_raw = {}
         self.loader = DataLoader()
-        # self.options = self.get_options(options, name)
-        if options.get('extra_vars'):
-            print('ttttttttttype::', type(options.get('extra_vars')), options.get('extra_vars'))
-            # options['extra_vars'] = yaml.safe_dump(options.get('extra_vars'))
-
+        self.options = None
         self.get_options(options, name)
-        print('xxxx', self.options)
         context._init_global_context(Values(self.options))
         self.passwords = options.get('vault_pass') or {}
         self.inventory = HostsManager(loader=self.loader, sources=self.resource)
         self.variable_manager = VariableManager(loader=self.loader, inventory=self.inventory)
-
         verbosity = options.get('verbosity')
-        print('vvvvvvv', verbosity)
         display.verbosity = verbosity
-        print('xxxxxxxxxxxx', context.CLIARGS['extra_vars'])
 
     def get_options(self, options, name=None):
         self.options = get_default_options(name)
@@ -199,8 +188,8 @@ class PlayBookRunner(AdHocRunner):
     This is a General object for parallel execute modules.
     """
 
-    def __init__(self, resource, options, name='playbook'):
-        super().__init__(resource, options=options, name=name)
+    def __init__(self, resource, options, name='playbook', callback=None):
+        super().__init__(resource, options=options, name=name, callback=callback)
         self.tasks = set()
         self.tags = set()
 
@@ -227,13 +216,20 @@ class PlayBookRunner(AdHocRunner):
                 return self.callback
             for p in results:
                 for idx, play in enumerate(p['plays']):
-                    play_context = PlayContext(play=play)
-                    all_vars = variable_manager.get_vars(play=play)
-                    for block in play.compile():
-                        block = block.filter_tagged_tasks(play_context, all_vars)
-                        if not block.has_tasks():
-                            continue
-                        self._process_block(block)
+                    if play._included_path is not None:
+                        loader.set_basedir(play._included_path)
+                    else:
+                        pb_dir = os.path.realpath(os.path.dirname(p['playbook']))
+                        loader.set_basedir(pb_dir)
+                    if self.options['listtags'] or self.options['listtasks']:
+                        pass
+
+                        all_vars = variable_manager.get_vars()
+                        for block in play.compile():
+                            block = block.filter_tagged_tasks(all_vars)
+                            if not block.has_tasks():
+                                continue
+                            self._process_block(block)
 
         except AnsibleError as e:
             executor._tqm.cleanup()
@@ -247,7 +243,7 @@ class PlayBookRunner(AdHocRunner):
             if task.action == 'meta':
                 continue
             self.tags.update(task.tags)
-            if self.options.listtasks:
+            if self.options.get('listtasks'):
                 if task.name:
                     self.tasks.add(task.name)
 

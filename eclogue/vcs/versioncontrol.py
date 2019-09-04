@@ -57,7 +57,7 @@ class GitDownload(object):
         self.logger.info(' '.join(command))
 
         result = self.git.execute(command, *args, **kwargs)
-        self.logger.info(result)
+        # self.logger.info(result)
 
         return result
 

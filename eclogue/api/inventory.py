@@ -43,45 +43,6 @@ def get_inventory():
     })
 
 
-def get_roles_by_book(_id):
-    book = db.collection('books').find_one(({
-        '_id': ObjectId(_id)
-    }))
-    if not book:
-        return jsonify({
-            'message': 'book not found',
-            'code': '104001',
-        }), 400
-
-    condition = {
-        'book_id': book['_id'],
-        'role': 'roles',
-        'is_dir': True
-    }
-
-    parent = db.collection('playbook').find_one(condition)
-    if not parent:
-        return jsonify({
-            'message': 'ok',
-            'code': 0,
-            'data': [],
-        })
-
-    where = {
-        'book_id': book['_id'],
-        'is_dir': True,
-        'parent': parent.get('path')
-    }
-    cursor = db.collection('playbook').find(where)
-    records = list(cursor)
-
-    return jsonify({
-        'message': 'ok',
-        'code': 0,
-        'data': records,
-    })
-
-
 @jwt_required
 def edit_inventory(_id):
     user = login_user

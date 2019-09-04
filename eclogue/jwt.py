@@ -52,7 +52,6 @@ class JWTAuth(object):
             claims.validate()
             return claims
         except JWTError:
-            print(JWTError)
             return False
 
 

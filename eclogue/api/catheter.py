@@ -1,6 +1,5 @@
 import time
 import datetime
-import pprint
 import os
 import pymongo
 
@@ -76,7 +75,6 @@ class Catheter(object):
         }
         collection = db.collection('playbook')
         record = collection.find_one({'_id': ObjectId(_id)})
-        print(record)
         if not record:
             return jsonify({
                 'message': 'record not found',

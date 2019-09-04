@@ -1,4 +1,3 @@
-import pprint
 import os
 from ansible.parsing.dataloader import DataLoader
 from ansible.inventory.data import InventoryData

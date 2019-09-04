@@ -37,7 +37,6 @@ def get_playbook(name):
         'is_dir': True,
         'role': 'role',
     }
-    print(filter)
     cursor = db.collection('playbook').find(filter)
     return jsonify({
         'message': 'ok',

@@ -7,7 +7,6 @@ class YamlLoader(DataLoader):
 
     def __init__(self):
         super().__init__()
-        print(self._basedir)
 
     def load_from_file(self, file_name, cache=True, unsafe=False):
         data = yaml.load(file_name)

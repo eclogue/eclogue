@@ -17,12 +17,9 @@ class ContentInventoryPlugin(InventoryModule):
         self._load_name = 'content_inventory'
 
     def verify_file(self, path):
-        pprint.pprint(path)
         if ContentInventoryPlugin.is_io(path):
             path = path.read()
         if isinstance(path, str):
-            for x in yaml.load_all(path):
-                print(x)
             return isinstance(yaml.load(path), dict)
         elif isinstance(path, dict):
             return True

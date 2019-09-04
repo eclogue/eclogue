@@ -11,7 +11,7 @@ from eclogue.middleware import jwt_required, login_user
 from eclogue.lib.helper import parse_cmdb_inventory, parse_file_inventory, load_ansible_playbook
 from eclogue.lib.inventory import get_inventory_from_cmdb, get_inventory_by_book
 from eclogue.lib.workspace import Workspace
-from eclogue.ansible.runer import PlayBookRunner, AdHocRunner
+from eclogue.ansible.runer import PlayBookRunner, AdHocRunner, ResultsCollector
 from eclogue.lib.credential import get_credential_content_by_id
 from eclogue.tasks.dispatch import run_job, get_tasks_by_job
 from eclogue.ansible.doc import AnsibleDoc
@@ -19,7 +19,6 @@ from eclogue.ansible.playbook import check_playbook
 from eclogue.models.job import Job
 from eclogue.lib.logger import logger
 from flask_log_request_id import current_request_id
-from eclogue.lib.integration import Integration
 from jinja2 import Template
 
 
@@ -200,6 +199,7 @@ def add_jobs():
     entry = wk.get_book_entry(data.get('book_name'),  data.get('entry'))
     dry_run = bool(is_check)
     options['check'] = dry_run
+    print('ooooooo', options)
     if dry_run:
         with NamedTemporaryFile('w+t', delete=True) as fd:
             key_text = get_credential_content_by_id(private_key, 'private_key')
@@ -208,11 +208,11 @@ def add_jobs():
                     'message': 'invalid private_key',
                     'code': 104033,
                 }), 401
+
             fd.write(key_text)
             fd.seek(0)
             options['private_key'] = fd.name
-            options['verbosity'] = 5
-            play = PlayBookRunner(data['inventory'], options)
+            play = PlayBookRunner(data['inventory'], options, callback=ResultsCollector())
             play.run(entry)
 
             return jsonify({
@@ -235,6 +235,7 @@ def add_jobs():
     token = str(base64.b64encode(bytes(current_request_id(), 'utf8')), 'utf8')
     new_record = {
         'name': name,
+        'job_type': 'playbook',
         'token': token,
         'description': data.get('description'),
         'book_id': data.get('book_id'),
@@ -246,13 +247,15 @@ def add_jobs():
         'created_at': int(time.time()),
         'updated_at': datetime.datetime.now().isoformat(),
     }
-    if record:
-        db.collection('jobs').update_one({'_id': record['_id']}, update={'$set': new_record})
-        logger.info('update job', {'record': record, 'changed': new_record})
-    else:
-        result = db.collection('jobs').insert_one(new_record)
-        new_record['_id'] = result.inserted_id
-        logger.info('add job', extra={'record': new_record})
+
+    print(new_record)
+    # if record:
+    #     db.collection('jobs').update_one({'_id': record['_id']}, update={'$set': new_record})
+    #     logger.info('update job', {'record': record, 'changed': new_record})
+    # else:
+    #     result = db.collection('jobs').insert_one(new_record)
+    #     new_record['_id'] = result.inserted_id
+    #     logger.info('add job', extra={'record': new_record})
 
     return jsonify({
         'message': 'ok',
@@ -561,15 +564,12 @@ def job_webhook():
     income = app_params.get('income')
     income_params = {'cache': True}
     if income:
-        print('bbbbbefore', income)
         income = Template(income)
         tpl = income.render(**payload)
-        print('tttt-------+', tpl, payload)
         tpl = yaml.safe_load(tpl)
         if tpl:
             income_params.update(tpl)
 
-    print('iiiiiiiii=======+>', income_params)
     task_id = run_job(str(record.get('_id')), **income_params)
 
     # if app_type == 'jenkins':

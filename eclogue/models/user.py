@@ -78,7 +78,6 @@ class User(Model):
                 group_ids.append(item.get('group_id'))
             else:
                 host_ids.append(item.get('host_id'))
-        print('[[[[[[[[[[[', host_ids, group_ids)
         data = {}
         if group_ids:
             groups = Group().find_by_ids(group_ids)
@@ -88,5 +87,4 @@ class User(Model):
             hosts = Host().find_by_ids(host_ids)
             data['hosts'] = hosts
 
-        print(data)
         return data

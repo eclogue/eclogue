@@ -47,7 +47,6 @@ def only_one(function=None, key="", timeout=None):
 class MyTask(celery.Task):
 
     def on_failure(self, exc, task_id, *args, **kwargs):
-        print('{0!r} failed: {1!r}'.format(task_id, exc))
         print(args, kwargs)
 
 
@@ -63,7 +62,6 @@ def setup_periodic_tasks(sender, **kwargs):
 def test():
     logger().info('call function test')
     length = redis_client.llen(queue_key)
-    print('>>>length:', length)
     if not length:
         return False
 

@@ -272,7 +272,6 @@ class Workspace(object):
                 record['content'] = yaml.safe_dump(content)
             except Exception as e:
                 print(e)
-                raise e
 
             return record
 

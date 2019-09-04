@@ -4,19 +4,15 @@ from io import StringIO
 
 class Reporter(object):
     def __init__(self, fp):
-        print(fp)
         self.fp = fp
 
     def write(self, s):
-        print('write', s)
         self.fp.write(s)
 
     def writeline(self, line):
-        print('write line', line)
         self.fp.writeline(line)
 
     def writelines(self, lines):
-        print('write lines', lines)
         self.fp.writelines(lines)
 
     def flush(self):
@@ -25,9 +21,14 @@ class Reporter(object):
     def read(self):
         return self.fp.getvalue()
 
-    def close(self):
+    def close(self, force=False):
         self.fp.flush()
-        self.fp.close()
+        if force:
+            self.fp.close()
+
+    def getvalue(self):
+        if hasattr(self.fp, 'getvalue'):
+            return self.fp.getvalue()
 
 
 class Sentinel:
@@ -45,7 +46,6 @@ class Sentinel:
     def close(self):
         sys.stdout = self.stdout
         sys.stderr = self.stderr
-        print(self.stdout)
         self.stdout_reporter.close()
         # self.stderr_reporter.close()
 

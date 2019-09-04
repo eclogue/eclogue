@@ -72,7 +72,6 @@ class Host(Model):
             else:
                 group_record = db.collection('groups').find_one({'_id': ObjectId(item.get('_id'))})
                 if not group_record:
-                    print(group_record)
                     # db.collection('user_hosts').delete_one({'_id': item['_id']})
                     continue
                 records = db.collection('user_hosts').find({

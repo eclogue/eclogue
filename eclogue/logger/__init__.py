@@ -92,9 +92,7 @@ class MongoHandler(logging.Handler):
         try:
             data = self.format(record)
             db.collection('logs').insert_one(data)
-            print(data)
-        except Exception as e:
-            print(e)
+        except Exception:
             self.handleError(record)
 
 

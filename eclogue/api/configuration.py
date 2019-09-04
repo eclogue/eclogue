@@ -19,7 +19,6 @@ def list_config():
     is_admin = login_user.get('is_admin')
     start = query.get('start')
     end = query.get('end')
-    print('start', start, end)
     maintainer = query.get('maintainer')
     where = {}
     if keyword:

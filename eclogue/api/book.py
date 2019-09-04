@@ -16,6 +16,7 @@ from eclogue.models.book import book
 from eclogue.models.playbook import playbook
 from eclogue.ansible.remote import AnsibleGalaxy
 from eclogue.lib.logger import logger
+from eclogue.ansible.playbook import check_playbook
 
 
 @jwt_required
@@ -28,7 +29,6 @@ def books():
     is_admin = login_user.get('is_admin')
     start = query.get('start')
     end = query.get('end')
-    print('start', start, end)
     maintainer = query.get('maintainer')
     where = {}
     if keyword:
@@ -63,7 +63,6 @@ def books():
     if date:
         where['$and'] = date
 
-    offset = (int(page) - 1) * int(size)
     cursor = db.collection('books').find(where, skip=offset, limit=size)
     total = cursor.count()
     records = list(cursor)
@@ -357,6 +356,7 @@ def download_book(_id):
 
         return send_file(fd.name, attachment_filename=filename)
 
+
 @jwt_required
 def get_playbook(_id):
     if not _id:
@@ -380,5 +380,48 @@ def get_playbook(_id):
         'message': 'ok',
         'code': 0,
         'data': list(cursor),
+    })
+
+
+@jwt_required
+def get_roles_by_book(_id):
+    record = db.collection('books').find_one(({
+        '_id': ObjectId(_id)
+    }))
+    if not record:
+        return jsonify({
+            'message': 'book not found',
+            'code': '104001',
+        }), 400
+
+    book_id = str(record['_id'])
+    check_playbook(book_id)
+    condition = {
+        'book_id': book_id,
+        'role': 'roles',
+        'is_dir': True
+    }
+
+    print(condition)
+    parent = db.collection('playbook').find_one(condition)
+    if not parent:
+        return jsonify({
+            'message': 'ok',
+            'code': 0,
+            'data': [],
+        })
+
+    where = {
+        'book_id': book_id,
+        'is_dir': True,
+        'parent': parent.get('path')
+    }
+    cursor = db.collection('playbook').find(where)
+    records = list(cursor)
+
+    return jsonify({
+        'message': 'ok',
+        'code': 0,
+        'data': records,
     })
 

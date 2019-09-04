@@ -91,7 +91,6 @@ def run_task():
                 logger.info('run ansible-playbook', extra={'hosts': hosts, 'options': options})
                 runner.run(fh.name)
                 result = runner.get_result()
-                print('result', result)
 
                 return jsonify({
                     'message': 'ok',

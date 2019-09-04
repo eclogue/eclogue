@@ -4,16 +4,17 @@ import time
 import configparser
 import yaml
 import re
-import sys
 
 from eclogue.model import db
 from bson import ObjectId
+from jinja2 import Template
 from eclogue.ansible.host import parser_inventory
 from eclogue.ansible.vault import Vault
 from eclogue.config import config
 from eclogue.lib.integration import Integration
-from jinja2 import Template
 from eclogue.lib.logger import get_logger
+from eclogue.ansible.runer import get_default_options
+
 
 def ini_yaml(text):
     config = configparser.RawConfigParser(allow_no_value=True)
@@ -174,12 +175,8 @@ def load_ansible_playbook(payload):
 
     variables = extra.get('extraVars') or {}
     # variables.update({'node': inventory_record.get('limit')})
-    print('fuck tttttttpppppppppppppp', type(variables), variables)
     if type(variables) in [dict, list]:
         variables = yaml.safe_dump(variables)
-
-    print('xxx55555555555', type(variables))
-    # variables = variables.replace('\'', '"')
 
     app = template.get('app')
     if app:
@@ -211,6 +208,14 @@ def load_ansible_playbook(payload):
         variables and extra_vars.update(variables)
 
     options = dict()
+    extra_options = template.get('extraOptions')
+    if extra_options and type(extra_options) == dict:
+        options = extra_options
+        # default_options = get_default_options('playbook')
+        # for key, value in extra_options.items():
+        #     if default_options.get(key):
+        #         options[key] = value
+
     options['skip_tags'] = template.get('skip_tags', [])
     options['inventory'] = inventory_record
     # @todo limit
@@ -269,12 +274,10 @@ def load_ansible_playbook(payload):
 
 
 def _load_extra_vars(data):
-    print('xxxxxxxbbbbbbb', data)
     extra_vars = []
     for key, value in data.items():
         extra_vars.append(key + '=' + str(value).replace('\'', '"'))
 
-    print(extra_vars)
     return ' '.join(extra_vars)
 
 
@@ -373,16 +376,18 @@ def parse_cmdb_inventory(inventory):
     data = dict()
     for inventory_str in inventory:
         inventory_list = inventory_str.split('@')
+        print(inventory_list)
         if len(inventory_list) is not 3:
             continue
 
         collection, _id, group_name = inventory_list
         if collection == 'group':
             group = db.collection('groups').find_one({'_id': ObjectId(_id)})
+            print('gggg', group)
             if not group:
                 continue
 
-            records = db.collection('machines').find({'group': {'$in': [group['_id']]}})
+            records = db.collection('machines').find({'group': {'$in': [str(group['_id'])]}})
             for record in records:
                 hosts[record['node_name']] = {
                     'ansible_ssh_host': record.get('ansible_ssh_host'),

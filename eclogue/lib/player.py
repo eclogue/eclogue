@@ -22,7 +22,6 @@ def setup(credential, hosts, options):
     :param options:
     :return: AdHocRunner
     """
-    print(credential)
     with NamedTemporaryFile('w+t', delete=True) as fd:
         fd.write(credential)
         fd.seek(0)

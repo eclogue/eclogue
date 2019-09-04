@@ -56,7 +56,7 @@ routes = [
     ('/books/<_id>/playbook', book.upload_playbook, ['post']),
     ('/books/<_id>/entries', get_entry, ['GET']),
     ('/books/<name>/inventory', cmdb.get_inventory_by_book, ['GET']),
-    ('/books/<_id>/roles', cmdb.get_roles_by_book, ['GET']),
+    ('/books/<_id>/roles', book.get_roles_by_book, ['GET']),
     ('/search/users', search_user, ['get']),
     ('/cmdb/inventory', cmdb.explore, ['post']),
     ('/cmdb/inventory/<_id>', cmdb.edit_inventory, ['put']),
