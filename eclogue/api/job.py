@@ -248,14 +248,13 @@ def add_jobs():
         'updated_at': datetime.datetime.now().isoformat(),
     }
 
-    print(new_record)
-    # if record:
-    #     db.collection('jobs').update_one({'_id': record['_id']}, update={'$set': new_record})
-    #     logger.info('update job', {'record': record, 'changed': new_record})
-    # else:
-    #     result = db.collection('jobs').insert_one(new_record)
-    #     new_record['_id'] = result.inserted_id
-    #     logger.info('add job', extra={'record': new_record})
+    if record:
+        db.collection('jobs').update_one({'_id': record['_id']}, update={'$set': new_record})
+        logger.info('update job', {'record': record, 'changed': new_record})
+    else:
+        result = db.collection('jobs').insert_one(new_record)
+        new_record['_id'] = result.inserted_id
+        logger.info('add job', extra={'record': new_record})
 
     return jsonify({
         'message': 'ok',
