@@ -1,5 +1,8 @@
 import sys
 import yaml
+import os
+import shutil
+import datetime
 from io import StringIO
 from time import time
 from bson import ObjectId
@@ -19,6 +22,8 @@ from eclogue.lib.integration import Integration
 from eclogue.lib.logger import get_logger
 from eclogue.middleware import login_user
 from eclogue.tasks.reporter import Reporter
+from eclogue.scheduler import scheduler
+from eclogue.utils import make_zip
 
 tiger = TaskTiger(connection=redis_client, config={
     'REDIS_PREFIX': 'ece',
@@ -38,31 +43,37 @@ def run_job(_id, **kwargs):
     username = None if not login_user else login_user.get('username')
     params = (_id, request_id, username)
     queue_name = get_queue_by_job(_id)
-    schedule = None
-    template = record.get('template')
-    if template.get(schedule):
-        schedule = periodic(**template.get(schedule))
-        func = tiger.task(_fn=run_task, schedule=schedule)
+    extra = record.get('extra')
+    schedule = extra.get('schedule')
+
+    if schedule:
+        existed = db.collection('scheduler_jobs').find_one({'_id': record['_id']})
+        if existed:
+            return False
+
+        scheduler.add_job(func=run_task, trigger='cron', args=params, minute='1',
+                          kwargs=kwargs, id=str(record.get('_id')), max_instances=1)
+        return True
     else:
         func = run_task
 
-    task = Task(tiger, func=func, args=params, kwargs=kwargs, queue=queue_name,
-                unique=False, lock=True, lock_key=_id)
+        task = Task(tiger, func=func, args=params, kwargs=kwargs, queue=queue_name,
+                    unique=False, lock=True, lock_key=_id)
 
-    task_record = {
-        'job_id': _id,
-        'state': QUEUED,
-        'queue': queue_name,
-        'result': '',
-        'request_id': request_id,
-        't_id': task.id,
-        'created_at': time(),
-    }
+        task_record = {
+            'job_id': _id,
+            'state': QUEUED,
+            'queue': queue_name,
+            'result': '',
+            'request_id': request_id,
+            't_id': task.id,
+            'created_at': time(),
+        }
 
-    result = db.collection('tasks').insert_one(task_record)
-    task.delay()
+        result = db.collection('tasks').insert_one(task_record)
+        task.delay()
 
-    return result.inserted_id
+        return result.inserted_id
 
 
 def import_galaxy():
@@ -110,8 +121,10 @@ def run_task(_id, request_id, username, **kwargs):
         options = data.get('options')
         private_key = data.get('private_key')
         wk = Workspace()
-        res = wk.load_book_from_db(name=data.get('book_name'), roles=data.get('roles'))
-        if not res:
+        roles = data.get('roles')
+        bookname = data.get('book_name')
+        bookspace = wk.load_book_from_db(name=bookname, roles=roles, build_id=task_id)
+        if not bookspace:
             raise Exception('install playbook failed, book name: {}'.format(data.get('book_name')))
 
         entry = wk.get_book_entry(data.get('book_name'), data.get('entry'))
@@ -136,13 +149,41 @@ def run_task(_id, request_id, username, **kwargs):
             play = PlayBookRunner(data.get('inventory'), options)
             play.run(entry)
 
+            record = db.collection('tasks').find_one({'_id': task_id})
+            duration = time() - record.get('created_at')
             update = {
                 '$set': {
                     # 'result': result,
-                    'state': 'finish'
+                    'state': 'finish',
+                    'duration': duration
                 }
             }
             db.collection('tasks').update_one({'_id': task_id}, update=update)
+            builds = db.collection('build_books').count({'job_id': _id})
+            # @todo
+            if builds > 10:
+                last_one = db.collection('build_books').find_one({'job_id': _id}).sort('_id', 1)
+                if last_one:
+                    file = db.get_file(last_one.get('file_id'))
+                    file.delete()
+                    db.collection('build_books').delete_one({'job_id': _id})
+
+            with NamedTemporaryFile(mode='w+b', delete=True) as fp:
+                bookname = data.get('book_name')
+                make_zip(bookspace, fp.name)
+                with open(fp.name, mode='rb') as stream:
+                    filename = bookname + '.zip'
+                    file_id = db.save_file(filename=filename, fileobj=stream)
+                    store_info = {
+                        'task_id': task_id,
+                        'file_id': file_id,
+                        'job_id': _id,
+                        'filename': os.path.basename(bookspace),
+                        'created_at': time()
+                    }
+                    db.collection('build_books').insert_one(store_info)
+                    shutil.rmtree(bookspace)
+
     except Exception as e:
         update = {
             '$set': {
@@ -154,6 +195,7 @@ def run_task(_id, request_id, username, **kwargs):
 
         db.collection('tasks').update_one({'_id': task_id}, update=update)
         logger.error('run task with exception: {}'.format(str(e)), extra=extra)
+        print(e)
 
     finally:
         content = temp_stdout.getvalue()

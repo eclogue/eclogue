@@ -1,5 +1,7 @@
 import yaml
 import json
+import time
+from datetime import datetime, date, timedelta
 from bson import ObjectId
 from flask import jsonify, request
 from eclogue.model import db
@@ -8,6 +10,7 @@ from tasktiger import Task
 from tasktiger._internal import ERROR, ACTIVE, QUEUED, SCHEDULED
 from eclogue.middleware import jwt_required, login_user
 from eclogue.models.job import Job
+from eclogue.scheduler import scheduler
 
 
 @jwt_required
@@ -16,9 +19,11 @@ def monitor():
     :return: json response
     """
     queue_stats = tiger.get_queue_stats()
+    print(queue_stats)
     sorted_stats = sorted(queue_stats.items(), key=lambda k: k[0])
     groups = dict()
     for queue, stats in sorted_stats:
+        print('>>??', queue, stats)
         queue_list = queue.split('#')
         if len(queue_list) == 2:
             queue_base, job_id = queue_list
@@ -40,10 +45,96 @@ def monitor():
             'lock': tiger.get_queue_system_lock(queue)
         })
 
+    schedule_jobs = scheduler.get_jobs()
+    # print('schedule===', schedule_jobs)
+    schedules = []
+    for job in schedule_jobs:
+        stats = job.__getstate__()
+        item = {}
+        for field, value in stats.items():
+            item[field] = str(value)
+        schedules.append(item)
+
+    today = date.today()
+    today = datetime.combine(today, datetime.min.time())
+    tomorrow = date.today() + timedelta(days=1)
+    tomorrow = datetime.combine(tomorrow, datetime.min.time())
+    print(today, tomorrow)
+    integram = db.collection('tasks').aggregate([
+        {
+            '$match': {
+                'created_at': {
+                    '$gte': today,
+                    '$lte': tomorrow
+                },
+            }
+        },
+        # {
+        #     '$group': {
+        #         # '_id': {
+        #         #     # "$subtract": [
+        #         #     #     {"$subtract": ["$created_at", datetime.datetime.strptime('1970-01-01', "%Y-%m-%d").time()]},
+        #         #     #     {"$mod": [
+        #         #     #         {"$subtract": ["$created", datetime.datetime.strptime('1970-01-01', "%Y-%m-%d").time()]},
+        #         #     #         1000 * 60 * 30
+        #         #     #     ]
+        #         #     #     }
+        #         #     # ]
+        #         #     # 'month': '$month',
+        #         #     # 'minutes': '$minutes',
+        #         #     # 'year': '$year',
+        #         #     'timestamp': '$created_at'
+        #         #
+        #         # },
+        #         '_id': {
+        #             'hour': '$hour'
+        #         },
+        #         'count': {
+        #             '$sum': 1
+        #         }
+        #     },
+        # },
+        {
+            '$group': {
+                '_id': {
+                    "$subtract": [
+                        {"$subtract": ['$created_at', 1]},
+                        {"$mod": [
+                            {"$subtract": ['$created_at', 1]},
+                            1000 * 60 * 30
+                        ]}
+                    ]
+                }
+            }
+        },
+        # {
+        #     '$project': {
+        #         '_id': 1,
+        #         'month': {'$month': '$created_at'},
+        #         # 'hour': {'$hour': '$created_at'},
+        #         # 'minutes': {'$minute': '$created_at'},
+        #         'count': 1,
+        #     }
+        # }
+        # {
+        #     '$project': {
+        #         '_id': 1,
+        #         'created_at': 1,
+        #         'job_id': 1,
+        #         'state': 1,
+        #         # 'timestamp': {'$multiply': ['$created_at', 1000]},
+        #
+        #     }
+        # }
+    ])
+
+    print('iiiiiii', list(integram))
+
     return jsonify({
         'message': 'ok',
         'code': 0,
         'data': groups,
+        'schedule': schedules
     })
 
 
@@ -101,15 +192,17 @@ def get_queue_tasks():
     bucket = []
     for task in tasks:
         data = task.data
+        print('---->', data)
+
         del data['args']
         record = db.collection('tasks').find_one({'t_id': task.id})
         if record:
             data['state'] = record.get('state')
             data['job_name'] = record.get('name')
+            data['result'] = record['result']
         else:
             data['job_name'] = 'default'
         data['executions'] = task.executions
-        data['result'] = record['result']
 
         bucket.append(data)
 

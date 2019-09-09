@@ -33,6 +33,11 @@ logging:
     console:
       (): eclogue.lib.logger.ConsoleHandler
       level: DEBUG
+    default:
+      class: logging.StreamHandler
+      level: DEBUG
+      formatter: simple
+      stream: ext://sys.stdout
   formatters:
     simple:
       formate: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -41,6 +46,11 @@ logging:
   filters:
     requestId:
       (): flask_log_request_id.RequestIDLogFilter
+  root:
+    level: DEBUG
+    handlers:
+      - default
+      - file
 workspace:
   tmp: {{ home_path }}/storage/tmp
   playbook: {{ home_path }}/storage/tmp

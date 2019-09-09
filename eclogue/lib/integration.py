@@ -84,7 +84,7 @@ class Integration(object):
     def install(self):
         app = self.app
         if hasattr(app, 'install'):
-            self.logger.info('start to install {} app'.format(self.app_type))
+            self.logger.info('start to install {0} app'.format(self.app_type))
             return app.install()
 
     @staticmethod

@@ -34,6 +34,9 @@ class Mongo(object):
         return storage.put(fileobj, filename=filename, content_type=content_type, **kwargs)
 
     def get_file(self, _id):
+        if not ObjectId.is_valid(_id):
+            _id = ObjectId(_id)
+
         fs = self.fs()
         return fs.get(_id)
 
