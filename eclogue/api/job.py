@@ -199,7 +199,6 @@ def add_jobs():
     entry = wk.get_book_entry(data.get('book_name'),  data.get('entry'))
     dry_run = bool(is_check)
     options['check'] = dry_run
-    print('ooooooo', options)
     if dry_run:
         with NamedTemporaryFile('w+t', delete=True) as fd:
             key_text = get_credential_content_by_id(private_key, 'private_key')

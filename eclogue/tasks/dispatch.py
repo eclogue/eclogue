@@ -14,10 +14,10 @@ from flask_log_request_id import current_request_id
 
 from eclogue.model import Mongo
 from eclogue.redis import redis_client
-from eclogue.lib.helper import load_ansible_playbook
+from eclogue.lib.helper import load_ansible_playbook, load_ansible_adhoc
 from eclogue.lib.credential import get_credential_content_by_id
 from eclogue.lib.workspace import Workspace
-from eclogue.ansible.runer import PlayBookRunner
+from eclogue.ansible.runer import PlayBookRunner, AdHocRunner
 from eclogue.lib.integration import Integration
 from eclogue.lib.logger import get_logger
 from eclogue.middleware import login_user
@@ -51,7 +51,7 @@ def run_job(_id, **kwargs):
         if existed:
             return False
 
-        scheduler.add_job(func=run_task, trigger='cron', args=params, minute='1',
+        scheduler.add_job(func=run_schedule_task, trigger='cron', args=params, minute='1',
                           kwargs=kwargs, id=str(record.get('_id')), max_instances=1)
         return True
     else:
@@ -62,6 +62,7 @@ def run_job(_id, **kwargs):
 
         task_record = {
             'job_id': _id,
+            'type': 'trigger',
             'state': QUEUED,
             'queue': queue_name,
             'result': '',
@@ -78,6 +79,59 @@ def run_job(_id, **kwargs):
 
 def import_galaxy():
     pass
+
+
+def run_adhoc_task(_id, request_id, username, **kwargs):
+    extra = {'request_id': request_id}
+    db = Mongo()
+    task_record = db.collection('tasks').find_one({'request_id': request_id})
+    if not task_record:
+        return False
+
+    task_id = task_record.get('_id')
+    old_stdout = sys.stdout
+    old_stderr = sys.stderr
+    sys.stderr = sys.stdout = temp_stdout = Reporter(StringIO())
+    try:
+        record = db.collection('jobs').find_one({'_id': ObjectId(_id)})
+        payload = load_ansible_adhoc(record)
+        options = payload.get('options')
+        private_key = payload.get('private_key')
+        module = payload.get('module')
+        args = payload.get('args')
+        hosts = options['hosts']
+        with NamedTemporaryFile('w+t', delete=True) as fd:
+            fd.write(private_key)
+            fd.seek(0)
+            options['private_key'] = fd.name
+            tasks = [{
+                'action': {
+                    'module': module,
+                    'args': args
+                }
+            }]
+            runner = AdHocRunner(hosts, options=options)
+            runner.run('all', tasks)
+            result = runner.get_result()
+            return True
+    except Exception as e:
+        update = {
+            '$set': {
+                'result': e.args,
+                'state': ERROR,
+            }
+
+        }
+
+        db.collection('tasks').update_one({'_id': task_id}, update=update)
+        logger.error('run task with exception: {}'.format(str(e)), extra=extra)
+    finally:
+        content = temp_stdout.getvalue()
+        sys.stdout = old_stdout
+        sys.stderr = old_stderr
+        eclogue_logger = get_logger('eclogue')
+        extra.update({'task_id': str(task_id), 'currentUser': username})
+        eclogue_logger.info(content, extra=extra)
 
 
 def run_task(_id, request_id, username, **kwargs):
@@ -204,6 +258,33 @@ def run_task(_id, request_id, username, **kwargs):
         eclogue_logger = get_logger('eclogue')
         extra.update({'task_id': str(task_id), 'currentUser': username})
         eclogue_logger.info(content, extra=extra)
+
+
+def run_schedule_task(_id, request_id, username, **kwargs):
+    db = Mongo()
+    params = (_id, request_id, username)
+    queue_name = get_queue_by_job(_id)
+    job = db.collection('jobs').find_one({'_id': ObjectId(_id)})
+    func = run_task
+    if job.get('type') == 'adhoc':
+        func = run_adhoc_task
+
+    task = Task(tiger, func=func, args=params, kwargs=kwargs, queue=queue_name,
+                unique=False, lock=True, lock_key=_id)
+    task_record = {
+        'job_id': _id,
+        'state': QUEUED,
+        'type': 'schedule',
+        'ansible': job.get('type'),
+        'queue': queue_name,
+        'result': '',
+        'request_id': request_id,
+        't_id': task.id,
+        'created_at': time(),
+    }
+
+    db.collection('tasks').insert_one(task_record)
+    task.delay()
 
 
 def get_tasks_by_job(job_id, offset=0, limit=20):

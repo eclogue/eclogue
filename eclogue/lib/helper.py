@@ -14,6 +14,7 @@ from eclogue.config import config
 from eclogue.lib.integration import Integration
 from eclogue.lib.logger import get_logger
 from eclogue.ansible.runer import get_default_options
+from eclogue.lib.credential import get_credential_content_by_id
 
 
 def ini_yaml(text):
@@ -272,6 +273,83 @@ def load_ansible_playbook(payload):
         }
     }
 
+
+def load_ansible_adhoc(payload):
+    module = payload.get('module')
+    args = payload.get('args')
+    inventory = payload.get('inventory')
+    private_key = payload.get('private_key')
+    verbosity = payload.get('verbosity')
+    name = payload.get('name')
+    notification = payload.get('notification')
+    schedule = payload.get('schedule')
+    become_method = payload.get('become_method')
+    become_user = payload.get('become_user')
+    job_id = payload.get('job_id')
+    extra_options = payload.get('extra_options')
+    if not job_id:
+        existed = db.collection('jobs').find_one({'name': name})
+        if existed:
+            return {
+                'message': 'name exist',
+                'code': 104007
+            }
+
+    if not module or not inventory or not name:
+        return {
+            'message': 'miss required params',
+            'code': 104002,
+        }
+
+    check_module = db.collection('ansible_modules').find_one({
+        'name': module
+    })
+
+    if not check_module:
+        return {
+            'message': 'invalid module',
+            'code': 104003,
+        }
+
+    inventory = parse_cmdb_inventory(inventory)
+    if not inventory:
+        return {
+            'message': 'invalid inventory',
+            'code': 104004,
+        }
+
+    key_text = get_credential_content_by_id(private_key, 'private_key')
+    if not key_text:
+        return {
+            'message': 'invalid private key',
+            'code': 104004,
+        }
+    options = {
+        'verbosity': verbosity,
+        'check': False,
+        'hosts': inventory,
+    }
+    if become_method and become_user:
+        options['become_method'] = become_method
+        options['become_user'] = become_user
+
+    if extra_options:
+        options.update(extra_options)
+
+    return {
+        'message': 'ok',
+        'data': {
+            'inventory': inventory,
+            'options': options,
+            'name': name,
+            'module': module,
+            'args': args,
+            'private_key': private_key,
+            'template': payload,
+            'schedule': schedule,
+            # 'extra': extra,
+        }
+    }
 
 def _load_extra_vars(data):
     extra_vars = []

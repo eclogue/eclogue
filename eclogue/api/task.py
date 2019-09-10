@@ -21,9 +21,8 @@ def monitor():
     queue_stats = tiger.get_queue_stats()
     print(queue_stats)
     sorted_stats = sorted(queue_stats.items(), key=lambda k: k[0])
-    groups = dict()
+    queues = dict()
     for queue, stats in sorted_stats:
-        print('>>??', queue, stats)
         queue_list = queue.split('#')
         if len(queue_list) == 2:
             queue_base, job_id = queue_list
@@ -34,19 +33,18 @@ def monitor():
             job_id = None
             job_name = None
         # job = db.collection('jobs').find_one({'_id': ObjectId(job_id)})
-        if queue_base not in groups:
-            groups[queue_base] = []
-        groups[queue_base].append({
-            'queue': queue,
-            'job_id': job_id,
-            'job_name': job_name,
-            'stats': stats,
-            'total': tiger.get_total_queue_size(queue),
-            'lock': tiger.get_queue_system_lock(queue)
-        })
+        if queue_base not in queues:
+            queues[queue_base] = []
+            queues[queue_base].append({
+                'queue': queue,
+                'job_id': job_id,
+                'job_name': job_name,
+                'stats': stats,
+                'total': tiger.get_total_queue_size(queue),
+                'lock': tiger.get_queue_system_lock(queue)
+            })
 
     schedule_jobs = scheduler.get_jobs()
-    # print('schedule===', schedule_jobs)
     schedules = []
     for job in schedule_jobs:
         stats = job.__getstate__()
@@ -55,85 +53,77 @@ def monitor():
             item[field] = str(value)
         schedules.append(item)
 
-    today = date.today()
-    today = datetime.combine(today, datetime.min.time())
-    tomorrow = date.today() + timedelta(days=1)
-    tomorrow = datetime.combine(tomorrow, datetime.min.time())
-    print(today, tomorrow)
-    integram = db.collection('tasks').aggregate([
+    # today = date.today()
+    # today = datetime.combine(today, datetime.min.time())
+    # tomorrow = date.today() + timedelta(days=1)
+    # tomorrow = datetime.combine(tomorrow, datetime.min.time())
+    # print(time.mktime(today.timetuple()), today)
+    histogram = db.collection('tasks').aggregate([
         {
             '$match': {
                 'created_at': {
-                    '$gte': today,
-                    '$lte': tomorrow
+                    '$gte': time.time() - 86400,
+                    '$lte': time.time()
                 },
             }
         },
-        # {
-        #     '$group': {
-        #         # '_id': {
-        #         #     # "$subtract": [
-        #         #     #     {"$subtract": ["$created_at", datetime.datetime.strptime('1970-01-01', "%Y-%m-%d").time()]},
-        #         #     #     {"$mod": [
-        #         #     #         {"$subtract": ["$created", datetime.datetime.strptime('1970-01-01', "%Y-%m-%d").time()]},
-        #         #     #         1000 * 60 * 30
-        #         #     #     ]
-        #         #     #     }
-        #         #     # ]
-        #         #     # 'month': '$month',
-        #         #     # 'minutes': '$minutes',
-        #         #     # 'year': '$year',
-        #         #     'timestamp': '$created_at'
-        #         #
-        #         # },
-        #         '_id': {
-        #             'hour': '$hour'
-        #         },
-        #         'count': {
-        #             '$sum': 1
-        #         }
-        #     },
-        # },
         {
             '$group': {
                 '_id': {
-                    "$subtract": [
-                        {"$subtract": ['$created_at', 1]},
-                        {"$mod": [
-                            {"$subtract": ['$created_at', 1]},
-                            1000 * 60 * 30
-                        ]}
-                    ]
+                    'interval': {
+                        '$subtract': [
+                            {'$divide': ['$created_at', 3600]},
+                            {'$mod': [{'$divide': ['$created_at', 3600]}, 1]}
+                        ]
+                    }
+                },
+                'count': {
+                    '$sum': 1
                 }
             }
         },
-        # {
-        #     '$project': {
-        #         '_id': 1,
-        #         'month': {'$month': '$created_at'},
-        #         # 'hour': {'$hour': '$created_at'},
-        #         # 'minutes': {'$minute': '$created_at'},
-        #         'count': 1,
-        #     }
-        # }
-        # {
-        #     '$project': {
-        #         '_id': 1,
-        #         'created_at': 1,
-        #         'job_id': 1,
-        #         'state': 1,
-        #         # 'timestamp': {'$multiply': ['$created_at', 1000]},
-        #
-        #     }
-        # }
     ])
 
-    print('iiiiiii', list(integram))
+    task_histogram = []
+    for item in histogram:
+        print(item)
+        primary = item['_id']
+        value = {
+            'date': 3600 * primary.get('interval'),
+            'count': item['count']
+        }
+        task_histogram.append(value)
 
+    task_pies = {
+        'jobType': [
+            {
+                'name': 'adhoc',
+                'count': 33
+            },
+            {
+                'name': 'playbook',
+                'count': 123
+            }
+        ],
+        'runType': [
+            {
+                'name': 'schedule',
+                'count': 44
+            },
+            {
+                'name': 'trigger',
+                'count': 113
+            }
+        ],
+    }
     return jsonify({
         'message': 'ok',
         'code': 0,
-        'data': groups,
+        'data': {
+            'queues': queues,
+            'taskHistogram': task_histogram,
+            'taskPies': task_pies
+        },
         'schedule': schedules
     })
 
