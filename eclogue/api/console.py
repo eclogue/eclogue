@@ -24,6 +24,10 @@ def run_task():
     module = payload.get('module')
     args = payload.get('args')
     entry = payload.get('entry')
+    become_mehtod = payload.get('become_method')
+    become_user = payload.get('become_user')
+    verbosity = payload.get('verbosity', 0) or 1
+    extra_options = payload.get('extraOptions')
     hosts = parse_cmdb_inventory(inventory)
     if not hosts:
         return jsonify({
@@ -31,9 +35,20 @@ def run_task():
             'code': 114001,
         }), 400
 
-    options = {
-        'verbosity': 2,
-    }
+    options = {}
+    if extra_options:
+        print(extra_options)
+        options.update(extra_options)
+
+    if verbosity:
+        options['verbosity'] = verbosity
+
+    if become_mehtod:
+        options['become'] = 'yes'
+        options['become_method'] = become_mehtod
+        if become_user:
+            options['become_user'] = become_user
+
     if run_type == 'adhoc':
         if not module:
             return jsonify({

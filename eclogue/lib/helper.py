@@ -231,8 +231,10 @@ def load_ansible_playbook(payload):
     options['verbosity'] = template.get('verbosity', 0)
     become_method = template.get('become_method')
     if become_method:
+        options['become'] = 'yes'
         options['become_method'] = become_method
-        options['become_user'] = template.get('become_user')
+        if template.get('become_user'):
+            options['become_user'] = template.get('become_user')
 
     vault_pass = template.get('vault_pass')
     if vault_pass:
@@ -329,9 +331,11 @@ def load_ansible_adhoc(payload):
         'check': False,
         'hosts': inventory,
     }
-    if become_method and become_user:
+    if become_method:
+        options['become'] = 'yes'
         options['become_method'] = become_method
-        options['become_user'] = become_user
+        if become_user:
+            options['become_user'] = become_user
 
     if extra_options:
         options.update(extra_options)
@@ -451,7 +455,7 @@ def parse_cmdb_inventory(inventory):
         inventory = [inventory]
 
     hosts = {}
-    data = dict()
+    data = {}
     for inventory_str in inventory:
         inventory_list = inventory_str.split('@')
         print(inventory_list)

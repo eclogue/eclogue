@@ -6,7 +6,7 @@ from ansible.executor.playbook_executor import PlaybookExecutor
 from ansible.playbook.play_context import PlayContext
 from ansible.playbook.block import Block
 from ansible.errors import AnsibleError
-from ansible.plugins.callback import CallbackBase
+from ansible.plugins.callback.minimal import CallbackModule
 from ansible.vars.manager import VariableManager
 from ansible.parsing.dataloader import DataLoader
 from ansible.utils.display import Display
@@ -16,6 +16,7 @@ from eclogue.ansible.inventory import HostsManager
 from eclogue.ansible.display import logger
 from ansible import context
 from optparse import Values
+from ansible.utils.context_objects import CLIArgs, GlobalCLIArgs
 
 C.HOST_KEY_CHECKING = False
 display = Display()
@@ -101,12 +102,12 @@ class AdHocRunner(object):
         self.name = name
         self.variable_manager = None
         self.passwords = None
-        self.callback = callback
+        self.callback = callback or ResultsCollector()
         self.results_raw = {}
         self.loader = DataLoader()
         self.options = None
         self.get_options(options, name)
-        context._init_global_context(Values(self.options))
+        context.CLIARGS = CLIArgs(self.options)
         self.passwords = options.get('vault_pass') or {}
         self.inventory = HostsManager(loader=self.loader, sources=self.resource)
         self.variable_manager = VariableManager(loader=self.loader, inventory=self.inventory)
@@ -134,6 +135,7 @@ class AdHocRunner(object):
         :return:
         """
         tasks = self.load_tasks(tasks)
+        print(context.CLIARGS)
         # tasks = [dict(action=dict(module='setup'))]
         # print(tasks)
         # create play with tasks
@@ -295,7 +297,7 @@ class PlayBookRunner(AdHocRunner):
         return loader, inventory, variable_manager
 
 
-class ResultsCollector(CallbackBase):
+class ResultsCollector(CallbackModule):
 
     def __init__(self, display=None, options=None):
         super(ResultsCollector, self).__init__(display=display, options=options)
