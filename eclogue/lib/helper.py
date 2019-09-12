@@ -277,27 +277,25 @@ def load_ansible_playbook(payload):
 
 
 def load_ansible_adhoc(payload):
-    module = payload.get('module')
-    args = payload.get('args')
-    inventory = payload.get('inventory')
-    private_key = payload.get('private_key')
-    verbosity = payload.get('verbosity')
-    name = payload.get('name')
-    notification = payload.get('notification')
-    schedule = payload.get('schedule')
-    become_method = payload.get('become_method')
-    become_user = payload.get('become_user')
-    job_id = payload.get('job_id')
-    extra_options = payload.get('extra_options')
-    if not job_id:
-        existed = db.collection('jobs').find_one({'name': name})
-        if existed:
-            return {
-                'message': 'name exist',
-                'code': 104007
-            }
+    template = payload.get('template')
+    extra = payload.get('extra')
+    module = template.get('module')
+    args = template.get('args')
+    inventory = template.get('inventory')
+    private_key = template.get('private_key')
+    verbosity = template.get('verbosity')
+    become_method = template.get('become_method')
+    become_user = template.get('become_user')
+    extra_options = template.get('extraOptions')
+    name = template.get('name')
+    schedule = extra.get('schedule')
+    if not name:
+        return {
+            'message': 'name required',
+            'code': 104000,
+        }
 
-    if not module or not inventory or not name:
+    if not module or not inventory:
         return {
             'message': 'miss required params',
             'code': 104002,
@@ -326,6 +324,7 @@ def load_ansible_adhoc(payload):
             'message': 'invalid private key',
             'code': 104004,
         }
+
     options = {
         'verbosity': verbosity,
         'check': False,
@@ -351,7 +350,7 @@ def load_ansible_adhoc(payload):
             'private_key': private_key,
             'template': payload,
             'schedule': schedule,
-            # 'extra': extra,
+            'extra': extra,
         }
     }
 
@@ -458,14 +457,12 @@ def parse_cmdb_inventory(inventory):
     data = {}
     for inventory_str in inventory:
         inventory_list = inventory_str.split('@')
-        print(inventory_list)
         if len(inventory_list) is not 3:
             continue
 
         collection, _id, group_name = inventory_list
         if collection == 'group':
             group = db.collection('groups').find_one({'_id': ObjectId(_id)})
-            print('gggg', group)
             if not group:
                 continue
 

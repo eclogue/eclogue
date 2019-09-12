@@ -46,6 +46,17 @@ def get_job(_id):
     template = job.get('template')
     inventory_type = template.get('inventory_type')
     inventory = template.get('inventory')
+    if job.get('type') == 'adhoc':
+        inventory_content = parse_cmdb_inventory(inventory)
+        return jsonify({
+            'message': 'ok',
+            'code': 0,
+            'data': {
+                'record': job,
+                'previewContent': inventory_content,
+            },
+        })
+
     if inventory_type == 'file':
         inventory_content = parse_file_inventory(inventory)
     else:
@@ -247,7 +258,6 @@ def add_jobs():
         'updated_at': datetime.datetime.now().isoformat(),
     }
 
-    print(new_record)
     # if record:
     #     db.collection('jobs').update_one({'_id': record['_id']}, update={'$set': new_record})
     #     logger.info('update job', {'record': record, 'changed': new_record})
@@ -350,7 +360,6 @@ def job_detail(_id):
     size = int(query.get('pageSize', 20))
     offset = (page - 1) * size
     tasks = get_tasks_by_job(_id, offset=offset, limit=size)
-    # print(list(tasks))
     return jsonify({
         'message': 'ok',
         'code': 0,
@@ -555,8 +564,8 @@ def add_adhoc():
     })
 
 
+@jwt_required
 def job_webhook():
-    _id = '5d4058b4b9a76b7eea946b99'
     query = request.args
     token = query.get('token')
     payload = request.get_json()
@@ -572,6 +581,15 @@ def job_webhook():
             'message': 'illegal token',
             'code': 104010
         }), 401
+
+    username = login_user.get('username')
+    if record.get('type') == 'adhoc':
+        task_id = run_job(str(record.get('_id')))
+
+        return jsonify({
+            'message': 'ok',
+            'data': task_id
+        })
 
     tempate = record.get('template')
     app_id = tempate.get('app')

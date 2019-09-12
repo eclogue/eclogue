@@ -135,7 +135,6 @@ class AdHocRunner(object):
         :return:
         """
         tasks = self.load_tasks(tasks)
-        print(context.CLIARGS)
         # tasks = [dict(action=dict(module='setup'))]
         # print(tasks)
         # create play with tasks

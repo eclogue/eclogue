@@ -45,7 +45,8 @@ def run_job(_id, **kwargs):
     queue_name = get_queue_by_job(_id)
     extra = record.get('extra')
     schedule = extra.get('schedule')
-
+    ansible_type = record.get('type')
+    print('>>>>', ansible_type, record)
     if schedule:
         existed = db.collection('scheduler_jobs').find_one({'_id': record['_id']})
         if existed:
@@ -55,7 +56,7 @@ def run_job(_id, **kwargs):
                           kwargs=kwargs, id=str(record.get('_id')), max_instances=1)
         return True
     else:
-        func = run_task
+        func = run_task if ansible_type != 'adhoc' else run_adhoc_task
 
         task = Task(tiger, func=func, args=params, kwargs=kwargs, queue=queue_name,
                     unique=False, lock=True, lock_key=_id)
@@ -63,6 +64,7 @@ def run_job(_id, **kwargs):
         task_record = {
             'job_id': _id,
             'type': 'trigger',
+            'ansible': ansible_type,
             'state': QUEUED,
             'queue': queue_name,
             'result': '',
@@ -94,7 +96,11 @@ def run_adhoc_task(_id, request_id, username, **kwargs):
     sys.stderr = sys.stdout = temp_stdout = Reporter(StringIO())
     try:
         record = db.collection('jobs').find_one({'_id': ObjectId(_id)})
-        payload = load_ansible_adhoc(record)
+        result = load_ansible_adhoc(record)
+        if result.get('message') != 'ok':
+            raise Exception(result.get('message'))
+
+        payload = result.get('data')
         options = payload.get('options')
         private_key = payload.get('private_key')
         module = payload.get('module')
@@ -112,7 +118,7 @@ def run_adhoc_task(_id, request_id, username, **kwargs):
             }]
             runner = AdHocRunner(hosts, options=options)
             runner.run('all', tasks)
-            result = runner.get_result()
+            runner.get_result()
             return True
     except Exception as e:
         update = {
@@ -125,6 +131,7 @@ def run_adhoc_task(_id, request_id, username, **kwargs):
 
         db.collection('tasks').update_one({'_id': task_id}, update=update)
         logger.error('run task with exception: {}'.format(str(e)), extra=extra)
+        raise e
     finally:
         content = temp_stdout.getvalue()
         sys.stdout = old_stdout
@@ -249,8 +256,7 @@ def run_task(_id, request_id, username, **kwargs):
 
         db.collection('tasks').update_one({'_id': task_id}, update=update)
         logger.error('run task with exception: {}'.format(str(e)), extra=extra)
-        print(e)
-
+        raise e
     finally:
         content = temp_stdout.getvalue()
         sys.stdout = old_stdout
