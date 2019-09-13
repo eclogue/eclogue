@@ -27,7 +27,7 @@ from eclogue.utils import make_zip
 
 tiger = TaskTiger(connection=redis_client, config={
     'REDIS_PREFIX': 'ece',
-    'ALWAYS_EAGER': True,
+    'ALWAYS_EAGER': False,
 }, setup_structlog=True)
 
 logger = get_logger('console')

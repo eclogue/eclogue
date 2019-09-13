@@ -23,7 +23,7 @@ def monitor():
     sorted_stats = sorted(queue_stats.items(), key=lambda k: k[0])
     queues = dict()
     for queue, stats in sorted_stats:
-        queue_list = queue.split('#')
+        queue_list = queue.split('.')
         if len(queue_list) == 2:
             queue_base, job_id = queue_list
             job = db.collection('jobs').find_one({'_id': ObjectId(job_id)})
@@ -35,14 +35,15 @@ def monitor():
         # job = db.collection('jobs').find_one({'_id': ObjectId(job_id)})
         if queue_base not in queues:
             queues[queue_base] = []
-            queues[queue_base].append({
-                'queue': queue,
-                'job_id': job_id,
-                'job_name': job_name,
-                'stats': stats,
-                'total': tiger.get_total_queue_size(queue),
-                'lock': tiger.get_queue_system_lock(queue)
-            })
+
+        queues[queue_base].append({
+            'queue': queue,
+            'job_id': job_id,
+            'job_name': job_name,
+            'stats': stats,
+            'total': tiger.get_total_queue_size(queue),
+            'lock': tiger.get_queue_system_lock(queue)
+        })
 
     schedule_jobs = scheduler.get_jobs()
     schedules = []
@@ -62,7 +63,7 @@ def monitor():
         {
             '$match': {
                 'created_at': {
-                    '$gte': time.time() - 86400,
+                    '$gte': time.time() - 86400 * 7,
                     '$lte': time.time()
                 },
             }
@@ -75,7 +76,8 @@ def monitor():
                             {'$divide': ['$created_at', 3600]},
                             {'$mod': [{'$divide': ['$created_at', 3600]}, 1]}
                         ]
-                    }
+                    },
+                    'state': '$state',
                 },
                 'count': {
                     '$sum': 1
@@ -84,15 +86,48 @@ def monitor():
         },
     ])
 
-    task_histogram = []
+    task_histogram = {}
     for item in histogram:
         print(item)
         primary = item['_id']
-        value = {
-            'date': 3600 * primary.get('interval'),
-            'count': item['count']
+        state = primary.get('state')
+        interval = 3600 * primary.get('interval')
+        if not task_histogram.get(interval):
+            task_histogram[interval] = {
+                'date': interval,
+                'error': 0,
+                'finish': 0,
+                'queued': 0,
+            }
+
+        task_histogram[interval].update({
+            state: item.get('count')
+        })
+
+    task_state_pies = db.collection('tasks').aggregate([
+        {
+            '$match': {
+                'created_at': {
+                    '$gte': time.time() - 86400 * 7,
+                    '$lte': time.time()
+                },
+            }
+        },
+        {
+            '$group': {
+                '_id': {
+                    'state': '$state',
+                },
+                'count': {
+                    '$sum': 1
+                }
+            }
         }
-        task_histogram.append(value)
+    ])
+
+    task_state_pies = list(task_state_pies)
+    for item in task_state_pies:
+        item['state'] = item['_id']['state']
 
     task_pies = {
         'jobType': [
@@ -116,15 +151,18 @@ def monitor():
             }
         ],
     }
+
     return jsonify({
         'message': 'ok',
         'code': 0,
         'data': {
             'queues': queues,
-            'taskHistogram': task_histogram,
-            'taskPies': task_pies
+            'taskHistogram': list(task_histogram.values()),
+            'taskPies': task_pies,
+            'taskStatePies': task_state_pies,
+            'schedule': schedules,
         },
-        'schedule': schedules
+        # 'schedule': schedules
     })
 
 
@@ -327,3 +365,26 @@ def task_logs(_id):
             'state': record.get('state')
         }
     })
+
+
+@jwt_required
+def get_schedule_task(_id):
+    schedule = scheduler.get_job(job_id=_id)
+    if not schedule or not hasattr(schedule, '__getstate__'):
+        return jsonify({
+            'message': 'record not found',
+            'code': 104040
+        }), 404
+
+    result = {}
+    print(result)
+    for key, value in schedule.__getstate__().items():
+        result[key] = str(value)
+
+    return jsonify({
+        'message': 'ok',
+        'code': 0,
+        'data': result,
+    })
+
+

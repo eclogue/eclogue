@@ -245,7 +245,7 @@ def add_jobs():
     token = str(base64.b64encode(bytes(current_request_id(), 'utf8')), 'utf8')
     new_record = {
         'name': name,
-        'job_type': 'playbook',
+        'type': 'playbook',
         'token': token,
         'description': data.get('description'),
         'book_id': data.get('book_id'),
@@ -258,13 +258,13 @@ def add_jobs():
         'updated_at': datetime.datetime.now().isoformat(),
     }
 
-    # if record:
-    #     db.collection('jobs').update_one({'_id': record['_id']}, update={'$set': new_record})
-    #     logger.info('update job', {'record': record, 'changed': new_record})
-    # else:
-    #     result = db.collection('jobs').insert_one(new_record)
-    #     new_record['_id'] = result.inserted_id
-    #     logger.info('add job', extra={'record': new_record})
+    if record:
+        db.collection('jobs').update_one({'_id': record['_id']}, update={'$set': new_record})
+        logger.info('update job', {'record': record, 'changed': new_record})
+    else:
+        result = db.collection('jobs').insert_one(new_record)
+        new_record['_id'] = result.inserted_id
+        logger.info('add job', extra={'record': new_record})
 
     return jsonify({
         'message': 'ok',
