@@ -44,6 +44,7 @@ routes = [
     ('/tasks/history', task.get_task_history, ['get']),
     ('/tasks/<_id>/logs', task.task_logs, ['get']),
     ('/tasks/<_id>/retry', task.retry, ['post']),
+    ('/tasks/<_id>/<state>/remove', task.delete_task, ['delete']),
     ('/tasks/<_id>/<state>/cancel', task.cancel, ['delete']),
     ('/tasks/<_id>/schedule', task.get_schedule_task, ['get']),
     ('/inventory/dumper', dump_inventory, ['GET', 'POST']),

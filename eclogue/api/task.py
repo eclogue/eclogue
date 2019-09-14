@@ -8,9 +8,11 @@ from eclogue.model import db
 from eclogue.tasks.dispatch import tiger
 from tasktiger import Task
 from tasktiger._internal import ERROR, ACTIVE, QUEUED, SCHEDULED
+from tasktiger.exceptions import TaskNotFound
 from eclogue.middleware import jwt_required, login_user
 from eclogue.models.job import Job
 from eclogue.scheduler import scheduler
+from eclogue.lib.logger import logger
 
 
 @jwt_required
@@ -133,21 +135,21 @@ def monitor():
         'jobType': [
             {
                 'name': 'adhoc',
-                'count': 33
+                'count': db.collection('jobs').count({'type': 'adhoc'})
             },
             {
                 'name': 'playbook',
-                'count': 123
+                'count': db.collection('jobs').count({'type': 'playbook'})
             }
         ],
         'runType': [
             {
                 'name': 'schedule',
-                'count': 44
+                'count': db.collection('jobs').count({'template.schedule': {'$exists': True}})
             },
             {
                 'name': 'trigger',
-                'count': 113
+                'count': db.collection('jobs').count({'template.runType': {'$exists': False}})
             }
         ],
     }
@@ -219,14 +221,16 @@ def get_queue_tasks():
     n, tasks = Task.tasks_from_queue(tiger, queue, state, skip=offset, limit=size, load_executions=1)
     bucket = []
     for task in tasks:
-        data = task.data
-        print('---->', data)
+        data = task.data.copy()
 
         del data['args']
         record = db.collection('tasks').find_one({'t_id': task.id})
         if record:
+            job_record = db.collection('jobs').find_one({'_id': ObjectId(record['job_id'])})
+            if job_record:
+                data['job_name'] = job_record.get('name')
+
             data['state'] = record.get('state')
-            data['job_name'] = record.get('name')
             data['result'] = record['result']
         else:
             data['job_name'] = 'default'
@@ -290,8 +294,25 @@ def retry(_id, state):
 
     task_id = record.get('t_id')
     queue = record.get('queue')
-    task = Task.from_id(tiger, queue, state, task_id)
-    task.cancel()
+    try:
+        task = Task.from_id(tiger, queue, state, task_id)
+        task.retry()
+        db.collection('tasks').update_one({'_id': record['_id']}, {'$set': {
+            'updated_at': datetime.now(),
+            'state': state,
+        }})
+        extra = {
+            'queue': queue,
+            'task_id': task_id,
+            'from_state': state,
+            'to_state': QUEUED
+        }
+        logger.info('retry task', extra=extra)
+    except TaskNotFound:
+        return jsonify({
+            'message': 'invalid task',
+            'code': 104044
+        }), 404
 
     return jsonify({
         'message': 'ok',
@@ -301,6 +322,8 @@ def retry(_id, state):
 
 @jwt_required
 def cancel(_id, state):
+    print(_id, state)
+
     record = db.collection('tasks').find_one({'_id': ObjectId(_id)})
     if not record:
         return jsonify({
@@ -310,8 +333,62 @@ def cancel(_id, state):
 
     task_id = record.get('t_id')
     queue = record.get('queue')
-    task = Task.from_id(tiger, queue, state, task_id)
-    task.cancel()
+    try:
+        task = Task.from_id(tiger, queue, state, task_id)
+        task.cancel()
+        db.collection('tasks').update_one({'_id': record['_id']}, {'$set': {
+            'updated_at': datetime.now(),
+            'state': 'cancel',
+        }})
+        extra = {
+            'queue': queue,
+            'task_id': task_id,
+            'from_state': state,
+            'to_state': None
+        }
+        logger.info('cancel task', extra=extra)
+    except TaskNotFound:
+        return jsonify({
+            'message': 'invalid task',
+            'code': 104044
+        }), 404
+
+    return jsonify({
+        'message': 'ok',
+        'code': 0,
+    })
+
+
+@jwt_required
+def delete_task(_id, state):
+    record = db.collection('tasks').find_one({'t_id': _id})
+    if not record:
+        return jsonify({
+            'message': 'task not found',
+            'code': 194041
+        }), 404
+
+    task_id = record.get('t_id')
+    queue = record.get('queue')
+    try:
+        task = Task.from_id(tiger, queue, state, task_id)
+        task._move(from_state=state)
+        db.collection('tasks').update_one({'_id': record['_id']}, {'$set': {
+            'updated_at': datetime.now(),
+            'state': 'delete',
+        }})
+        extra = {
+            'queue': queue,
+            'task_id': task_id,
+            'from_state': state,
+            'to_state': None
+        }
+        logger.info('cancel task', extra=extra)
+    except TaskNotFound:
+        return jsonify({
+            'message': 'invalid task',
+            'code': 104044
+        }), 404
 
     return jsonify({
         'message': 'ok',
@@ -320,6 +397,10 @@ def cancel(_id, state):
 
 
 def pause_queue():
+    """
+    @todo
+    :return:
+    """
     pass
 
 
@@ -377,7 +458,6 @@ def get_schedule_task(_id):
         }), 404
 
     result = {}
-    print(result)
     for key, value in schedule.__getstate__().items():
         result[key] = str(value)
 
@@ -388,3 +468,107 @@ def get_schedule_task(_id):
     })
 
 
+@jwt_required
+def pause_schedule(job_id):
+    job = scheduler.get_job(job_id)
+    if not job:
+        return jsonify({
+            'message': 'record not found',
+            'code': 104040,
+        }), 404
+
+    job.pause()
+
+    return jsonify({
+        'message': 'ok',
+        'code': 0,
+    })
+
+
+@jwt_required
+def resume_schedule(job_id):
+    job = scheduler.get_job(job_id)
+    if not job:
+        return jsonify({
+            'message': 'record not found',
+            'code': 104040,
+        }), 404
+
+    job.resume()
+
+    return jsonify({
+        'message': 'ok',
+        'code': 0,
+    })
+
+
+@jwt_required
+def remove_schedule(job_id):
+    job = scheduler.get_job(job_id)
+    if not job:
+        return jsonify({
+            'message': 'record not found',
+            'code': 104040,
+        }), 404
+
+    job.remove()
+
+    return jsonify({
+        'message': 'ok',
+        'code': 0,
+    })
+
+
+@jwt_required
+def reschedule_schedule(job_id):
+    payload = request.get_json() or {}
+    reschedule = payload.get('reschedule')
+    if reschedule:
+        return jsonify({
+            'message': 'invalid schedule params',
+            'code': 104004
+        }), 400
+
+    job = scheduler.get_job(job_id)
+    if not job:
+        return jsonify({
+            'message': 'record not found',
+            'code': 104040,
+        }), 404
+
+    job.reschedule()
+
+    return jsonify({
+        'message': 'ok',
+        'code': 0,
+    })
+
+
+@jwt_required
+def modify_schedule(job_id):
+    """
+    @todo check changed params
+    :param job_id:
+    :return:
+    """
+    payload = request.get_json() or {}
+    change = payload.get('change')
+    if change:
+        return jsonify({
+            'message': 'invalid schedule params',
+            'code': 104004
+        }), 400
+
+    job = scheduler.get_job(job_id)
+    if not job:
+        return jsonify({
+            'message': 'record not found',
+            'code': 104040,
+        }), 404
+
+    job.modify(change)
+
+    return jsonify({
+        'message': 'ok',
+        'code': 0,
+    })

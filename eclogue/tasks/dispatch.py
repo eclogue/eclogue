@@ -46,14 +46,13 @@ def run_job(_id, **kwargs):
     extra = record.get('extra')
     schedule = extra.get('schedule')
     ansible_type = record.get('type')
-    print('>>>>', ansible_type, record)
     if schedule:
         existed = db.collection('scheduler_jobs').find_one({'_id': record['_id']})
         if existed:
             return False
 
         scheduler.add_job(func=run_schedule_task, trigger='cron', args=params, minute='1',
-                          kwargs=kwargs, id=str(record.get('_id')), max_instances=1)
+                          kwargs=kwargs, id=str(record.get('_id')), max_instances=1, namne=record.get('name'))
         return True
     else:
         func = run_task if ansible_type != 'adhoc' else run_adhoc_task
