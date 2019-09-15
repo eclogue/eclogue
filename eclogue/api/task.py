@@ -449,6 +449,37 @@ def task_logs(_id):
 
 
 @jwt_required
+def get_task_info(_id):
+    record = db.collection('tasks').find_one({'_id': ObjectId(_id)})
+    if not record:
+        return jsonify({
+            'message': 'record not found',
+            'code': 104040
+        }), 404
+
+    log = db.collection('logs').find_one({'task_id': str(record.get('_id'))})
+    # log = db.collection('logs').find_one({'task_id': '5d6d4e0ae3f7e086eaa30321'})
+
+    record['log'] = log
+    job = db.collection('jobs').find_one({'_id': ObjectId(record.get('job_id'))})
+    record['job'] = job
+    queue = record.get('queue')
+    state = record.get('state')
+    task_id = record.get('t_id')
+    try:
+        task = Task.from_id(tiger, queue, state, task_id)
+        record['queue_info'] = task.data.copy()
+    except TaskNotFound:
+        record['queue_info'] = None
+
+    return jsonify({
+        'message': 'ok',
+        'code': 0,
+        'data': record,
+    })
+
+
+@jwt_required
 def get_schedule_task(_id):
     schedule = scheduler.get_job(job_id=_id)
     if not schedule or not hasattr(schedule, '__getstate__'):
@@ -457,9 +488,8 @@ def get_schedule_task(_id):
             'code': 104040
         }), 404
 
-    result = {}
-    for key, value in schedule.__getstate__().items():
-        result[key] = str(value)
+    result = schedule.__getstate__()
+    result['trigger'] = str(result['trigger'])
 
     return jsonify({
         'message': 'ok',

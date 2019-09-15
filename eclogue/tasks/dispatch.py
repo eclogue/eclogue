@@ -51,7 +51,7 @@ def run_job(_id, **kwargs):
         if existed:
             return False
 
-        scheduler.add_job(func=run_schedule_task, trigger='cron', args=params, minute='1',
+        scheduler.add_job(func=run_schedule_task, trigger='cron', args=params, minute='1', coalesce=True,
                           kwargs=kwargs, id=str(record.get('_id')), max_instances=1, namne=record.get('name'))
         return True
     else:
