@@ -13,11 +13,13 @@ class Menus(Resource):
     @jwt_required
     def get_menus():
         username = login_user.get('username')
+        user_id = login_user.get('user_id')
         is_admin = login_user.get('is_admin')
+        # is_admin = False
         if not is_admin:
             user = User()
             user_info = user.collection.find_one({'username': username})
-            permissions = user.get_permissions(user_info['_id'])
+            permissions = user.get_permissions(user_id)
             menus = permissions[0]
         else:
             def add_actions(item):
