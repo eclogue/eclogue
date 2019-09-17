@@ -1,4 +1,5 @@
-import pymongo
+import time
+from bson import ObjectId
 from flask_restful import Resource
 from eclogue.model import db
 from eclogue.middleware import jwt_required, login_user
@@ -26,7 +27,7 @@ class Menus(Resource):
                 item['actions'] = ['get', 'post', 'delete', 'put', 'patch']
                 return item
 
-            menus = db.collection('menus').find({}).sort('id', 1)
+            menus = db.collection('menus').find({'status': 1}).sort('id', 1)
             menus = map(add_actions, menus)
 
         return jsonify({
@@ -37,7 +38,7 @@ class Menus(Resource):
 
     @staticmethod
     @jwt_required
-    def add():
+    def add_menu():
         params = request.get_json()
         if not params:
             return jsonify({
@@ -46,18 +47,21 @@ class Menus(Resource):
             }), 400
 
         print(params)
-        check = True
+        checked = True
         if 'name' not in params:
-            check = False
+            checked = False
         if 'route' not in params:
-            check = False
+            checked = False
         if 'id' not in params:
-            check = False
+            checked = False
 
-        if check is False:
+        if 'status' in params:
+            checked = type(params.get('status')) == int
+
+        if checked is False:
             return jsonify({
                 'message': 'param incorrect',
-                'code': 4001
+                'code': 104001
             }), 400
 
         data = {
@@ -65,8 +69,11 @@ class Menus(Resource):
             'route': params['route'],
             'id': params['id'],
             'icon': params.get('icon', ''),
-            'bpid': params.get('bpid', 0),
-            'description': params.get('description', ''),
+            'bpid': params.get('bpid') or '0',
+            'mpid': params.get('mpid') or '0',
+            'status': params.get('status') or 1,
+            'add_by': login_user.get('username'),
+            'created_at': time.time()
         }
         db.collection('menus').insert_one(data)
         logger.info('add menu', extra={'record': data})
@@ -76,3 +83,94 @@ class Menus(Resource):
             'code': 0,
         })
 
+    @staticmethod
+    @jwt_required
+    def edit_menu(_id):
+        params = request.get_json()
+        if not params:
+            return jsonify({
+                'message': 'param required',
+                'code': 4000
+            }), 400
+
+        is_admin = login_user.get('is_admin')
+        if not is_admin:
+            return jsonify({
+                'message': 'permission deny',
+                'code': 104010
+            }), 401
+
+        obj_id = ObjectId(_id)
+        record = db.collection('menus').find_one({'_id': obj_id})
+        if not record:
+            return jsonify({
+                'message': 'record not found',
+                'code': 104040
+            }), 404
+
+        name = params.get('name')
+        route = params.get('route')
+        icon = params.get('icon')
+        mpid = params.get('mpid')
+        bpid = params.get('bpid')
+        status = params.get('status', 1)
+        update = {}
+        if name:
+            existed = db.collection('menus').find_one({'name': name, '_id': {'$ne': obj_id}})
+            if existed:
+                return jsonify({
+                    'message': 'name existed',
+                    'code': 1040001
+                }), 400
+
+            update['name'] = name
+        if route:
+            update['route'] = route
+
+        if icon:
+            update['icon'] = icon
+
+        if status is not None:
+            update['status'] = status
+
+        if mpid:
+            if int(mpid) > 0:
+                existed = db.collection('menus').find_one({'id': mpid})
+                if not existed:
+                    return jsonify({
+                        'message': 'invalid mpid',
+                        'code': 104002
+                    }), 400
+
+            elif mpid == record.get('id'):
+                return jsonify({
+                    'message': 'invalid mpid',
+                    'code': 104003
+                }), 400
+
+            update['mpid'] = str(mpid)
+
+        if bpid:
+            if int(bpid) > 0:
+                existed = db.collection('menus').find_one({'id': bpid})
+                if not existed:
+                    return jsonify({
+                        'message': 'invalid bpid',
+                        'code': 104002
+                    }), 400
+
+            elif bpid == record.get('id'):
+                return jsonify({
+                    'message': 'invalid bpid',
+                    'code': 104003
+                }), 400
+
+            update['bpid'] = str(bpid)
+
+        db.collection('menus').update_one({'_id': obj_id}, {'$set': update})
+        logger.info('update menu', extra={'record': record, 'change': update})
+
+        return jsonify({
+            'message': 'ok',
+            'code': 0,
+        })

@@ -26,7 +26,8 @@ import eclogue.api.job as job
 routes = [
     ('/login', Auth.login, ['POST']),
     ('/menus', Menus.get_menus, ['GET']),
-    ('/menus', Menus.add, ['POST']),
+    ('/menus', Menus.add_menu, ['POST']),
+    ('/menus/<_id>', Menus.edit_menu, ['put']),
     ('/playbook/dumper', Catheter.get, ['GET']),
     ('/playbook/dumper', Catheter.drop, ['DELETE']),
     ('/playbook/keys', add_key, ['POST']),
