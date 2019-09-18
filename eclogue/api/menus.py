@@ -1,4 +1,6 @@
+import datetime
 import time
+import uuid
 from bson import ObjectId
 from flask_restful import Resource
 from eclogue.model import db
@@ -6,6 +8,7 @@ from eclogue.middleware import jwt_required, login_user
 from flask import jsonify, request
 from eclogue.models.user import User
 from eclogue.lib.logger import logger
+from eclogue.utils import md5
 
 
 class Menus(Resource):
@@ -13,21 +16,23 @@ class Menus(Resource):
     @staticmethod
     @jwt_required
     def get_menus():
-        username = login_user.get('username')
+        query = request.args
         user_id = login_user.get('user_id')
         is_admin = login_user.get('is_admin')
         # is_admin = False
         if not is_admin:
             user = User()
-            user_info = user.collection.find_one({'username': username})
             permissions = user.get_permissions(user_id)
             menus = permissions[0]
         else:
             def add_actions(item):
                 item['actions'] = ['get', 'post', 'delete', 'put', 'patch']
                 return item
+            where = {'status': 1}
+            if query and query.get('all'):
+                where = {}
 
-            menus = db.collection('menus').find({'status': 1}).sort('id', 1)
+            menus = db.collection('menus').find(where).sort('id', 1)
             menus = map(add_actions, menus)
 
         return jsonify({
@@ -64,14 +69,15 @@ class Menus(Resource):
                 'code': 104001
             }), 400
 
+        id = str(ObjectId.from_datetime(datetime.datetime.now()))
         data = {
             'name': params['name'],
             'route': params['route'],
-            'id': params['id'],
+            'id': id,
             'icon': params.get('icon', ''),
             'bpid': params.get('bpid') or '0',
             'mpid': params.get('mpid') or '0',
-            'status': params.get('status') or 1,
+            'status': params.get('status', 1),
             'add_by': login_user.get('username'),
             'created_at': time.time()
         }
@@ -116,14 +122,8 @@ class Menus(Resource):
         status = params.get('status', 1)
         update = {}
         if name:
-            existed = db.collection('menus').find_one({'name': name, '_id': {'$ne': obj_id}})
-            if existed:
-                return jsonify({
-                    'message': 'name existed',
-                    'code': 1040001
-                }), 400
-
             update['name'] = name
+
         if route:
             update['route'] = route
 
@@ -167,10 +167,37 @@ class Menus(Resource):
 
             update['bpid'] = str(bpid)
 
-        db.collection('menus').update_one({'_id': obj_id}, {'$set': update})
-        logger.info('update menu', extra={'record': record, 'change': update})
+        if update:
+            update['updated_at'] = datetime.datetime.now()
+            db.collection('menus').update_one({'_id': obj_id}, {'$set': update})
+            logger.info('update menu', extra={'record': record, 'change': update})
 
         return jsonify({
             'message': 'ok',
             'code': 0,
         })
+
+    @staticmethod
+    @jwt_required
+    def delete_menu(_id):
+        is_admin = login_user.get('is_admin')
+        if not is_admin:
+            return jsonify({
+                'message': 'permission deny',
+                'code': 104010
+            }), 401
+
+        record = db.collection('menus').find_one({'_id': ObjectId(_id)})
+        if not record:
+            return jsonify({
+                'message': 'record not found',
+                'code': 104040
+            }), 404
+
+        db.collection('menus').delete_one({'_id': record['_id']})
+
+        return jsonify({
+            'message': 'ok',
+            'code': 0,
+        })
+

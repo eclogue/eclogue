@@ -28,6 +28,7 @@ routes = [
     ('/menus', Menus.get_menus, ['GET']),
     ('/menus', Menus.add_menu, ['POST']),
     ('/menus/<_id>', Menus.edit_menu, ['put']),
+    ('/menus/<_id>', Menus.delete_menu, ['delete']),
     ('/playbook/dumper', Catheter.get, ['GET']),
     ('/playbook/dumper', Catheter.drop, ['DELETE']),
     ('/playbook/keys', add_key, ['POST']),
