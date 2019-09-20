@@ -38,6 +38,7 @@ gitpython = "*"
 flask-log-request-id = "*"
 prometheus-client = "*"
 prometheus-flask-exporter = "*"
+sshpubkeys = "*"
 
 [requires]
 python_version = "3.7"

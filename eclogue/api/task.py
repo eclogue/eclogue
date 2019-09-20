@@ -13,6 +13,7 @@ from eclogue.middleware import jwt_required, login_user
 from eclogue.models.job import Job
 from eclogue.scheduler import scheduler
 from eclogue.lib.logger import logger
+from eclogue.models.task import task_model
 
 
 @jwt_required
@@ -21,7 +22,6 @@ def monitor():
     :return: json response
     """
     queue_stats = tiger.get_queue_stats()
-    print(queue_stats)
     sorted_stats = sorted(queue_stats.items(), key=lambda k: k[0])
     queues = dict()
     for queue, stats in sorted_stats:
@@ -88,49 +88,8 @@ def monitor():
         },
     ])
 
-    task_histogram = {}
-    for item in histogram:
-        print(item)
-        primary = item['_id']
-        state = primary.get('state')
-        interval = 3600 * primary.get('interval')
-        if not task_histogram.get(interval):
-            task_histogram[interval] = {
-                'date': interval,
-                'error': 0,
-                'finish': 0,
-                'queued': 0,
-            }
-
-        task_histogram[interval].update({
-            state: item.get('count')
-        })
-
-    task_state_pies = db.collection('tasks').aggregate([
-        {
-            '$match': {
-                'created_at': {
-                    '$gte': time.time() - 86400 * 7,
-                    '$lte': time.time()
-                },
-            }
-        },
-        {
-            '$group': {
-                '_id': {
-                    'state': '$state',
-                },
-                'count': {
-                    '$sum': 1
-                }
-            }
-        }
-    ])
-
-    task_state_pies = list(task_state_pies)
-    for item in task_state_pies:
-        item['state'] = item['_id']['state']
-
+    task_histogram = task_model.histogram()
+    task_state_pies = task_model.state_pies()
     task_pies = {
         'jobType': [
             {

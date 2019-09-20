@@ -22,6 +22,7 @@ import eclogue.api.book as book
 import eclogue.api.playbook as playbook
 import eclogue.api.app as application
 import eclogue.api.job as job
+import eclogue.api.dashboard as dashboard
 
 routes = [
     ('/login', Auth.login, ['POST']),
@@ -124,4 +125,5 @@ routes = [
     ('/webhooks/job', job.job_webhook, ['post']),
     ('/logs', log.log_query, ['get']),
     ('/test', application.test_docker, ['get']),
+    ('/dashboard', dashboard.dashboard, ['get']),
 ]
