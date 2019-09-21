@@ -89,17 +89,20 @@ def run_adhoc_task(_id, request_id, username, **kwargs):
     if not task_record:
         return False
 
+    start_at = time()
+    state = 'progressing'
+    result = ''
     task_id = task_record.get('_id')
     old_stdout = sys.stdout
     old_stderr = sys.stderr
     sys.stderr = sys.stdout = temp_stdout = Reporter(StringIO())
     try:
         record = db.collection('jobs').find_one({'_id': ObjectId(_id)})
-        result = load_ansible_adhoc(record)
-        if result.get('message') != 'ok':
-            raise Exception(result.get('message'))
+        ret = load_ansible_adhoc(record)
+        if ret.get('message') != 'ok':
+            raise Exception(ret.get('message'))
 
-        payload = result.get('data')
+        payload = ret.get('data')
         options = payload.get('options')
         private_key = payload.get('private_key')
         module = payload.get('module')
@@ -117,19 +120,19 @@ def run_adhoc_task(_id, request_id, username, **kwargs):
             }]
             runner = AdHocRunner(hosts, options=options)
             runner.run('all', tasks)
-            runner.get_result()
-            return True
-    except Exception as e:
-        update = {
-            '$set': {
-                'result': e.args,
-                'state': ERROR,
+            result = runner.get_result()
+            state = 'success'
+            update = {
+                '$set': {
+                    'result': result,
+                    'state': state,
+                }
             }
-
-        }
-
-        db.collection('tasks').update_one({'_id': task_id}, update=update)
+            db.collection('tasks').update_one({'_id': task_id}, update=update)
+    except Exception as e:
+        result = e.args
         logger.error('run task with exception: {}'.format(str(e)), extra=extra)
+
         raise e
     finally:
         content = temp_stdout.getvalue()
@@ -138,6 +141,19 @@ def run_adhoc_task(_id, request_id, username, **kwargs):
         eclogue_logger = get_logger('eclogue')
         extra.update({'task_id': str(task_id), 'currentUser': username})
         eclogue_logger.info(content, extra=extra)
+        finish_at = time()
+        update = {
+            '$set': {
+                'start_at': start_at,
+                'finish_at': finish_at,
+                'state': state,
+                'duration': finish_at - start_at,
+                'result': result,
+            }
+
+        }
+
+        db.collection('tasks').update_one({'_id': task_id}, update=update)
 
 
 def run_task(_id, request_id, username, **kwargs):
@@ -147,6 +163,9 @@ def run_task(_id, request_id, username, **kwargs):
     if not task_record:
         return False
 
+    start_at = time()
+    state = 'progressing'
+    result = ''
     task_id = task_record.get('_id')
     old_stdout = sys.stdout
     old_stderr = sys.stderr
@@ -208,17 +227,7 @@ def run_task(_id, request_id, username, **kwargs):
             logger.info('ansible-playbook run load inventory: \n{}'.format(yaml.safe_dump(inventory)))
             play = PlayBookRunner(data.get('inventory'), options)
             play.run(entry)
-
-            record = db.collection('tasks').find_one({'_id': task_id})
-            duration = time() - record.get('created_at')
-            update = {
-                '$set': {
-                    # 'result': result,
-                    'state': 'finish',
-                    'duration': duration
-                }
-            }
-            db.collection('tasks').update_one({'_id': task_id}, update=update)
+            result = play.get_result()
             builds = db.collection('build_books').count({'job_id': _id})
             # @todo
             if builds > 10:
@@ -245,16 +254,9 @@ def run_task(_id, request_id, username, **kwargs):
                     shutil.rmtree(bookspace)
 
     except Exception as e:
-        update = {
-            '$set': {
-                'result': e.args,
-                'state': ERROR,
-            }
-
-        }
-
-        db.collection('tasks').update_one({'_id': task_id}, update=update)
+        result = e.args
         logger.error('run task with exception: {}'.format(str(e)), extra=extra)
+
         raise e
     finally:
         content = temp_stdout.getvalue()
@@ -263,6 +265,17 @@ def run_task(_id, request_id, username, **kwargs):
         eclogue_logger = get_logger('eclogue')
         extra.update({'task_id': str(task_id), 'currentUser': username})
         eclogue_logger.info(content, extra=extra)
+        finish_at = time()
+        update = {
+            '$set': {
+                'start_at': start_at,
+                'finish_at': finish_at,
+                'state': state,
+                'duration': finish_at - start_at,
+                'result': result,
+            }
+        }
+        db.collection('tasks').update_one({'_id': task_id}, update=update)
 
 
 def run_schedule_task(_id, request_id, username, **kwargs):

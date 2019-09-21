@@ -8,7 +8,6 @@ class Task(Model):
 
     def histogram(self, days=15):
         hour = 3600
-        print(time.time() - 24 * hour * days)
         histogram = self.collection.aggregate([
             {
                 '$match': {
@@ -35,6 +34,7 @@ class Task(Model):
                 }
             },
         ])
+
         task_histogram = {}
         for item in histogram:
             print(item)
@@ -54,9 +54,8 @@ class Task(Model):
             task_histogram[date].update({
                 state: item.get('count')
             })
-        print(task_histogram)
 
-        return task_histogram
+        return task_histogram.values()
 
     def state_pies(self):
         task_state_pies = self.collection.aggregate([
@@ -77,6 +76,49 @@ class Task(Model):
             item['state'] = item['_id']['state']
 
         return task_state_pies
+
+    def duration(self, days=15):
+        day_time = 86400
+        duration = self.collection.aggregate([
+            {
+                '$match': {
+                    'created_at': {
+                        '$lt': time.time(),
+                        '$gte': time.time() - days * day_time
+                    },
+                }
+            },
+            {
+                '$group': {
+                    '_id': None,
+                    'avg': {
+                        '$avg': '$duration'
+                    },
+                    'max': {
+                        '$max': '$duration'
+                    },
+                    'min': {
+                        '$min': '$duration'
+                    },
+                    'sum': {
+                        '$sum': 1
+                    }
+                }
+            }
+        ])
+
+        duration = list(duration)
+        print(duration)
+        if not duration:
+            return {
+                'avg': 0,
+                'max': 0,
+                'min': 0,
+                'sum': 0,
+            }
+
+
+        return duration[0]
 
 
 task_model = Task()

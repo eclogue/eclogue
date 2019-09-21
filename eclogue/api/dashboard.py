@@ -7,8 +7,10 @@ from eclogue.tasks.dispatch import tiger
 from eclogue.models.host import Host
 from eclogue.models.task import task_model
 from eclogue.models.book import book
+from eclogue.middleware import jwt_required
 
 
+@jwt_required
 def dashboard():
     hosts = Host().collection.aggregate([{
         '$group': {
@@ -28,17 +30,28 @@ def dashboard():
             },
         },
     ])
+    jobs = db.collection('jobs').aggregate([
+        {
+            '$group': {
+                '_id': '$type',
+                'count': {
+                    '$sum': 1
+                }
+            },
+        },
+    ])
     state_pies = task_model.state_pies()
     histogram = task_model.histogram()
     playbooks = book.collection.aggregate([{
         '$group': {
-            '_id': '$type',
+            '_id': '$status',
             'count': {
                 '$sum': 1
             }
         }
     }])
     config_count = db.collection('configurations').count()
+    duration = task_model.duration()
 
     return jsonify({
         'message': 'ok',
@@ -46,9 +59,11 @@ def dashboard():
         'data': {
             'apps': list(apps),
             'hosts': list(hosts),
-            'task_pies': state_pies,
-            'task_histogram': histogram,
+            'jobs': list(jobs),
+            'taskPies': state_pies,
+            'taskHistogram': list(histogram),
             'playbooks': list(playbooks),
             'config': config_count,
+            'jobDuration': duration,
         }
     })
