@@ -14,6 +14,7 @@ from eclogue.config import config
 from eclogue.lib.integration import Integration
 from eclogue.lib.logger import get_logger
 from eclogue.ansible.runer import get_default_options
+from eclogue.lib.credential import get_credential_content_by_id
 
 
 def ini_yaml(text):
@@ -230,8 +231,10 @@ def load_ansible_playbook(payload):
     options['verbosity'] = template.get('verbosity', 0)
     become_method = template.get('become_method')
     if become_method:
+        options['become'] = 'yes'
         options['become_method'] = become_method
-        options['become_user'] = template.get('become_user')
+        if template.get('become_user'):
+            options['become_user'] = template.get('become_user')
 
     vault_pass = template.get('vault_pass')
     if vault_pass:
@@ -272,6 +275,84 @@ def load_ansible_playbook(payload):
         }
     }
 
+
+def load_ansible_adhoc(payload):
+    template = payload.get('template')
+    extra = payload.get('extra')
+    module = template.get('module')
+    args = template.get('args')
+    inventory = template.get('inventory')
+    private_key = template.get('private_key')
+    verbosity = template.get('verbosity')
+    become_method = template.get('become_method')
+    become_user = template.get('become_user')
+    extra_options = template.get('extraOptions')
+    name = template.get('name')
+    schedule = extra.get('schedule')
+    if not name:
+        return {
+            'message': 'name required',
+            'code': 104000,
+        }
+
+    if not module or not inventory:
+        return {
+            'message': 'miss required params',
+            'code': 104002,
+        }
+
+    check_module = db.collection('ansible_modules').find_one({
+        'name': module
+    })
+
+    if not check_module:
+        return {
+            'message': 'invalid module',
+            'code': 104003,
+        }
+
+    inventory = parse_cmdb_inventory(inventory)
+    if not inventory:
+        return {
+            'message': 'invalid inventory',
+            'code': 104004,
+        }
+
+    key_text = get_credential_content_by_id(private_key, 'private_key')
+    if not key_text:
+        return {
+            'message': 'invalid private key',
+            'code': 104004,
+        }
+
+    options = {
+        'verbosity': verbosity,
+        'check': False,
+        'hosts': inventory,
+    }
+    if become_method:
+        options['become'] = 'yes'
+        options['become_method'] = become_method
+        if become_user:
+            options['become_user'] = become_user
+
+    if extra_options:
+        options.update(extra_options)
+
+    return {
+        'message': 'ok',
+        'data': {
+            'inventory': inventory,
+            'options': options,
+            'name': name,
+            'module': module,
+            'args': args,
+            'private_key': private_key,
+            'template': payload,
+            'schedule': schedule,
+            'extra': extra,
+        }
+    }
 
 def _load_extra_vars(data):
     extra_vars = []
@@ -373,17 +454,15 @@ def parse_cmdb_inventory(inventory):
         inventory = [inventory]
 
     hosts = {}
-    data = dict()
+    data = {}
     for inventory_str in inventory:
         inventory_list = inventory_str.split('@')
-        print(inventory_list)
         if len(inventory_list) is not 3:
             continue
 
         collection, _id, group_name = inventory_list
         if collection == 'group':
             group = db.collection('groups').find_one({'_id': ObjectId(_id)})
-            print('gggg', group)
             if not group:
                 continue
 

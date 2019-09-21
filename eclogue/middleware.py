@@ -3,6 +3,7 @@ from werkzeug.local import LocalProxy
 from functools import wraps
 from eclogue.jwt import jws, get_claims
 from authlib.specs.rfc7519 import JWTError
+
 # from eclogue.models.user import User
 # from eclogue.routes import routes
 
@@ -102,13 +103,14 @@ def jwt_required(fn):
     :param fn:
     :return:
     """
+
     @wraps(fn)
     def wrapper(*args, **kwargs):
         claims = get_claims()
         if claims is 0:
             return jsonify({
                 'message': 'auth failed',
-                'code': 104011,
+                'code': 401401,
             }), 401
 
         if claims == -1:
@@ -120,6 +122,7 @@ def jwt_required(fn):
         _request_ctx_stack.top.login_user = claims
 
         return fn(*args, **kwargs)
+
     return wrapper
 
 
@@ -128,4 +131,5 @@ def return_json(status=200, code=0, message='', data=None):
         'code': code,
         'message': message,
         'data': data
-            }), status
+
+    }), status

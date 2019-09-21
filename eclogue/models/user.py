@@ -39,6 +39,7 @@ class User(Model):
 
         roles = db.collection('user_roles').find({'user_id': user_id})
         roles = list(roles)
+
         if roles:
             ids = map(lambda i: i['role_id'], roles)
             role_ids += list(ids)
@@ -55,7 +56,8 @@ class User(Model):
             menu = Menu()
             for record in records:
                 item = menu.find_by_id(record['m_id'])
-                if not item:
+                print('mpid', item.get('mpid'))
+                if not item or item.get('mpid') == '-1' or item.get('status') < 1:
                     continue
 
                 item['actions'] = record.get('actions', ['get'])

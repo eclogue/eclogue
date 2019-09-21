@@ -103,17 +103,21 @@ def mark_read():
         }), 400
 
     user_id = login_user.get('user_id')
-    for n_id in ids:
-        where = {
-            '_id': ObjectId(n_id),
-            'user_id': user_id,
+    ids = map(lambda i: ObjectId(i), ids)
+    ids = list(ids)
+    where = {
+        'user_id': user_id,
+        '_id': {
+            '$in': ids,
         }
-        update = {
-            '$set': {
-                'read': 1,
-            }
+    }
+    update = {
+        '$set': {
+            'read': 1
         }
-        Notification().collection.update_one(where, update=update)
+    }
+
+    Notification().collection.update_many(where, update=update)
 
     return jsonify({
         'message': 'ok',

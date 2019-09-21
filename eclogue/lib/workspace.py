@@ -2,8 +2,10 @@ import os
 import time
 import re
 import pymongo
-from bson import ObjectId
+import uuid
 import yaml
+from tempfile import gettempdir
+from bson import ObjectId
 from eclogue.config import config
 from eclogue.model import db
 from eclogue.utils import is_edit, file_md5, md5
@@ -220,7 +222,7 @@ class Workspace(object):
             with open(filename, 'w') as fd:
                 fd.write(content)
 
-    def load_book_from_db(self, name, roles=None):
+    def load_book_from_db(self, name, roles=None, build_id=False):
         book = db.collection('books').find_one({
             'name': name
         })
@@ -235,6 +237,8 @@ class Workspace(object):
             return False
 
         bookspace = self.get_book_space(name)
+        if build_id:
+            bookspace = os.path.join(self.book, md5(str(build_id)))
 
         def parse_register(record):
             register = record.get('register')
@@ -280,7 +284,6 @@ class Workspace(object):
             item = parse_register(item)
             if roles and item.get('project'):
                 project = item.get('project')
-                # print('ppppp', project)
                 if project and project not in roles:
                     continue
             filename = bookspace + item.get('path')
@@ -289,7 +292,7 @@ class Workspace(object):
                 if os.path.isdir(filename):
                     continue
                 else:
-                   self.mkdir(filename, 0o755)
+                   self.mkdir(filename)
             else:
                 if os.path.isfile(filename):
                     file_hash = file_md5(filename)
@@ -309,7 +312,7 @@ class Workspace(object):
                 else:
                     with open(filename, 'wb') as stream:
                         db.fs_bucket().download_to_stream(item['file_id'], stream)
-        return books
+        return bookspace
 
     def _get_role(self, pathname):
         path_split = pathname.lstrip('/').split('/')

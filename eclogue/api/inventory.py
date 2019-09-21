@@ -36,6 +36,7 @@ def get_inventory():
     else:
         hosts = get_inventory_from_cmdb()
 
+    print('123123', hosts)
     return jsonify({
         'message': 'ok',
         'code': 0,
@@ -493,19 +494,23 @@ def preview_inventory():
     inventory_type = payload.get('inventory_type', 'file')
     inventory = payload.get('inventory', None)
     if not inventory:
-        return {
+        return jsonify({
             'message': 'invalid param inventory',
             'code': 14002
-        }
+        }), 400
+
     if inventory_type == 'file':
         result = parse_file_inventory(inventory)
     else:
         result = parse_cmdb_inventory(inventory)
+
     if not result:
         return jsonify({
             'message': 'invalid inventory',
             'code': 104003,
         }), 400
+
+    print('----?', result)
     return jsonify({
         'message': 'ok',
         'code': 0,

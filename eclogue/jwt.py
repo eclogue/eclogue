@@ -16,11 +16,14 @@ class JWTAuth(object):
         }
 
     def encode(self, payload):
+        print('eeexxxp', int(time.time()) + self.config.get('exp'))
         data = {
             'iss': self.config['iss'],
             'aud': self.config['aud'],
-            'jwi': 'devops',
-            'exp': int(time.time()) + 7 * 86400,
+            'jwi': 'eclogue',
+            # 'exp': int(time.time()) + 10000,
+            'exp': int(time.time()) + int(self.config.get('exp'))
+
         }
         if payload:
             data.update(payload)
@@ -49,7 +52,8 @@ class JWTAuth(object):
     def verify(self, token):
         try:
             claims = self.decode(token)
-            claims.validate()
+            result = claims.validate()
+
             return claims
         except JWTError:
             return False

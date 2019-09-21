@@ -10,6 +10,7 @@ from eclogue.middleware import Middleware
 # sys.modules['ansible.utils.display'] = importlib.import_module('eclogue.ansible.display')
 from eclogue.api import router
 from eclogue.api.routes import routes
+from eclogue.scheduler import scheduler
 
 
 cfg = config.logging
@@ -36,6 +37,7 @@ def create_app():
     Middleware(instance)
     bp = router(routes)
     instance.register_blueprint(bp)
+    scheduler.start()
     # api.add_resource(Menus, '/menus')
 
     return instance

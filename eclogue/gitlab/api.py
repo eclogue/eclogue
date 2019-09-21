@@ -58,7 +58,6 @@ class GitlabApi(object):
         # project_id = '13539397'
         # job_id = '261939258'
         is_cache = self.config.get('cache')
-        print('cccccccccccc###########3', is_cache)
         save_dir = os.path.dirname(store)
         if is_cache:
             cache_files = db.collection('artifacts').find({
@@ -67,7 +66,6 @@ class GitlabApi(object):
                 'app_type': 'gitlab'
             })
             cache_files = list(cache_files)
-            print('xxxx', cache_files)
             if cache_files:
                 for record in cache_files:
                     file_id = record.get('file_id')

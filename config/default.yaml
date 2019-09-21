@@ -51,7 +51,7 @@ logging:
     level: DEBUG
     handlers:
       - default
-
+      - file
 workspace:
   tmp: {{ home_path }}/storage/tmp
   playbook: {{ home_path }}/storage/tmp
@@ -78,6 +78,7 @@ jwt:
   aud: 'https://eclogueio.com'
   header:
     alg: 'HS256'
+  exp: 604800
 redis:
   conn:
     host: localhost

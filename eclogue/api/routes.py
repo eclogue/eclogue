@@ -22,11 +22,14 @@ import eclogue.api.book as book
 import eclogue.api.playbook as playbook
 import eclogue.api.app as application
 import eclogue.api.job as job
+import eclogue.api.dashboard as dashboard
 
 routes = [
     ('/login', Auth.login, ['POST']),
     ('/menus', Menus.get_menus, ['GET']),
-    ('/menus', Menus.add, ['POST']),
+    ('/menus', Menus.add_menu, ['POST']),
+    ('/menus/<_id>', Menus.edit_menu, ['put']),
+    ('/menus/<_id>', Menus.delete_menu, ['delete']),
     ('/playbook/dumper', Catheter.get, ['GET']),
     ('/playbook/dumper', Catheter.drop, ['DELETE']),
     ('/playbook/keys', add_key, ['POST']),
@@ -43,8 +46,15 @@ routes = [
     ('/tasks/queue', task.get_queue_tasks, ['get']),
     ('/tasks/history', task.get_task_history, ['get']),
     ('/tasks/<_id>/logs', task.task_logs, ['get']),
+    ('/tasks/<_id>/info', task.get_task_info, ['get']),
     ('/tasks/<_id>/retry', task.retry, ['post']),
+    ('/tasks/<_id>/<state>/remove', task.delete_task, ['delete']),
     ('/tasks/<_id>/<state>/cancel', task.cancel, ['delete']),
+    ('/tasks/<_id>/schedule', task.get_schedule_task, ['get']),
+    ('/tasks/<job_id>/schedule/pause', task.pause_schedule, ['put']),
+    ('/tasks/<job_id>/schedule/resume', task.resume_schedule, ['put']),
+    ('/tasks/<job_id>/schedule/remove', task.remove_schedule, ['delete']),
+    ('/tasks/<job_id>/schedule/reschedule', task.reschedule_schedule, ['put']),
     ('/inventory/dumper', dump_inventory, ['GET', 'POST']),
     ('/books/all', book.all_books, ['GET']),
     ('/books', book.add_book, ['POST']),
@@ -115,4 +125,5 @@ routes = [
     ('/webhooks/job', job.job_webhook, ['post']),
     ('/logs', log.log_query, ['get']),
     ('/test', application.test_docker, ['get']),
+    ('/dashboard', dashboard.dashboard, ['get']),
 ]

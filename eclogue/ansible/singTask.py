@@ -7,7 +7,6 @@ REDIS_CLIENT = redis.Redis()
 
 def only_one(function=None, key="", timeout=None):
     """Enforce only one celery task at a time."""
-    print('>>>>>', key, function, timeout)
     def _dec(run_func):
         """Decorator."""
         pprint.pprint(run_func.name)
@@ -16,10 +15,8 @@ def only_one(function=None, key="", timeout=None):
             ret_value = None
             have_lock = False
             lock = REDIS_CLIENT.lock(key, timeout=timeout)
-            print('only one=========+++++', key)
             try:
                 have_lock = lock.acquire(blocking=False)
-                print('is had lock~~~~~~~~`', have_lock)
                 if have_lock:
                     ret_value = run_func(*args, **kwargs)
             finally:

@@ -46,6 +46,17 @@ def get_job(_id):
     template = job.get('template')
     inventory_type = template.get('inventory_type')
     inventory = template.get('inventory')
+    if job.get('type') == 'adhoc':
+        inventory_content = parse_cmdb_inventory(inventory)
+        return jsonify({
+            'message': 'ok',
+            'code': 0,
+            'data': {
+                'record': job,
+                'previewContent': inventory_content,
+            },
+        })
+
     if inventory_type == 'file':
         inventory_content = parse_file_inventory(inventory)
     else:
@@ -199,7 +210,6 @@ def add_jobs():
     entry = wk.get_book_entry(data.get('book_name'),  data.get('entry'))
     dry_run = bool(is_check)
     options['check'] = dry_run
-    print('ooooooo', options)
     if dry_run:
         with NamedTemporaryFile('w+t', delete=True) as fd:
             key_text = get_credential_content_by_id(private_key, 'private_key')
@@ -235,7 +245,7 @@ def add_jobs():
     token = str(base64.b64encode(bytes(current_request_id(), 'utf8')), 'utf8')
     new_record = {
         'name': name,
-        'job_type': 'playbook',
+        'type': 'playbook',
         'token': token,
         'description': data.get('description'),
         'book_id': data.get('book_id'),
@@ -322,30 +332,34 @@ def job_detail(_id):
             'code': 104040,
         }), 404
 
-    book = db.collection('books').find_one({'_id': ObjectId(record.get('book_id'))})
-    record['book_name'] = book.get('name')
-    template = record.get('template')
-    if template:
-        app_id = template.get('app')
-        if app_id:
-            app = db.collection('apps').find_one({'_id': ObjectId(app_id)})
-            if app:
-                template['app_name'] = app.get('name')
-                template['app_params'] = app.get('params')
-
-        inventory_type = template.get('inventory_type')
+    if record.get('type') == 'adhoc':
+        template = record.get('template')
         inventory = template.get('inventory')
-        if inventory_type == 'file':
-            inventory_content = parse_file_inventory(inventory)
-        else:
-            inventory_content = parse_cmdb_inventory(inventory)
+        inventory_content = parse_cmdb_inventory(inventory)
         template['inventory_content'] = inventory_content
+    else:
+        book = db.collection('books').find_one({'_id': ObjectId(record.get('book_id'))})
+        record['book_name'] = book.get('name')
+        template = record.get('template')
+        if template:
+            app_id = template.get('app')
+            if app_id:
+                app = db.collection('apps').find_one({'_id': ObjectId(app_id)})
+                if app:
+                    template['app_name'] = app.get('name')
+                    template['app_params'] = app.get('params')
 
+            inventory_type = template.get('inventory_type')
+            inventory = template.get('inventory')
+            if inventory_type == 'file':
+                inventory_content = parse_file_inventory(inventory)
+            else:
+                inventory_content = parse_cmdb_inventory(inventory)
+            template['inventory_content'] = inventory_content
     page = int(query.get('page', 1))
     size = int(query.get('pageSize', 20))
     offset = (page - 1) * size
     tasks = get_tasks_by_job(_id, offset=offset, limit=size)
-    # print(list(tasks))
     return jsonify({
         'message': 'ok',
         'code': 0,
@@ -409,6 +423,7 @@ def runner_module():
     })
 
 
+@jwt_required
 def add_adhoc():
     payload = request.get_json()
     if not payload:
@@ -427,6 +442,14 @@ def add_adhoc():
     schedule = payload.get('schedule')
     check = payload.get('check')
     job_id = payload.get('job_id')
+    extra_options = payload.get('extraOptions')
+    maintainer = payload.get('maintainer') or []
+    if maintainer and isinstance(maintainer, list):
+        users = db.collection('users').find({'username': {'$in': maintainer}})
+        names = list(map(lambda i: i['username'], users))
+        maintainer.extend(names)
+
+    maintainer.append(login_user.get('username'))
     if not job_id:
         existed = db.collection('jobs').find_one({'name': name})
         if existed:
@@ -464,10 +487,14 @@ def add_adhoc():
             'message': 'invalid private key',
             'code': 104004,
         }), 400
-    options = {
-        'verbosity': verbosity,
-        'check': False
-    }
+
+    options = {}
+    if extra_options:
+        options.update(extra_options)
+
+    if verbosity:
+        options['verbosity'] = verbosity
+
     if check:
         with NamedTemporaryFile('w+t', delete=True) as fd:
             fd.write(key_text)
@@ -483,6 +510,7 @@ def add_adhoc():
             runner = AdHocRunner(hosts, options=options)
             runner.run('all', tasks)
             result = runner.get_result()
+
             return jsonify({
                 'message': 'ok',
                 'code': 0,
@@ -490,19 +518,24 @@ def add_adhoc():
             })
 
     else:
+        token = str(base64.b64encode(bytes(current_request_id(), 'utf8')), 'utf8')
         data = {
+            'name': name,
             'template': {
                 'inventory': inventory,
                 'private_key': private_key,
                 'verbosity': verbosity,
                 'module': module,
                 'args': args,
-                'maintainer': [],
+                'extraOptions': extra_options,
+            },
+            'extra': {
                 'schedule': schedule,
                 'notification': notification,
             },
+            'token': token,
+            'maintainer': maintainer,
             'type': 'adhoc',
-            'name': name,
             'created_at': time.time(),
             'add_by': login_user.get('username')
         }
@@ -531,8 +564,8 @@ def add_adhoc():
     })
 
 
+@jwt_required
 def job_webhook():
-    _id = '5d4058b4b9a76b7eea946b99'
     query = request.args
     token = query.get('token')
     payload = request.get_json()
@@ -548,6 +581,15 @@ def job_webhook():
             'message': 'illegal token',
             'code': 104010
         }), 401
+
+    username = login_user.get('username')
+    if record.get('type') == 'adhoc':
+        task_id = run_job(str(record.get('_id')))
+
+        return jsonify({
+            'message': 'ok',
+            'data': task_id
+        })
 
     tempate = record.get('template')
     app_id = tempate.get('app')
