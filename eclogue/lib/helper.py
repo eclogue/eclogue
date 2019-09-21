@@ -211,7 +211,7 @@ def load_ansible_playbook(payload):
     options = dict()
     extra_options = template.get('extraOptions')
     if extra_options and type(extra_options) == dict:
-        options = extra_options
+        options = extra_options.copy()
         # default_options = get_default_options('playbook')
         # for key, value in extra_options.items():
         #     if default_options.get(key):

@@ -41,6 +41,7 @@ logging:
   formatters:
     simple:
       formate: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+      datefmt: '%Y-%m-%d %H:%M:%S'
     mongo:
       (): eclogue.lib.logger.MongoFormatter
   filters:
@@ -83,3 +84,9 @@ redis:
     host: localhost
     port: 6379
     decode_responses: !!bool "true"
+
+celery:
+  broker: redis://localhost:6379
+  backend: 'mongodb://root:password@localhost/upward?authSource=admin&authMechanism=SCRAM-SHA-1'
+  mongodb_backend_settings:
+    taskmeta_collection: job_result
