@@ -9,6 +9,10 @@ log:
 logging:
   version: 1
   loggers:
+    file:
+      level: DEBUG
+      handlers:
+        - file
     eclogue:
       level: DEBUG
       handlers:

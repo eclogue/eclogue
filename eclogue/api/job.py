@@ -11,7 +11,8 @@ from eclogue.middleware import jwt_required, login_user
 from eclogue.lib.helper import parse_cmdb_inventory, parse_file_inventory, load_ansible_playbook
 from eclogue.lib.inventory import get_inventory_from_cmdb, get_inventory_by_book
 from eclogue.lib.workspace import Workspace
-from eclogue.ansible.runer import PlayBookRunner, AdHocRunner, ResultsCollector
+from eclogue.ansible.runer import PlayBookRunner, AdHocRunner
+from eclogue.ansible.plugins.callback import CallbackModule
 from eclogue.lib.credential import get_credential_content_by_id
 from eclogue.tasks.dispatch import run_job, get_tasks_by_job
 from eclogue.ansible.doc import AnsibleDoc
@@ -222,7 +223,7 @@ def add_jobs():
             fd.write(key_text)
             fd.seek(0)
             options['private_key'] = fd.name
-            play = PlayBookRunner(data['inventory'], options, callback=ResultsCollector())
+            play = PlayBookRunner(data['inventory'], options, callback=CallbackModule())
             play.run(entry)
 
             return jsonify({

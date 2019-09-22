@@ -3,7 +3,7 @@ from ansible import constants as C
 from ansible.inventory.manager import InventoryManager
 from ansible.utils.path import unfrackpath
 from ansible.errors import AnsibleError, AnsibleOptionsError, AnsibleParserError
-from eclogue.ansible.plugin import ContentInventoryPlugin
+from eclogue.ansible.plugins.inventory import ContentInventoryPlugin
 from eclogue.lib.logger import get_logger
 
 logger = get_logger('console')

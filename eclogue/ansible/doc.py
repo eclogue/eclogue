@@ -1,13 +1,12 @@
-import os
 import time
 
 from collections import namedtuple
 import ansible.plugins.loader as plugin_loader
-
 from ansible import constants as C
-from ansible.cli import CLI
 from ansible.errors import AnsibleError, AnsibleOptionsError
 from ansible.cli.doc import DocCLI
+from ansible import context
+from ansible.utils.context_objects import CLIArgs
 
 from eclogue.model import db
 
@@ -26,17 +25,22 @@ default_options = {
 class AnsibleDoc(DocCLI):
 
     def __init__(self, args, options=None):
+        super().__init__(args)
         self.args = args if type(args) == list else [args]
         self.plugin_list = set()
         options_dict = default_options
         if options:
             options_dict.update(options)
-        Options = namedtuple('Options', sorted(options_dict))
-        options = Options(**options_dict)
-        self.options = options
+
+        self.options = options_dict
+        context.CLIARGS = CLIArgs(self.options)
+
+    def update_context_args(self, options):
+        self.options = self.options.update(options)
+        context.CLIARGS = CLIArgs(self.options)
 
     def store_modules(self):
-        self.options = self.options._replace(json_dump=True)
+        self.update_context_args({'json_dump': True})
         result = self.run()
         for key, value in result.items():
             if not value.get('name'):
@@ -66,18 +70,18 @@ class AnsibleDoc(DocCLI):
         return result
 
     def run(self):
-        plugin_type = self.options.type
+        plugin_type = self.options.get('type')
         if plugin_type in C.DOCUMENTABLE_PLUGINS:
             loader = getattr(plugin_loader, '%s_loader' % plugin_type)
         else:
             raise AnsibleOptionsError("Unknown or undocumentable plugin type: %s" % plugin_type)
 
-        if self.options.module_path:
-            for path in self.options.module_path:
+        if self.options.get('module_path'):
+            for path in self.options.get('module_path'):
                 if path:
                     loader.add_directory(path)
 
-        if self.options.json_dump:
+        if self.options.get('json_dump'):
             plugin_data = {}
             for plugin_type in C.DOCUMENTABLE_PLUGINS:
                 plugin_data[plugin_type] = dict()
