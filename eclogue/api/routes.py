@@ -23,6 +23,7 @@ import eclogue.api.playbook as playbook
 import eclogue.api.app as application
 import eclogue.api.job as job
 import eclogue.api.dashboard as dashboard
+import eclogue.api.setting as setting
 
 routes = [
     ('/login', Auth.login, ['POST']),
@@ -126,4 +127,6 @@ routes = [
     ('/logs', log.log_query, ['get']),
     ('/test', application.test_docker, ['get']),
     ('/dashboard', dashboard.dashboard, ['get']),
+    ('/setting', setting.add_setting, ['post']),
+    ('/setting', setting.get_setting, ['get']),
 ]
