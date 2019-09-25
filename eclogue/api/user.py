@@ -74,6 +74,7 @@ def get_profile(_id):
             'message': 'record not found',
             'code': 104040
         }), 404
+
     relation = TeamUser().collection.find_one({'user_id': _id})
     team = Team().find_by_id(relation.get('team_id'))
     record['team'] = team
@@ -84,6 +85,47 @@ def get_profile(_id):
         'message': 'ok',
         'code': 0,
         'data': record,
+    })
+
+
+@jwt_required
+def save_profile(_id):
+    payload = request.get_json()
+    user = User()
+    record = user.find_by_id(_id)
+    if not record:
+        return jsonify({
+            'message': 'record not found',
+            'code': 104040
+        }), 404
+
+    nickname = payload.get('nickname')
+    phone = payload.get('phone')
+    email = payload.get('email')
+    address = payload.get('address')
+    wechat = payload.get('wechat')
+    update = {}
+    if nickname:
+        update['nickname'] = nickname
+
+    if phone:
+        update['phone'] = phone
+
+    if email:
+        update['email'] = email
+
+    if address:
+        update['address'] = address
+
+    if wechat:
+        update['wechat'] = wechat
+
+    if update:
+        user.collection.update_one({'_id': record['_id']}, update={'$set': update})
+
+    return jsonify({
+        'message': 'ok',
+        'code': 0,
     })
 
 
