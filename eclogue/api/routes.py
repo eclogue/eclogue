@@ -125,7 +125,7 @@ routes = [
     # ('/docker', docker.test_docker, ['get']),
     ('/webhooks/job', job.job_webhook, ['post']),
     ('/logs', log.log_query, ['get']),
-    ('/test', application.test_docker, ['get']),
+    ('/test', setting.test, ['get']),
     ('/dashboard', dashboard.dashboard, ['get']),
     ('/setting', setting.add_setting, ['post']),
     ('/setting', setting.get_setting, ['get']),

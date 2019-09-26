@@ -80,6 +80,24 @@ def get_profile(_id):
     record['team'] = team
     record.pop('password')
     record['team'] = team
+    setting = db.collection('setting').find_one({})
+    options = {
+        'slack': True,
+        'sms': True,
+        'wechat': True,
+        'smtp': True,
+    }
+    if setting:
+        slack = setting.get('slack') or {}
+        sms = setting.get('nexmo') or {}
+        wechat = setting.get('wechat') or {}
+        smtp = setting.get('smtp') or {}
+        options['slack'] = bool(slack.get('enable'))
+        options['sms'] = bool(sms.get('enable'))
+        options['wechat'] = bool(wechat.get('enable'))
+        options['smtp'] = bool(smtp.get('enable'))
+
+    record['setting'] = options
 
     return jsonify({
         'message': 'ok',
@@ -503,3 +521,4 @@ def get_hosts():
     if is_admin:
         groups = db.collection('groups').find({})
     pass
+

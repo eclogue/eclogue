@@ -5,7 +5,8 @@ from bson import ObjectId
 from flask import Flask, request, jsonify
 from eclogue.model import db
 from eclogue.middleware import jwt_required, login_user
-
+from eclogue.notification.wechat import Wechat
+from eclogue.notification.smtp import SMTP
 
 @jwt_required
 def add_setting():
@@ -41,11 +42,19 @@ def add_setting():
         server = smtp.get('server')
         sender = smtp.get('sender')
         send_from = smtp.get('from')
+        port = smtp.get('port')
+        tls = smtp.get('tls')
+        user = smtp.get('user')
+        password = smtp.get('password')
         if server and sender and send_from:
             data['smtp'] = {
                 'server': server,
                 'sender': sender,
                 'from': send_from,
+                'tls': bool(tls),
+                'user': user,
+                'port': port,
+                'password': password,
                 'enable': bool(smtp.get('enable'))
             }
 
@@ -94,3 +103,21 @@ def get_setting():
         'code': 0,
         'data': record or {}
     })
+
+
+def test():
+    record = db.collection('setting').find_one({})
+
+    # wechat = record.get('wechat')
+    # print(wechat)
+    # sender = Wechat()
+    # result = sender.send('fuck world')
+    # print('rr', result)
+    # smtp = record.get('smtp')
+    print(record.get('smtp'))
+    smtp = SMTP()
+    smtp.send('fuck world', 'bugbear', ['craber234@sina.cn'])
+    return jsonify({
+        'message': 'ok',
+    })
+
