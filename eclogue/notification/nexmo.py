@@ -1,14 +1,13 @@
 import time
-import datetime
+import traceback
 from nexmo import Client
 from eclogue.model import db
-from flask_log_request_id import current_request_id
+from eclogue.notification import BaseSender
 
 
-class Nexmo(object):
+class Nexmo(BaseSender):
 
-    def __init__(self):
-        self.enable, self.config = self.get_config()
+    name = 'nexmo'
 
     @property
     def client(self):
@@ -21,37 +20,42 @@ class Nexmo(object):
     def sender(self):
         return self.config.get('from') or 'eclogue'
 
-    @staticmethod
-    def get_config():
-        record = db.collection('setting').find_one({'nexmo.enable': True})
-        if not record:
-            return False, {}
-
-        return record.get('nexmo'), True
-
     def send(self, phone, text):
         params = {
             'phone': phone,
             'from': self.sender,
             'text': text,
         }
-        result = self.client.send_message(params)
         data = params.copy()
-        data['request_id'] = current_request_id
+        data['task_id'] = self.task_id
         data['created_at'] = time.time()
-        if not result.get('messages'):
-            raise Exception('send nexmo message with uncaught exception')
-        else:
-            response = result['messages'][0]
-            print(response)
-            status = response.get('status')
-            data['status'] = status
-            if response.get('status') == '0':
-                data['message_id'] = response.get('message-id')
+        try:
+            result = self.client.send_message(params)
+            if not result.get('messages'):
+                raise Exception('send nexmo message with uncaught exception')
             else:
-                data['error'] = response['error-text']
+                response = result['messages'][0]
+                status = response.get('status')
+                data['status'] = status
+                if response.get('status') == '0':
+                    data['result'] = result
+                    data['code'] = 0
+                    data['error'] = False
+                else:
+                    data['error'] = True
+                    data['result'] = response
+                    data['code'] = response.get('status')
 
+                db.collection('alerts').insert_one(data)
+
+                return response
+        except Exception as err:
+            data['code'] = err.args[0] if type(err.args[0]) == int else -1
+            data['error'] = True
+            data['result'] = str(err)
+            data['trace'] = traceback.format_exc()
             db.collection('alerts').insert_one(data)
 
-            return True
+            return False
+
 

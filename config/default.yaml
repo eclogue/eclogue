@@ -3,6 +3,7 @@ author: shisang
 email: adming@admin.com
 repo: https://github.com
 home_path: {{ home_path }}
+dommain: "http://localhost:5001"
 log:
   eclogue: {{ home_path }}/storage/logs
   ansible: {{ home_path }}/storage/logs

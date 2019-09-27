@@ -7,6 +7,7 @@ from eclogue.model import db
 from eclogue.middleware import jwt_required, login_user
 from eclogue.notification.wechat import Wechat
 from eclogue.notification.smtp import SMTP
+import traceback
 
 @jwt_required
 def add_setting():
@@ -114,9 +115,14 @@ def test():
     # result = sender.send('fuck world')
     # print('rr', result)
     # smtp = record.get('smtp')
-    print(record.get('smtp'))
-    smtp = SMTP()
-    smtp.send('fuck world', 'bugbear', ['craber234@sina.cn'])
+    # print(record.get('smtp'))
+    # smtp = SMTP()
+    # smtp.send('fuck world', 'bugbear', ['craber234@sina.cn'])
+    # try:
+    #     raise Exception('fuck')
+    # except Exception:
+    #     print(traceback.format_exc())
+
     return jsonify({
         'message': 'ok',
     })

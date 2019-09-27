@@ -4,6 +4,8 @@ import time
 from bson import ObjectId
 from flask import jsonify, request
 from werkzeug.security import generate_password_hash
+from flask_log_request_id import current_request_id
+from werkzeug.security import check_password_hash, generate_password_hash
 from eclogue.model import db
 from eclogue.middleware import jwt_required, login_user
 from eclogue.models.team import Team
@@ -12,7 +14,9 @@ from eclogue.models.menu import Menu
 from eclogue.models.user import User
 from eclogue.models.team_user import TeamUser
 from eclogue.utils import gen_password
-
+from eclogue.notification.smtp import SMTP
+from eclogue.config import config
+from eclogue.utils import md5
 
 @jwt_required
 def search_user():
@@ -516,9 +520,110 @@ def get_current_roles():
 
 
 @jwt_required
-def get_hosts():
-    is_admin = login_user.get('is_admin')
-    if is_admin:
-        groups = db.collection('groups').find({})
-    pass
+def send_verify_mail():
+    user_id = login_user.get('user_id')
+    record = User().find_by_id(user_id)
+    if not record:
+        return jsonify({
+            'message': 'invalid user',
+            'code': 104033
+        }), 403
+
+    email = record.get('email')
+    token = md5(str(current_request_id))
+    url = config.dommain + '/users/email/verify?token=' + token
+    message = '[Eclogue]Please click url to verify your email:<a href="{}">{}</a>'.format(url, url)
+    smtp = SMTP()
+    smtp.send(message, email, subtype='html')
+    data = {
+        'user_id': user_id,
+        'token': token,
+        'created_at': time.time(),
+        'email': email,
+        'content': message,
+    }
+
+    db.collection('mail_verify').insert_one(data)
+
+    return jsonify({
+        'message': 'ok',
+        'code': 0
+    })
+
+
+def verify_mail():
+    query = request.args
+    token = query.get('token')
+    if not query.get('token'):
+        return jsonify({
+            'message': 'invalid token',
+            'code': 104030
+        }), 403
+
+    record = db.collection('mail_verify').find_one({'token': token})
+    if not record:
+        return jsonify({
+            'message': 'record not found',
+            'code': 104040
+        }), 404
+
+    print(record)
+    update = {
+        '$set': {
+            'email_status': 1
+        }
+    }
+
+    User().collection.update_one({'_id': ObjectId(record.get('user_id'))}, update=update)
+
+    return jsonify({
+        'message': 'ok',
+        'code': 0,
+    })
+
+
+@jwt_required
+def reset_pwd():
+    payload = request.get_json()
+    if not payload:
+        return jsonify({
+            'message': 'illegal params',
+            'code': 104000,
+        }), 400
+
+    old_password = payload.get('old_pwd')
+    new_password = payload.get('new_pwd')
+    confirm = payload.get('confirm')
+    if not old_password or not new_password or not confirm:
+        return jsonify({
+            'message': 'miss required params',
+            'code': 104001
+        }), 400
+
+    if new_password != confirm:
+        return jsonify({
+            'message': 'inconsistent confirm password',
+            'code': 104002
+        }), 400
+
+    user = User().find_by_id(login_user.get('user_id'))
+    checked = check_password_hash(user.get('password'), old_password)
+    if not checked:
+        return jsonify({
+            'message': 'password incorrect',
+            'code': 104003,
+        }), 400
+
+    pwd = generate_password_hash(new_password)
+    update = {
+        '$set': {
+            'password': pwd,
+        }
+    }
+    User().collection.update_one({'_id': user['_id']}, update=update)
+
+    return jsonify({
+        'message': 'ok',
+        'code': 0,
+    })
 

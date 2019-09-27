@@ -1,18 +1,16 @@
 import time
-import datetime
 import smtplib
+import traceback
 from email.mime.text import MIMEText
 from email.header import Header
-
-from wechatpy.enterprise import WeChatClient
 from eclogue.model import db
-from flask_log_request_id import current_request_id
+from eclogue.notification import BaseSender
+from eclogue.middleware import login_user
 
 
-class SMTP(object):
+class SMTP(BaseSender):
 
-    def __init__(self):
-        self.enable, self.config = self.get_config()
+    name = 'smtp'
 
     @property
     def client(self):
@@ -36,41 +34,41 @@ class SMTP(object):
 
         return self.config.get('sender')
 
-    @staticmethod
-    def get_config():
-        record = db.collection('setting').find_one({'smtp.enable': True})
-        if not record:
-            return False, {}
+    @property
+    def from_user(self):
+        return self.config.get('from')
 
-        return True, record.get('smtp')
-
-    def send(self, text, from_user, receivers, subject=''):
+    def send(self, text, to, subject='', subtype='plain'):
         subject = subject or 'eclogue system notification'
+        receivers = [to]
         params = {
             'sender': self.sender,
             'text': text,
-            'from': from_user,
+            'from': self.from_user,
             'receivers': receivers,
         }
 
-        message = MIMEText(text, 'plain', 'utf-8')
+        message = MIMEText(text, _subtype=subtype, _charset='utf-8')
         message['From'] = Header(self.sender, 'utf-8')
-        message['to'] = Header(from_user, 'utf-8')
+        message['to'] = Header(to, 'utf-8')
         message['Subject'] = Header(subject, 'utf-8')
+        print(message.as_string())
         data = params.copy()
-        data['request_id'] = str(current_request_id)
+        data['task_id'] = self.task_id
         data['created_at'] = time.time()
         try:
             result = self.client.sendmail(self.sender, receivers, message.as_string())
             data['result'] = result
             data['code'] = 0
-
+            data['error'] = False
             db.collection('alerts').insert_one(data)
 
             return result
         except smtplib.SMTPException as e:
-            data['code'] = e.args[0]
-            data['error'] = str(e)
+            data['code'] = e.args[0] if type(e.args[0]) == int else -1
+            data['error'] = True
+            data['result'] = str(e)
+            data['trace'] = traceback.format_exc()
             db.collection('alerts').insert_one(data)
 
             return False

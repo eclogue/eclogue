@@ -1,14 +1,13 @@
 import time
 import datetime
+import traceback
 from wechatpy.enterprise import WeChatClient
 from eclogue.model import db
-from flask_log_request_id import current_request_id
+from eclogue.notification import BaseSender
 
 
-class Wechat(object):
-
-    def __init__(self):
-        self.enable, self.config = self.get_config()
+class Wechat(BaseSender):
+    name = 'wechat'
 
     @property
     def client(self):
@@ -22,14 +21,6 @@ class Wechat(object):
 
         return self.config.get('agent_id')
 
-    @staticmethod
-    def get_config():
-        record = db.collection('setting').find_one({'wechat.enable': True})
-        if not record:
-            return False, {}
-
-        return True, record.get('wechat')
-
     def send(self, text, user=None):
         user = user or '@all'
         params = {
@@ -37,15 +28,28 @@ class Wechat(object):
             'text': text,
             'user': user,
         }
-
-        result = self.client.message.send_text(self.agent_id, user, text)
         data = params.copy()
-        data['request_id'] = str(current_request_id)
+        data['task_id'] = self.task_id
         data['created_at'] = time.time()
-        if not result:
-            raise Exception('send nexmo message with uncaught exception')
-        else:
-            data['result'] = result
+        try:
+            result = self.client.message.send_text(self.agent_id, user, text)
+            if not result:
+                raise Exception('send nexmo message with uncaught exception')
+            else:
+                data['code'] = 0
+                data['error'] = False
+                data['result'] = result
+
             db.collection('alerts').insert_one(data)
 
-        return result
+            return result
+        except Exception as err:
+            data['code'] = err.args[0] if type(err.args[0]) == int else -1
+            data['error'] = True
+            data['result'] = str(err.args[1])
+            data['trace'] = traceback.format_exc(limit=20)
+            db.collection('alerts').insert_one(data)
+
+            return False
+
+
