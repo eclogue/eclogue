@@ -1,6 +1,5 @@
 from eclogue.api.menus import Menus
 from eclogue.api.catheter import Catheter
-from eclogue.api.key import add_key
 from eclogue.api.auth import Auth
 from eclogue.api.deviece import add_deviece, get_devices, get_device_info
 from eclogue.api.host import dump_inventory
@@ -11,8 +10,6 @@ from eclogue.api.credential import credentials, add_credential, update_credentia
 from eclogue.api.console import run_task
 import eclogue.api.team as team
 import eclogue.api.notification as notification
-import eclogue.api.docker as docker
-import eclogue.api.gitlab as gitlab
 import eclogue.api.log as log
 import eclogue.api.configuration as configuration
 import eclogue.api.task as task
@@ -23,6 +20,7 @@ import eclogue.api.job as job
 import eclogue.api.dashboard as dashboard
 import eclogue.api.setting as setting
 import eclogue.api.user as user
+import eclogue.api.key as keys
 
 routes = [
     ('/login', Auth.login, ['POST']),
@@ -32,7 +30,6 @@ routes = [
     ('/menus/<_id>', Menus.delete_menu, ['delete']),
     ('/playbook/dumper', Catheter.get, ['GET']),
     ('/playbook/dumper', Catheter.drop, ['DELETE']),
-    ('/playbook/keys', add_key, ['POST']),
     ('/playbook/rename/<_id>', playbook.rename, ['PATCH']),
     ('/playbook/upload', playbook.upload, ['POST']),
     ('/playbook/folder', playbook.add_folder, ['POST']),
@@ -120,6 +117,8 @@ routes = [
     ('/users/email/send', user.send_verify_mail, ['post']),
     ('/users/email/verify', user.verify_mail, ['get']),
     ('/users/password/reset', user.reset_pwd, ['put']),
+    ('/sshkeys/public', keys.get_keys, ['get']),
+    ('/sshkeys/public', keys.add_key, ['POST']),
     ('/roles', add_role, ['post']),
     ('/roles', get_roles, ['get']),
     ('/roles/<_id>', update_role, ['put']),

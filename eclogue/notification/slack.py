@@ -1,19 +1,17 @@
 import time
 import traceback
-from slack import WebClient
+import requests
 from eclogue.model import db
 from eclogue.notification import BaseSender
 
 
-class Nexmo(BaseSender):
+class Slack(BaseSender):
 
     name = 'slack'
 
     @property
-    def client(self):
-        token = self.config.get('token')
-
-        return WebClient(token=token)
+    def webhook(self):
+        return self.config.get('webhook')
 
     def send(self, text, channel=None):
         channel = channel or self.config.get('channel')
@@ -25,17 +23,30 @@ class Nexmo(BaseSender):
         data['task_id'] = self.task_id
         data['created_at'] = time.time()
         try:
-            result = self.client.chat_postMessage(channel=channel, text=text)
-            if not result:
-                raise Exception('send nexmo message with uncaught exception')
+            header = {
+                'Content-type': 'application/json'
+            }
+            body = {
+                'text': text
+            }
+            response = requests.post(url=self.webhook, json=body, headers=header)
+            if not response:
+                raise Exception('send slack message with uncaught exception')
             else:
                 # @todo
+                result = response.text
+                status_code = response.status_code
                 data['result'] = result
-                data['code'] = 0
-                data['error'] = False
+                if response.ok:
+                    data['code'] = status_code
+                    data['error'] = True
+                else:
+                    data['code'] = 0
+                    data['error'] = False
+
                 db.collection('alerts').insert_one(data)
 
-                return result
+                return response
         except Exception as err:
             data['code'] = err.args[0] if type(err.args[0]) == int else -1
             data['error'] = True

@@ -7,7 +7,7 @@ from eclogue.model import db
 from eclogue.middleware import jwt_required, login_user
 from eclogue.notification.wechat import Wechat
 from eclogue.notification.smtp import SMTP
-import traceback
+from eclogue.notification.slack import Slack
 
 @jwt_required
 def add_setting():
@@ -29,12 +29,10 @@ def add_setting():
     slack = payload.get('slack')
     data = {}
     if slack and type(slack) == dict:
-        token = slack.get('token')
-        channel = slack.get('channel')
-        if token and channel:
+        webhook = slack.get('webhook')
+        if webhook:
             data['slack'] = {
-                'token': token,
-                'channel': channel,
+                'webhook': webhook,
                 'enable': bool(slack.get('enable'))
             }
 
@@ -122,6 +120,9 @@ def test():
     #     raise Exception('fuck')
     # except Exception:
     #     print(traceback.format_exc())
+
+    slack = Slack()
+    slack.send('fuck world')
 
     return jsonify({
         'message': 'ok',
