@@ -8,6 +8,7 @@ from eclogue.middleware import jwt_required, login_user
 from eclogue.model import db
 from eclogue.config import config
 from eclogue.ansible.vault import Vault
+from eclogue.lib.logger import logger
 
 
 @jwt_required
@@ -21,6 +22,7 @@ def add_key():
         }), 400
 
     public_key = payload.get('public_key')
+    name = payload.get('name')
     if not public_key:
         return jsonify({
             'message': 'invalid public key',
@@ -52,10 +54,13 @@ def add_key():
         'fingerprint': fingerprint,
         'user_id': user.get('user_id'),
         'content': encode,
+        'name': name,
         'created_at': time.time()
     }
 
-    db.collection('public_keys').insert_one(data)
+    result = db.collection('public_keys').insert_one(data)
+    data['_id'] = result.inserted_id
+    logger.info('add public_keys', extra={'record': data})
 
     return jsonify({
         'message': 'ok',
@@ -72,7 +77,7 @@ def get_keys():
     where = {
         'user_id': login_user.get('user_id')
     }
-    projection = ['fingerprint', 'created_at']
+    projection = ['fingerprint', 'created_at', 'name']
     records = db.collection('public_keys').find(where, limit=limit, skip=skip, projection=projection)
     total = records.count()
 

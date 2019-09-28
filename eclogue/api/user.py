@@ -17,6 +17,8 @@ from eclogue.utils import gen_password
 from eclogue.notification.smtp import SMTP
 from eclogue.config import config
 from eclogue.utils import md5
+from eclogue.lib.logger import logger
+
 
 @jwt_required
 def search_user():
@@ -627,3 +629,41 @@ def reset_pwd():
         'code': 0,
     })
 
+
+@jwt_required
+def save_alert():
+    payload = request.get_json()
+    if not payload:
+        return jsonify({
+            'message': 'invalid params',
+            'code': 104000
+        }), 400
+
+    alerts = payload.get('alerts')
+    alert_type = payload.get('type')
+    if not alerts or type(alerts) != list:
+        return jsonify({
+            'message': 'invalid param alerts',
+            'code': 104001
+        }), 400
+
+    where = {
+        '_id': ObjectId(login_user.get('user_id'))
+    }
+    field = 'alerts.' + alert_type
+    update = {
+        '$set': {
+            field: alerts
+        }
+    }
+
+    print(where, update)
+    user = User()
+    record = user.collection.find_one(where)
+    user.collection.update_one(where, update=update)
+    logger.info('add alerts', extra={'change': update, 'record': record})
+
+    return jsonify({
+        'message': 'ok',
+        'code': 0
+    })

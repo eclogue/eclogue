@@ -116,6 +116,7 @@ routes = [
     ('/users/<user_id>/hosts', user.bind_hosts, ['post']),
     ('/users/email/send', user.send_verify_mail, ['post']),
     ('/users/email/verify', user.verify_mail, ['get']),
+    ('/users/alert/notification', user.save_alert, ['post']),
     ('/users/password/reset', user.reset_pwd, ['put']),
     ('/sshkeys/public', keys.get_keys, ['get']),
     ('/sshkeys/public', keys.add_key, ['POST']),
