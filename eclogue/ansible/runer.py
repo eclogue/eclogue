@@ -93,18 +93,19 @@ class AdHocRunner(object):
     """
     This is a General object for parallel execute modules.
     """
-    def __init__(self, resource, options, name='adhoc', callback=None):
+    def __init__(self, resource, options, name='adhoc', callback=None, job_id=None):
         if type(resource) == dict:
             self.resource = json.dumps(resource)
         else:
             self.resource = resource
-        # self.display = ECDisplay()
+
+        self.job_id = job_id
         self.display = Display()
         self.inventory = None
         self.name = name
         self.variable_manager = None
         self.passwords = None
-        self.callback = CallbackModule()
+        self.callback = callback or CallbackModule(job_id=job_id)
         self.results_raw = {}
         self.loader = DataLoader()
         self.options = None
@@ -188,8 +189,8 @@ class PlayBookRunner(AdHocRunner):
     This is a General object for parallel execute modules.
     """
 
-    def __init__(self, resource, options, name='playbook', callback=None):
-        super().__init__(resource, options=options, name=name, callback=callback)
+    def __init__(self, resource, options, name='playbook', callback=None, job_id=None):
+        super().__init__(resource, options=options, name=name, callback=callback, job_id=job_id)
         self.tasks = set()
         self.tags = set()
 
@@ -199,7 +200,8 @@ class PlayBookRunner(AdHocRunner):
         """
         # C.DEFAULT_ROLES_PATH = self.options.roles_path
 
-        loader, inventory, variable_manager = self._play_prereqs(self.options)
+        loader, inventory, variable_manager = self._play_prereqs(
+            self.options)
         playbooks = playbooks if type(playbooks) == list else [playbooks]
         executor = PlaybookExecutor(
             playbooks=playbooks,

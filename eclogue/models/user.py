@@ -89,3 +89,6 @@ class User(Model):
             data['hosts'] = hosts
 
         return data
+
+
+user_model = User()

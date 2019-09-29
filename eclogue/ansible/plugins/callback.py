@@ -1,21 +1,30 @@
 import json
 import datetime
+from bson import ObjectId
 from ansible.plugins.callback import CallbackBase
 from eclogue.ansible.display import Display as ECDisplay
 from ansible.utils.display import Display
 from eclogue.model import db
+from eclogue.notification.notify import Notify
 
 
 class CallbackModule(CallbackBase):
 
-    def __init__(self, display=None):
+    def __init__(self, display=None, job_id=None):
         display = display or ECDisplay()
         super(CallbackModule, self).__init__(display=display)
-        self._display =display
+        self._display = display
+        self.job_id = job_id
+        self.job = self.get_job()
         self.host_ok = {}
         self.host_unreachable = {}
         self.host_failed = {}
         self.dumper = {}
+
+    def get_job(self):
+        job = db.collection('jobs').find_one({'_id': ObjectId(self.job_id)})
+
+        return job
 
     def v2_runner_on_unreachable(self, result):
         # super(CallbackModule, self).v2_runner_on_unreachable(result)
@@ -36,7 +45,8 @@ class CallbackModule(CallbackBase):
         dumper = self.get_result(result)
         dumper.update({'state': 'unreachable'})
         self.dumper[hostname] = dumper
-        print(dumper)
+        notification = 'ansible run on unreachable, host:{}, job:{}'.format(hostname, self.job.get('name'))
+        self.notify(notification)
 
     def v2_runner_on_ok(self, result, *args, **kwargs):
         # super(CallbackBase, self).v2_runner_on_ok(result)
@@ -62,12 +72,27 @@ class CallbackModule(CallbackBase):
 
     def v2_runner_on_failed(self, result, *args, **kwargs):
         # super(CallbackModule, self).v2_runner_on_failed(result)
+
         hostname = result._host.get_name()
         self.host_failed[hostname] = result
         dumper = self.get_result(result)
         dumper.update({'state': 'failed'})
         self.dumper[hostname] = dumper
+        notification = 'ansible run on failed, host:{}, job:{}'.format(hostname, self.job.get('name'))
+        self.notify(notification)
         # self.formatter.v2_runner_on_failed(result)
 
     def get_result(self, result):
         return json.loads(self._dump_results(result._result))
+
+    def notify(self, message):
+        job = self.job
+        if job:
+            notify = Notify()
+            users = self.job.get('maintainer') or []
+            for username in users:
+                user = db.collection('users').find_one({'username': username})
+                if not user:
+                    continue
+
+                notify.dispatch(str(user.get('_id')), msg_type='task', content=message)

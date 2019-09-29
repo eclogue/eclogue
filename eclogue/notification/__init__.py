@@ -3,6 +3,7 @@ from flask_log_request_id import current_request_id
 
 from eclogue.model import db
 
+
 class BaseSender(metaclass=abc.ABCMeta):
     name = ''
 
@@ -25,3 +26,4 @@ class BaseSender(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def send(self, *args, **kwargs):
         pass
+

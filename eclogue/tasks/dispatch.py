@@ -55,7 +55,7 @@ def run_job(_id, **kwargs):
                           kwargs=kwargs, id=str(record.get('_id')), max_instances=1, namne=record.get('name'))
         return True
     else:
-        func = run_task if ansible_type != 'adhoc' else run_adhoc_task
+        func = run_playbook_task if ansible_type != 'adhoc' else run_adhoc_task
 
         task = Task(tiger, func=func, args=params, kwargs=kwargs, queue=queue_name,
                     unique=False, lock=True, lock_key=_id)
@@ -93,6 +93,7 @@ def run_adhoc_task(_id, request_id, username, **kwargs):
     state = 'progressing'
     result = ''
     task_id = task_record.get('_id')
+    job_id = task_record.get('job_id')
     old_stdout = sys.stdout
     old_stderr = sys.stderr
     sys.stderr = sys.stdout = temp_stdout = Reporter(StringIO())
@@ -118,7 +119,7 @@ def run_adhoc_task(_id, request_id, username, **kwargs):
                     'args': args
                 }
             }]
-            runner = AdHocRunner(hosts, options=options)
+            runner = AdHocRunner(hosts, options=options, job_id=job_id)
             runner.run('all', tasks)
             result = runner.get_result()
             state = 'success'
@@ -150,13 +151,12 @@ def run_adhoc_task(_id, request_id, username, **kwargs):
                 'duration': finish_at - start_at,
                 'result': result,
             }
-
         }
 
         db.collection('tasks').update_one({'_id': task_id}, update=update)
 
 
-def run_task(_id, request_id, username, **kwargs):
+def run_playbook_task(_id, request_id, username, **kwargs):
     extra = {'request_id': request_id}
     db = Mongo()
     task_record = db.collection('tasks').find_one({'request_id': request_id})
@@ -167,6 +167,7 @@ def run_task(_id, request_id, username, **kwargs):
     state = 'progressing'
     result = ''
     task_id = task_record.get('_id')
+    job_id = task_record.get('job_id')
     old_stdout = sys.stdout
     old_stderr = sys.stderr
     sys.stderr = sys.stdout = temp_stdout = Reporter(StringIO())
@@ -225,7 +226,7 @@ def run_task(_id, request_id, username, **kwargs):
             #     'request_id': request_id,
             # }
             logger.info('ansible-playbook run load inventory: \n{}'.format(yaml.safe_dump(inventory)))
-            play = PlayBookRunner(data.get('inventory'), options)
+            play = PlayBookRunner(data.get('inventory'), options, job_id=job_id)
             play.run(entry)
             result = play.get_result()
             builds = db.collection('build_books').count({'job_id': _id})
@@ -283,7 +284,7 @@ def run_schedule_task(_id, request_id, username, **kwargs):
     params = (_id, request_id, username)
     queue_name = get_queue_by_job(_id)
     job = db.collection('jobs').find_one({'_id': ObjectId(_id)})
-    func = run_task
+    func = run_playbook_task
     if job.get('type') == 'adhoc':
         func = run_adhoc_task
 
