@@ -118,7 +118,7 @@ def monitor():
         'code': 0,
         'data': {
             'queues': queues,
-            'taskHistogram': list(task_histogram.values()),
+            'taskHistogram': list(task_histogram),
             'taskPies': task_pies,
             'taskStatePies': task_state_pies,
             'schedule': schedules,
@@ -382,17 +382,12 @@ def task_logs(_id):
             'code': 104040
         }), 404
 
-    task_id = str(record.get('_id'))
-    logs = db.collection('logs').find({'task_id': task_id}, skip=skip, limit=limit)
+    logs = db.collection('logs').find({'task_id': _id}, skip=skip, limit=limit)
     total = logs.count()
     records = []
     for log in logs:
-        hostname = log.get('hostname')
-        level = log.get('level')
         message = log.get('message')
-        timestamp = log.get('timestamp')
-        line_format = '{0}[{1}]{2}\n[{3}]\n'.format(timestamp, hostname, level, message)
-        records.append(line_format)
+        records.append(message)
 
     return jsonify({
         'message': 'ok',

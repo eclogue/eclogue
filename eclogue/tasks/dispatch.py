@@ -24,6 +24,8 @@ from eclogue.middleware import login_user
 from eclogue.tasks.reporter import Reporter
 from eclogue.scheduler import scheduler
 from eclogue.utils import make_zip
+from eclogue.config import config
+
 
 tiger = TaskTiger(connection=redis_client, config={
     'REDIS_PREFIX': 'ece',
@@ -31,9 +33,10 @@ tiger = TaskTiger(connection=redis_client, config={
 }, setup_structlog=True)
 
 logger = get_logger('console')
+cache_result_numer = config.task.get('history') or 20
 
 
-def run_job(_id, **kwargs):
+def run_job(_id, build_id=None, **kwargs):
     db = Mongo()
     record = db.collection('jobs').find_one({'_id': ObjectId(_id)})
     if not record:
@@ -41,7 +44,7 @@ def run_job(_id, **kwargs):
 
     request_id = str(current_request_id())
     username = None if not login_user else login_user.get('username')
-    params = (_id, request_id, username)
+    params = (_id, request_id, username, build_id)
     queue_name = get_queue_by_job(_id)
     extra = record.get('extra')
     schedule = extra.get('schedule')
@@ -52,7 +55,7 @@ def run_job(_id, **kwargs):
             return False
 
         scheduler.add_job(func=run_schedule_task, trigger='cron', args=params, minute='1', coalesce=True,
-                          kwargs=kwargs, id=str(record.get('_id')), max_instances=1, namne=record.get('name'))
+                          kwargs=kwargs, id=str(record.get('_id')), max_instances=1, name=record.get('name'))
         return True
     else:
         func = run_playbook_task if ansible_type != 'adhoc' else run_adhoc_task
@@ -70,6 +73,7 @@ def run_job(_id, **kwargs):
             'request_id': request_id,
             't_id': task.id,
             'created_at': time(),
+            'kwargs': kwargs,
         }
 
         result = db.collection('tasks').insert_one(task_record)
@@ -156,9 +160,10 @@ def run_adhoc_task(_id, request_id, username, **kwargs):
         db.collection('tasks').update_one({'_id': task_id}, update=update)
 
 
-def run_playbook_task(_id, request_id, username, **kwargs):
+def run_playbook_task(_id, request_id, username, build_id, **kwargs):
     extra = {'request_id': request_id}
     db = Mongo()
+    record = db.collection('jobs').find_one({'_id': ObjectId(_id)})
     task_record = db.collection('tasks').find_one({'request_id': request_id})
     if not task_record:
         return False
@@ -170,9 +175,12 @@ def run_playbook_task(_id, request_id, username, **kwargs):
     job_id = task_record.get('job_id')
     old_stdout = sys.stdout
     old_stderr = sys.stderr
-    sys.stderr = sys.stdout = temp_stdout = Reporter(StringIO())
+    sys.stderr = sys.stdout = temp_stdout = Reporter(_id)
     try:
-        record = db.collection('jobs').find_one({'_id': ObjectId(_id)})
+        if build_id:
+            history = db.collection('build_history').find_one({'_id': ObjectId(build_id)})
+            record = history['job_info']
+
         template = record.get('template')
         body = {
             'template': record.get('template'),
@@ -202,41 +210,39 @@ def run_playbook_task(_id, request_id, username, **kwargs):
         private_key = data.get('private_key')
         wk = Workspace()
         roles = data.get('roles')
-        bookname = data.get('book_name')
-        bookspace = wk.load_book_from_db(name=bookname, roles=roles, build_id=task_id)
-        if not bookspace:
+        if build_id:
+            bookspace = wk.build_book(build_id)
+        else:
+            bookname = data.get('book_name')
+            bookspace = wk.load_book_from_db(name=bookname, roles=roles, build_id=task_id)
+
+        if not bookspace or not os.path.isdir(bookspace):
             raise Exception('install playbook failed, book name: {}'.format(data.get('book_name')))
 
         entry = wk.get_book_entry(data.get('book_name'), data.get('entry'))
         with NamedTemporaryFile('w+t', delete=False) as fd:
             key_text = get_credential_content_by_id(private_key, 'private_key')
             if not key_text:
-                return {
-                    'message': 'invalid private_key',
-                    'code': 104033,
-                }
+                raise Exception('invalid private_key')
 
             fd.write(key_text)
             fd.seek(0)
             options['private-key'] = fd.name
             options['tags'] = ['uptime']
+            options['verbosity'] = 3
             inventory = data.get('inventory')
-            # report = {
-            #     'inventory': data.get('inventory'),
-            #     'request_id': request_id,
-            # }
             logger.info('ansible-playbook run load inventory: \n{}'.format(yaml.safe_dump(inventory)))
             play = PlayBookRunner(data.get('inventory'), options, job_id=job_id)
             play.run(entry)
             result = play.get_result()
-            builds = db.collection('build_books').count({'job_id': _id})
+            builds = db.collection('build_history').count({'job_id': _id})
+            state = 'finish'
             # @todo
-            if builds > 10:
-                last_one = db.collection('build_books').find_one({'job_id': _id}).sort('_id', 1)
+            if builds > cache_result_numer:
+                last_one = db.collection('build_history').find_one({'job_id': _id}, sort=[('_id', 1)])
                 if last_one:
-                    file = db.get_file(last_one.get('file_id'))
-                    file.delete()
-                    db.collection('build_books').delete_one({'job_id': _id})
+                    db.fs().delete(last_one.get('file_id'))
+                    db.collection('build_history').delete_one({'_id': last_one['_id']})
 
             with NamedTemporaryFile(mode='w+b', delete=True) as fp:
                 bookname = data.get('book_name')
@@ -248,10 +254,11 @@ def run_playbook_task(_id, request_id, username, **kwargs):
                         'task_id': task_id,
                         'file_id': file_id,
                         'job_id': _id,
+                        'job_info': record,
                         'filename': os.path.basename(bookspace),
                         'created_at': time()
                     }
-                    db.collection('build_books').insert_one(store_info)
+                    db.collection('build_history').insert_one(store_info)
                     shutil.rmtree(bookspace)
 
     except Exception as e:

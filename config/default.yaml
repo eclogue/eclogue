@@ -95,4 +95,6 @@ celery:
   backend: 'mongodb://root:password@localhost/upward?authSource=admin&authMechanism=SCRAM-SHA-1'
   mongodb_backend_settings:
     taskmeta_collection: job_result
-slack: https://hooks.slack.com/services/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
+
+task:
+  history: 20

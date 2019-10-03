@@ -31,6 +31,7 @@ class Mongo(object):
             content_type, _ = guess_type(filename)
 
         storage = GridFS(self.db, collection=collection)
+
         return storage.put(fileobj, filename=filename, content_type=content_type, **kwargs)
 
     def get_file(self, _id):

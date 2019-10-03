@@ -13,13 +13,12 @@ from ansible.utils.display import Display
 from ansible.playbook.play import Play
 from ansible.executor.task_queue_manager import TaskQueueManager
 from eclogue.ansible.inventory import HostsManager
-from eclogue.ansible.display import Display as ECDisplay
 from ansible import context
 from ansible.utils.context_objects import CLIArgs
-from eclogue.config import config
 from eclogue.ansible.plugins.callback import CallbackModule
 
 C.HOST_KEY_CHECKING = False
+C.ANSIBLE_NOCOLOR = True
 display = Display()
 
 

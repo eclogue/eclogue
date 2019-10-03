@@ -1,11 +1,15 @@
+import os
 import time
 import datetime
 import base64
 import yaml
+import shutil
 
 from bson import ObjectId
-from tempfile import NamedTemporaryFile
+from tempfile import NamedTemporaryFile, TemporaryDirectory
 from flask import request, jsonify
+from jinja2 import Template
+
 from eclogue.model import db
 from eclogue.middleware import jwt_required, login_user
 from eclogue.lib.helper import parse_cmdb_inventory, parse_file_inventory, load_ansible_playbook
@@ -20,11 +24,12 @@ from eclogue.ansible.playbook import check_playbook
 from eclogue.models.job import Job
 from eclogue.lib.logger import logger
 from flask_log_request_id import current_request_id
-from jinja2 import Template
+from eclogue.utils import extract
 
 
 @jwt_required
 def get_job(_id):
+    print('xxxxx--?')
     username = login_user.get('username')
     if not _id:
         return jsonify({
@@ -89,6 +94,13 @@ def get_job(_id):
         cursor = db.collection('playbook').find(where)
         roles = list(cursor)
 
+    logs = None
+    task = db.collection('tasks').find_one({'job_id': _id})
+    if task:
+        log = db.collection('logs').find_one({'task_id': str(task['_id'])})
+        if log:
+            logs = log.get('message')
+
     return jsonify({
         'message': 'ok',
         'code': 0,
@@ -97,6 +109,7 @@ def get_job(_id):
             'previewContent': inventory_content,
             'hosts': hosts,
             'roles': roles,
+            'logs': logs,
         },
     })
 
@@ -361,13 +374,20 @@ def job_detail(_id):
     size = int(query.get('pageSize', 20))
     offset = (page - 1) * size
     tasks = get_tasks_by_job(_id, offset=offset, limit=size)
+    logs = []
+    sort = [('_id', -1)]
+    task = db.collection('tasks').find_one({'job_id': _id}, sort=sort)
+    if task:
+        logs = db.collection('logs').find({'task_id': str(task['_id'])})
+        logs = list(logs)
+
     return jsonify({
         'message': 'ok',
         'code': 0,
         'data': {
             'job': record,
-            # 'tasks': [],
             'tasks': list(tasks),
+            'logs': logs,
         }
     })
 
@@ -601,17 +621,18 @@ def job_webhook():
             'code': 104001
         }), 400
 
-    app_type = app_info.get('type')
     app_params = app_info.get('params')
     income = app_params.get('income')
     income_params = {'cache': True}
-    if income:
+    print(income, payload.get('income'))
+    if income and payload.get('income'):
         income = Template(income)
-        tpl = income.render(**payload)
+        tpl = income.render(**payload.get('income'))
         tpl = yaml.safe_load(tpl)
         if tpl:
             income_params.update(tpl)
 
+    print(income_params)
     task_id = run_job(str(record.get('_id')), **income_params)
 
     # if app_type == 'jenkins':
@@ -631,4 +652,40 @@ def job_webhook():
         'message': 'ok',
         'code': 0,
         'data': task_id
+    })
+
+
+@jwt_required
+def rollback(_id):
+    record = db.collection('tasks').find_one({'_id': ObjectId(_id)})
+    if not record:
+        return jsonify({
+            'message': 'task not found',
+            'code': 194041
+        }), 404
+
+    job_id = record.get('job_id')
+    if not job_id:
+        return jsonify({
+            'message': 'invalid job',
+            'code': 1040011
+        }), 400
+
+    job_record = Job().find_by_id(job_id)
+    if not job_record:
+        return jsonify({
+            'message': 'invalid job',
+            'code': 1040010
+        }), 400
+
+    history = db.collection('build_books').find_one({'task_id': _id})
+    if not history:
+        return jsonify({
+            'message': 'failed load playbook from history'
+        })
+
+
+    return jsonify({
+        'message': 'ok',
+        'code': 0,
     })
