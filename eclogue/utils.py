@@ -5,6 +5,7 @@ import os
 import zipfile
 import tarfile
 import random
+import shutil
 
 from eclogue.model import db
 from eclogue.config import config
@@ -98,15 +99,18 @@ def is_edit(file):
     return not is_binary(demo)
 
 
-def make_zip(source_dir, output):
-    zipf = zipfile.ZipFile(output, 'w')
-    pre_len = len(os.path.dirname(source_dir))
-    for parent, dirnames, filenames in os.walk(source_dir):
-        for filename in filenames:
-            pathfile = os.path.join(parent, filename)
-            arcname = pathfile[pre_len:].strip(os.path.sep)
-            zipf.write(pathfile, arcname)
-    zipf.close()
+def make_zip(source_dir, output, base_dir=None):
+    print('zip file: ', os.listdir(source_dir), output)
+    # zipf = zipfile.ZipFile(output, 'w')
+    # pre_len = len(os.path.dirname(source_dir))
+    # for parent, dirnames, filenames in os.walk(source_dir):
+    #     for filename in filenames:
+    #         pathfile = os.path.join(parent, filename)
+    #         arcname = pathfile[pre_len:].strip(os.path.sep)
+    #         zipf.write(pathfile, arcname)
+    #
+    # zipf.close()
+    return shutil.make_archive(base_name=output, format='zip', root_dir=source_dir, base_dir=base_dir)
 
 
 def gen_password():
@@ -119,13 +123,18 @@ def extract(filename, target):
     if not os.path.isfile(filename):
         raise Exception('try to extra illegal filename')
 
-    if filename.endswith('.zip'):
+    if zipfile.is_zipfile(filename) or filename.endswith('.zip'):
         with zipfile.ZipFile(filename) as zf:
+            print(zf.namelist())
             zf.extractall(target)
+
     elif tarfile.is_tarfile(filename):
         with tarfile.open(filename) as tar:
             tar.extractall(target)
 
+    else:
+        print('targetsgagag--???>', os.listdir(target))
+        raise Exception('can not extract file: ' + filename)
 
 def mkdir(path, mode=0o700):
     logger.info('mkdir, path:{}'.format(path))

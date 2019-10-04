@@ -654,38 +654,3 @@ def job_webhook():
         'data': task_id
     })
 
-
-@jwt_required
-def rollback(_id):
-    record = db.collection('tasks').find_one({'_id': ObjectId(_id)})
-    if not record:
-        return jsonify({
-            'message': 'task not found',
-            'code': 194041
-        }), 404
-
-    job_id = record.get('job_id')
-    if not job_id:
-        return jsonify({
-            'message': 'invalid job',
-            'code': 1040011
-        }), 400
-
-    job_record = Job().find_by_id(job_id)
-    if not job_record:
-        return jsonify({
-            'message': 'invalid job',
-            'code': 1040010
-        }), 400
-
-    history = db.collection('build_books').find_one({'task_id': _id})
-    if not history:
-        return jsonify({
-            'message': 'failed load playbook from history'
-        })
-
-
-    return jsonify({
-        'message': 'ok',
-        'code': 0,
-    })

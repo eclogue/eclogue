@@ -5,7 +5,7 @@ import pymongo
 import uuid
 import yaml
 import shutil
-from tempfile import TemporaryDirectory
+from tempfile import TemporaryDirectory, NamedTemporaryFile
 from bson import ObjectId
 from eclogue.config import config
 from eclogue.model import db
@@ -196,7 +196,11 @@ class Workspace(object):
         return '/'.join([self.book, name, entry])
 
     def get_book_space(self, name):
-        return self.book + '/' + name
+        dir = self.book + '/' + name
+        if not os.path.exists(dir):
+            self.mkdir(dir)
+
+        return dir
 
     def write_book_file(self, book_name, document):
         filename = document.get('path')
@@ -225,8 +229,9 @@ class Workspace(object):
             return False
 
         bookspace = self.get_book_space(name)
+        print('bbbbbbbbbbbbbbook space:: ', bookspace)
         if build_id:
-            bookspace = os.path.join(self.book, md5(str(build_id)))
+            bookspace = os.path.join(bookspace, md5(str(build_id)))
 
         def parse_register(record):
             register = record.get('register')
@@ -279,8 +284,8 @@ class Workspace(object):
             if item['is_dir']:
                 if os.path.isdir(filename):
                     continue
-                else:
-                   self.mkdir(filename)
+
+                self.mkdir(filename)
             else:
                 if os.path.isfile(filename):
                     file_hash = file_md5(filename)
@@ -365,10 +370,15 @@ class Workspace(object):
         history = db.collection('build_history').find_one({'_id': ObjectId(build_id)})
         task_id = history.get('task_id')
         file_id = history.get('file_id')
-        filename = history.get('filename')
-        bookspace = os.path.join(self.book, md5(str(task_id)))
-        save_file = os.path.join(bookspace, filename)
-        db.fs_bucket().download_to_stream(file_id, save_file)
+        job_info = history.get('job_info')
+        book = db.collection('books').find_one({'_id': ObjectId(job_info.get('book_id'))})
+        bookspace = self.get_book_space(book.get('name'))
+        bookspace = os.path.join(bookspace, md5(str(task_id)))
+        self.mkdir(bookspace)
+        save_file = NamedTemporaryFile(delete=False, suffix='.zip').name
+        with open(save_file, 'wb') as fd:
+            db.fs_bucket().download_to_stream(ObjectId(file_id), fd)
+
         extract(save_file, bookspace)
         os.unlink(save_file)
 

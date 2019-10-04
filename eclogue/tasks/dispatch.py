@@ -7,7 +7,7 @@ from io import StringIO
 from time import time
 from bson import ObjectId
 
-from tempfile import NamedTemporaryFile
+from tempfile import NamedTemporaryFile, TemporaryDirectory
 from tasktiger import TaskTiger, Task, periodic
 from tasktiger._internal import ERROR, QUEUED
 from flask_log_request_id import current_request_id
@@ -29,22 +29,23 @@ from eclogue.config import config
 
 tiger = TaskTiger(connection=redis_client, config={
     'REDIS_PREFIX': 'ece',
-    'ALWAYS_EAGER': False,
+    'ALWAYS_EAGER': True,
 }, setup_structlog=True)
 
 logger = get_logger('console')
-cache_result_numer = config.task.get('history') or 20
+cache_result_numer = config.task.get('history') or 100
 
 
-def run_job(_id, build_id=None, **kwargs):
+def run_job(_id, history_id=None, **kwargs):
     db = Mongo()
     record = db.collection('jobs').find_one({'_id': ObjectId(_id)})
-    if not record:
+    print(record)
+    if not record or record.get('status') != 1:
         return False
 
     request_id = str(current_request_id())
     username = None if not login_user else login_user.get('username')
-    params = (_id, request_id, username, build_id)
+    params = (_id, request_id, username, history_id)
     queue_name = get_queue_by_job(_id)
     extra = record.get('extra')
     schedule = extra.get('schedule')
@@ -86,7 +87,7 @@ def import_galaxy():
     pass
 
 
-def run_adhoc_task(_id, request_id, username, **kwargs):
+def run_adhoc_task(_id, request_id, username, history_id, **kwargs):
     extra = {'request_id': request_id}
     db = Mongo()
     task_record = db.collection('tasks').find_one({'request_id': request_id})
@@ -160,7 +161,7 @@ def run_adhoc_task(_id, request_id, username, **kwargs):
         db.collection('tasks').update_one({'_id': task_id}, update=update)
 
 
-def run_playbook_task(_id, request_id, username, build_id, **kwargs):
+def run_playbook_task(_id, request_id, username, history_id, **kwargs):
     extra = {'request_id': request_id}
     db = Mongo()
     record = db.collection('jobs').find_one({'_id': ObjectId(_id)})
@@ -175,12 +176,14 @@ def run_playbook_task(_id, request_id, username, build_id, **kwargs):
     job_id = task_record.get('job_id')
     old_stdout = sys.stdout
     old_stderr = sys.stderr
-    sys.stderr = sys.stdout = temp_stdout = Reporter(_id)
+    sys.stderr = sys.stdout = temp_stdout = Reporter(str(task_id))
     try:
-        if build_id:
-            history = db.collection('build_history').find_one({'_id': ObjectId(build_id)})
+        if history_id:
+            history = db.collection('build_history').find_one({'_id': ObjectId(history_id)})
             record = history['job_info']
+            kwargs = task_record.get('kwargs')
 
+        print(record, kwargs)
         template = record.get('template')
         body = {
             'template': record.get('template'),
@@ -210,16 +213,18 @@ def run_playbook_task(_id, request_id, username, build_id, **kwargs):
         private_key = data.get('private_key')
         wk = Workspace()
         roles = data.get('roles')
-        if build_id:
-            bookspace = wk.build_book(build_id)
+        if history_id:
+            bookspace = wk.build_book(history_id)
         else:
             bookname = data.get('book_name')
             bookspace = wk.load_book_from_db(name=bookname, roles=roles, build_id=task_id)
+            print('--------------', bookspace)
 
         if not bookspace or not os.path.isdir(bookspace):
             raise Exception('install playbook failed, book name: {}'.format(data.get('book_name')))
 
-        entry = wk.get_book_entry(data.get('book_name'), data.get('entry'))
+        entry = os.path.join(bookspace,  data.get('entry'))
+        print('$entry:::', entry)
         with NamedTemporaryFile('w+t', delete=False) as fd:
             key_text = get_credential_content_by_id(private_key, 'private_key')
             if not key_text:
@@ -229,7 +234,7 @@ def run_playbook_task(_id, request_id, username, build_id, **kwargs):
             fd.seek(0)
             options['private-key'] = fd.name
             options['tags'] = ['uptime']
-            options['verbosity'] = 3
+            options['verbosity'] = 2
             inventory = data.get('inventory')
             logger.info('ansible-playbook run load inventory: \n{}'.format(yaml.safe_dump(inventory)))
             play = PlayBookRunner(data.get('inventory'), options, job_id=job_id)
@@ -244,19 +249,21 @@ def run_playbook_task(_id, request_id, username, build_id, **kwargs):
                     db.fs().delete(last_one.get('file_id'))
                     db.collection('build_history').delete_one({'_id': last_one['_id']})
 
-            with NamedTemporaryFile(mode='w+b', delete=True) as fp:
+            with TemporaryDirectory() as dir_name:
                 bookname = data.get('book_name')
-                make_zip(bookspace, fp.name)
-                with open(fp.name, mode='rb') as stream:
+                zip_file = os.path.join(dir_name, bookname)
+                zip_file = make_zip(bookspace, zip_file)
+                with open(zip_file, mode='rb') as stream:
                     filename = bookname + '.zip'
                     file_id = db.save_file(filename=filename, fileobj=stream)
                     store_info = {
-                        'task_id': task_id,
-                        'file_id': file_id,
-                        'job_id': _id,
+                        'task_id': str(task_id),
+                        'file_id': str(file_id),
+                        'job_id': str(_id),
                         'job_info': record,
-                        'filename': os.path.basename(bookspace),
-                        'created_at': time()
+                        'filename': filename,
+                        'created_at': time(),
+                        'kwargs': kwargs,
                     }
                     db.collection('build_history').insert_one(store_info)
                     shutil.rmtree(bookspace)
@@ -268,6 +275,7 @@ def run_playbook_task(_id, request_id, username, build_id, **kwargs):
         raise e
     finally:
         content = temp_stdout.getvalue()
+        temp_stdout.close(True)
         sys.stdout = old_stdout
         sys.stderr = old_stderr
         eclogue_logger = get_logger('eclogue')
@@ -313,15 +321,16 @@ def run_schedule_task(_id, request_id, username, **kwargs):
     task.delay()
 
 
-def get_tasks_by_job(job_id, offset=0, limit=20):
+def get_tasks_by_job(job_id, offset=0, limit=20, sort=None):
     queue = get_queue_by_job(job_id)
+    sort = sort or [('_id', -1)]
     if not queue:
         return []
 
     where = {
         'job_id': job_id,
     }
-    return Mongo().collection('tasks').find(where, skip=offset, limit=limit)
+    return Mongo().collection('tasks').find(where, skip=offset, limit=limit, sort=sort)
 
 
 def get_queue_by_job(job_id):

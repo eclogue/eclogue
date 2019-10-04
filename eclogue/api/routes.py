@@ -48,6 +48,7 @@ routes = [
     ('/tasks/<_id>/<state>/remove', task.delete_task, ['delete']),
     ('/tasks/<_id>/<state>/cancel', task.cancel, ['delete']),
     ('/tasks/<_id>/schedule', task.get_schedule_task, ['get']),
+    ('/tasks/<_id>/rollback', task.rollback, ['post']),
     ('/tasks/<job_id>/schedule/pause', task.pause_schedule, ['put']),
     ('/tasks/<job_id>/schedule/resume', task.resume_schedule, ['put']),
     ('/tasks/<job_id>/schedule/remove', task.remove_schedule, ['delete']),

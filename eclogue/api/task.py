@@ -5,7 +5,7 @@ from datetime import datetime, date, timedelta
 from bson import ObjectId
 from flask import jsonify, request
 from eclogue.model import db
-from eclogue.tasks.dispatch import tiger
+from eclogue.tasks.dispatch import tiger, run_job
 from tasktiger import Task
 from tasktiger._internal import ERROR, ACTIVE, QUEUED, SCHEDULED
 from tasktiger.exceptions import TaskNotFound
@@ -556,3 +556,48 @@ def modify_schedule(job_id):
         'message': 'ok',
         'code': 0,
     })
+
+
+@jwt_required
+def rollback(_id):
+    record = db.collection('tasks').find_one({'_id': ObjectId(_id)})
+    if not record:
+        return jsonify({
+            'message': 'task not found',
+            'code': 194041
+        }), 404
+
+    job_id = record.get('job_id')
+    if not job_id:
+        return jsonify({
+            'message': 'invalid job',
+            'code': 1040011
+        }), 400
+
+    where = {
+        '_id': ObjectId(job_id),
+        'status': 1,
+    }
+    job_record = Job().collection.find_one(where)
+    if not job_record:
+        return jsonify({
+            'message': 'invalid job',
+            'code': 1040010
+        }), 400
+
+    history = db.collection('build_history').find_one({'task_id': _id})
+    if not history:
+        return jsonify({
+            'message': 'failed load playbook from history',
+            'code': 104041
+        }), 404
+
+    build_id = str(history.get('_id'))
+    print(job_id, build_id)
+    run_job(job_id, build_id)
+
+    return jsonify({
+        'message': 'ok',
+        'code': 0,
+    })
+
