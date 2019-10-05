@@ -39,7 +39,6 @@ cache_result_numer = config.task.get('history') or 100
 def run_job(_id, history_id=None, **kwargs):
     db = Mongo()
     record = db.collection('jobs').find_one({'_id': ObjectId(_id)})
-    print(record)
     if not record or record.get('status') != 1:
         return False
 
@@ -136,6 +135,7 @@ def run_adhoc_task(_id, request_id, username, history_id, **kwargs):
             }
             db.collection('tasks').update_one({'_id': task_id}, update=update)
     except Exception as e:
+        state = 'error'
         result = e.args
         logger.error('run task with exception: {}'.format(str(e)), extra=extra)
 
@@ -183,7 +183,6 @@ def run_playbook_task(_id, request_id, username, history_id, **kwargs):
             record = history['job_info']
             kwargs = task_record.get('kwargs')
 
-        print(record, kwargs)
         template = record.get('template')
         body = {
             'template': record.get('template'),
@@ -218,13 +217,11 @@ def run_playbook_task(_id, request_id, username, history_id, **kwargs):
         else:
             bookname = data.get('book_name')
             bookspace = wk.load_book_from_db(name=bookname, roles=roles, build_id=task_id)
-            print('--------------', bookspace)
 
         if not bookspace or not os.path.isdir(bookspace):
             raise Exception('install playbook failed, book name: {}'.format(data.get('book_name')))
 
         entry = os.path.join(bookspace,  data.get('entry'))
-        print('$entry:::', entry)
         with NamedTemporaryFile('w+t', delete=False) as fd:
             key_text = get_credential_content_by_id(private_key, 'private_key')
             if not key_text:
@@ -271,6 +268,7 @@ def run_playbook_task(_id, request_id, username, history_id, **kwargs):
     except Exception as e:
         result = e.args
         logger.error('run task with exception: {}'.format(str(e)), extra=extra)
+        state = 'error'
 
         raise e
     finally:

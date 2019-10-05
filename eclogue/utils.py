@@ -100,7 +100,7 @@ def is_edit(file):
 
 
 def make_zip(source_dir, output, base_dir=None):
-    print('zip file: ', os.listdir(source_dir), output)
+    # print('zip file: ', os.listdir(source_dir), output)
     # zipf = zipfile.ZipFile(output, 'w')
     # pre_len = len(os.path.dirname(source_dir))
     # for parent, dirnames, filenames in os.walk(source_dir):

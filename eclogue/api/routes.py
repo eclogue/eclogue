@@ -87,6 +87,7 @@ routes = [
     ('/jobs', job.get_jobs, ['get']),
     ('/jobs', job.add_jobs, ['post']),
     ('/jobs/<_id>', job.get_job, ['get']),
+    ('/jobs/<_id>', job.delete_job, ['delete']),
     ('/jobs/<_id>', job.check_job, ['post']),
     ('/jobs/<_id>/tasks', job.job_detail, ['get']),
     ('/jobs/runner/doc', job.runner_doc, ['get']),

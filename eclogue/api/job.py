@@ -29,7 +29,6 @@ from eclogue.utils import extract
 
 @jwt_required
 def get_job(_id):
-    print('xxxxx--?')
     username = login_user.get('username')
     if not _id:
         return jsonify({
@@ -39,6 +38,7 @@ def get_job(_id):
 
     job = db.collection('jobs').find_one({
         '_id': ObjectId(_id),
+        'status': {'$gte': 0},
         'maintainer': {'$in': [username]}
     })
 
@@ -127,7 +127,12 @@ def get_jobs():
     job_type = query.get('type')
     start = query.get('start')
     end = query.get('end')
-    where = {}
+    where = {
+        'status': {
+            '$gt': -1
+        }
+    }
+
     if not is_admin:
         where['maintainer'] = {'$in': [username]}
 
@@ -266,7 +271,7 @@ def add_jobs():
         'template': data.get('template'),
         'extra': data.get('extra'),
         'entry': data['entry'],
-        'status': 0,
+        'status': data['status'],
         'maintainer': [user.get('username')],
         'created_at': int(time.time()),
         'updated_at': datetime.datetime.now().isoformat(),
@@ -286,6 +291,34 @@ def add_jobs():
     })
 
 
+@jwt_required
+def delete_job(_id):
+    record = db.collection('jobs').find_one({'_id': ObjectId(_id)})
+    if not record:
+        return jsonify({
+            'message': 'record not found',
+            'code': 104040
+        }), 404
+
+    update = {
+        '$set': {
+            'status': -1
+        }
+    }
+
+    db.collection('jobs').update_one({'_id': record['_id']}, update=update)
+    extra = {
+        'record': record
+    }
+    logger.info('delete job', extra=extra)
+
+    return jsonify({
+        'message': 'ok',
+        'code': 0,
+    })
+
+
+@jwt_required
 def check_job(_id):
     record = db.collection('jobs').find_one({'_id': ObjectId(_id)})
     if not record:
