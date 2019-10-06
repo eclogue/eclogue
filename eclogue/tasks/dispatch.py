@@ -2,7 +2,6 @@ import sys
 import yaml
 import os
 import shutil
-import datetime
 from io import StringIO
 from time import time
 from bson import ObjectId
@@ -25,6 +24,7 @@ from eclogue.tasks.reporter import Reporter
 from eclogue.scheduler import scheduler
 from eclogue.utils import make_zip
 from eclogue.config import config
+from eclogue.notification.notify import Notify
 
 
 tiger = TaskTiger(connection=redis_client, config={
@@ -54,8 +54,8 @@ def run_job(_id, history_id=None, **kwargs):
         if existed:
             return False
 
-        scheduler.add_job(func=run_schedule_task, trigger='cron', args=params, minute='1', coalesce=True,
-                          kwargs=kwargs, id=str(record.get('_id')), max_instances=1, name=record.get('name'))
+        scheduler.add_job(func=run_schedule_task, trigger='cron', args=params, coalesce=True, kwargs=kwargs,
+                          id=str(record.get('_id')), max_instances=1, name=record.get('name'), **schedule)
         return True
     else:
         func = run_playbook_task if ansible_type != 'adhoc' else run_adhoc_task
@@ -87,9 +87,9 @@ def import_galaxy():
 
 
 def run_adhoc_task(_id, request_id, username, history_id, **kwargs):
-    extra = {'request_id': request_id}
     db = Mongo()
     task_record = db.collection('tasks').find_one({'request_id': request_id})
+    record = db.collection('jobs').find_one({'_id': ObjectId(_id)})
     if not task_record:
         return False
 
@@ -102,7 +102,6 @@ def run_adhoc_task(_id, request_id, username, history_id, **kwargs):
     old_stderr = sys.stderr
     sys.stderr = sys.stdout = temp_stdout = Reporter(StringIO())
     try:
-        record = db.collection('jobs').find_one({'_id': ObjectId(_id)})
         ret = load_ansible_adhoc(record)
         if ret.get('message') != 'ok':
             raise Exception(ret.get('message'))
@@ -137,16 +136,22 @@ def run_adhoc_task(_id, request_id, username, history_id, **kwargs):
     except Exception as e:
         state = 'error'
         result = e.args
+        extra = {'task_id': task_id}
         logger.error('run task with exception: {}'.format(str(e)), extra=extra)
+        user = db.collection('users').find_one({'username': username})
+        user_id = str(user['_id'])
+        notification = record.get('notification')
+        message = 'run job: {}, error:{}'.format(record.get('name'), str(e))
+        if notification and type(notification) == list:
+            for item in notification:
+                Notify().dispatch(user_id=user_id, msg_type=item, content=message)
 
+        Notify().dispatch(user_id=user_id, msg_type='web', content=message)
         raise e
     finally:
         content = temp_stdout.getvalue()
         sys.stdout = old_stdout
         sys.stderr = old_stderr
-        eclogue_logger = get_logger('eclogue')
-        extra.update({'task_id': str(task_id), 'currentUser': username})
-        eclogue_logger.info(content, extra=extra)
         finish_at = time()
         update = {
             '$set': {
@@ -159,10 +164,17 @@ def run_adhoc_task(_id, request_id, username, history_id, **kwargs):
         }
 
         db.collection('tasks').update_one({'_id': task_id}, update=update)
+        trace = {
+            'task_id': str(task_id),
+            'request_id': request_id,
+            'username': username,
+            'content': content,
+            'created_at': time(),
+        }
+        db.collection('task_logs').insert_one(trace)
 
 
 def run_playbook_task(_id, request_id, username, history_id, **kwargs):
-    extra = {'request_id': request_id}
     db = Mongo()
     record = db.collection('jobs').find_one({'_id': ObjectId(_id)})
     task_record = db.collection('tasks').find_one({'request_id': request_id})
@@ -267,18 +279,28 @@ def run_playbook_task(_id, request_id, username, history_id, **kwargs):
 
     except Exception as e:
         result = e.args
+        extra = {'task_id': task_id}
         logger.error('run task with exception: {}'.format(str(e)), extra=extra)
         state = 'error'
+        extra_options = record.get('extra')
+        user = db.collection('users').find_one({'username': username})
+        user_id = str(user['_id'])
+        notification = extra_options.get('notification')
+        message = 'run job: {}, error:{}'.format(record.get('name'), str(e))
+        if notification and type(notification) == list:
+            for item in notification:
+                Notify().dispatch(user_id=user_id, msg_type=item, content=message)
 
+        Notify().dispatch(user_id=user_id, msg_type='web', content=message)
         raise e
     finally:
         content = temp_stdout.getvalue()
         temp_stdout.close(True)
         sys.stdout = old_stdout
         sys.stderr = old_stderr
-        eclogue_logger = get_logger('eclogue')
+        # eclogue_logger = get_logger('eclogue')
         extra.update({'task_id': str(task_id), 'currentUser': username})
-        eclogue_logger.info(content, extra=extra)
+        # eclogue_logger.info(content, extra=extra)
         finish_at = time()
         update = {
             '$set': {
@@ -290,6 +312,14 @@ def run_playbook_task(_id, request_id, username, history_id, **kwargs):
             }
         }
         db.collection('tasks').update_one({'_id': task_id}, update=update)
+        trace = {
+            'task_id': str(task_id),
+            'request_id': request_id,
+            'username': username,
+            'content': content,
+            'created_at': time(),
+        }
+        db.collection('task_logs').insert_one(trace)
 
 
 def run_schedule_task(_id, request_id, username, **kwargs):

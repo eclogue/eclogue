@@ -411,7 +411,7 @@ def job_detail(_id):
     sort = [('_id', -1)]
     task = db.collection('tasks').find_one({'job_id': _id}, sort=sort)
     if task:
-        logs = db.collection('logs').find({'task_id': str(task['_id'])})
+        logs = db.collection('task_logs').find({'task_id': str(task['_id'])})
         logs = list(logs)
 
     return jsonify({

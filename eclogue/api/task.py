@@ -382,7 +382,7 @@ def task_logs(_id):
             'code': 104040
         }), 404
 
-    logs = db.collection('logs').find({'task_id': _id}, skip=skip, limit=limit)
+    logs = db.collection('task_logs').find({'task_id': _id}, skip=skip, limit=limit)
     total = logs.count()
     records = []
     for log in logs:
