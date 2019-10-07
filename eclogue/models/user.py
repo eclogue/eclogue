@@ -56,7 +56,6 @@ class User(Model):
             menu = Menu()
             for record in records:
                 item = menu.find_by_id(record['m_id'])
-                print('mpid', item.get('mpid'))
                 if not item or item.get('mpid') == '-1' or item.get('status') < 1:
                     continue
 
@@ -90,3 +89,6 @@ class User(Model):
             data['hosts'] = hosts
 
         return data
+
+
+user_model = User()

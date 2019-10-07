@@ -3,22 +3,22 @@ import os
 import ansible.constants as C
 from collections import namedtuple, Iterable
 from ansible.executor.playbook_executor import PlaybookExecutor
-from ansible.playbook.play_context import PlayContext
 from ansible.playbook.block import Block
 from ansible.errors import AnsibleError
-from ansible.plugins.callback.minimal import CallbackModule
+# from ansible.plugins.callback.json import CallbackModule
+# from ansible.plugins.callback.json import CallbackModule
 from ansible.vars.manager import VariableManager
 from ansible.parsing.dataloader import DataLoader
 from ansible.utils.display import Display
 from ansible.playbook.play import Play
 from ansible.executor.task_queue_manager import TaskQueueManager
 from eclogue.ansible.inventory import HostsManager
-from eclogue.ansible.display import logger
 from ansible import context
-from optparse import Values
-from ansible.utils.context_objects import CLIArgs, GlobalCLIArgs
+from ansible.utils.context_objects import CLIArgs
+from eclogue.ansible.plugins.callback import CallbackModule
 
 C.HOST_KEY_CHECKING = False
+C.ANSIBLE_NOCOLOR = True
 display = Display()
 
 
@@ -92,17 +92,19 @@ class AdHocRunner(object):
     """
     This is a General object for parallel execute modules.
     """
-    def __init__(self, resource, options, name='adhoc', callback=None):
+    def __init__(self, resource, options, name='adhoc', callback=None, job_id=None):
         if type(resource) == dict:
             self.resource = json.dumps(resource)
         else:
             self.resource = resource
-        self.display = display
+
+        self.job_id = job_id
+        self.display = Display()
         self.inventory = None
         self.name = name
         self.variable_manager = None
         self.passwords = None
-        self.callback = callback or ResultsCollector()
+        self.callback = callback or CallbackModule(job_id=job_id)
         self.results_raw = {}
         self.loader = DataLoader()
         self.options = None
@@ -117,13 +119,6 @@ class AdHocRunner(object):
     def get_options(self, options, name=None):
         self.options = get_default_options(name)
         self.options.update(options)
-        # for k, v in options.items():
-        #     if not hasattr(self.options, k):
-        #         continue
-        #     item = {k: v}
-        #     self.options = self.options._replace(**item)
-        #
-        # return self.options
 
     def run(self, pattern, tasks, gather_facts='no'):
         """
@@ -134,9 +129,11 @@ class AdHocRunner(object):
         :param gather_facts:
         :return:
         """
+
         tasks = self.load_tasks(tasks)
         # tasks = [dict(action=dict(module='setup'))]
         # print(tasks)
+
         # create play with tasks
         play_source = dict(
             name="Ansible adhoc",
@@ -157,6 +154,7 @@ class AdHocRunner(object):
             )
             # tqm._stdout_callback = self.callback
             tqm.run(play)
+            # print(self.callback.d)
         finally:
             if tqm is not None:
                 tqm.cleanup()
@@ -171,6 +169,7 @@ class AdHocRunner(object):
         return tasks
 
     def get_result(self):
+        return self.callback.dumper
         self.results_raw = {'success': {}, 'failed': {}, 'unreachable': {}}
         for host, result in self.callback.host_ok.items():
             self.results_raw['success'][host] = result._result
@@ -189,8 +188,8 @@ class PlayBookRunner(AdHocRunner):
     This is a General object for parallel execute modules.
     """
 
-    def __init__(self, resource, options, name='playbook', callback=None):
-        super().__init__(resource, options=options, name=name, callback=callback)
+    def __init__(self, resource, options, name='playbook', callback=None, job_id=None):
+        super().__init__(resource, options=options, name=name, callback=callback, job_id=job_id)
         self.tasks = set()
         self.tags = set()
 
@@ -200,7 +199,8 @@ class PlayBookRunner(AdHocRunner):
         """
         # C.DEFAULT_ROLES_PATH = self.options.roles_path
 
-        loader, inventory, variable_manager = self._play_prereqs(self.options)
+        loader, inventory, variable_manager = self._play_prereqs(
+            self.options)
         playbooks = playbooks if type(playbooks) == list else [playbooks]
         executor = PlaybookExecutor(
             playbooks=playbooks,
@@ -294,46 +294,4 @@ class PlayBookRunner(AdHocRunner):
         # variable_manager.options_vars = load_options_vars('2.8.4')
 
         return loader, inventory, variable_manager
-
-
-class ResultsCollector(CallbackModule):
-
-    def __init__(self, display=None, options=None):
-        super(ResultsCollector, self).__init__(display=display, options=options)
-        self._display = Display()
-        self.host_ok = {}
-        self.host_unreachable = {}
-        self.host_failed = {}
-        self.dumper = {}
-
-    def v2_runner_on_unreachable(self, result):
-        super(ResultsCollector, self).v2_runner_on_unreachable(result)
-        hostname = result._host.get_name()
-        self.host_unreachable[hostname] = result
-        # self.formatter.v2_runner_on_unreachable(result)
-        dumper = self.get_result(result)
-        dumper.update({'state': 'unreachable'})
-        self.dumper[hostname] = dumper
-
-    def v2_runner_on_ok(self, result, *args, **kwargs):
-        super(ResultsCollector, self).v2_runner_on_ok(result)
-        hostname = result._host.get_name()
-        self.host_ok[hostname] = result
-        dumper = self.get_result(result)
-        dumper.update({'state': 'success'})
-        self.dumper[hostname] = dumper
-        # self.formatter.v2_runner_on_ok(result)
-
-    def v2_runner_on_failed(self, result, *args, **kwargs):
-        super(ResultsCollector, self).v2_runner_on_failed(result)
-        hostname = result._host.get_name()
-        self.host_failed[hostname] = result
-        dumper = self.get_result(result)
-        dumper.update({'state': 'failed'})
-        self.dumper[hostname] = dumper
-        # self.formatter.v2_runner_on_failed(result)
-
-    def get_result(self, result):
-        return json.loads(self._dump_results(result._result))
-
 

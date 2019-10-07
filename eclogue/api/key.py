@@ -1,44 +1,66 @@
-from flask import request, jsonify, current_app
+import time
+import hashlib
+
+from flask import request, jsonify
+from sshpubkeys import SSHKey
+
 from eclogue.middleware import jwt_required, login_user
 from eclogue.model import db
-from werkzeug.utils import secure_filename
-from cryptography.fernet import Fernet
-from io import StringIO
-import hashlib
-import time
+from eclogue.config import config
+from eclogue.ansible.vault import Vault
+from eclogue.lib.logger import logger
 
 
 @jwt_required
 def add_key():
     user = login_user
-    files = request.files
-    form = request.form
-    print(form, files)
-    if 'file' not in files or not form.get('name') or not form.get('password'):
+    payload = request.get_json()
+    if not payload:
         return jsonify({
-            'message': 'illegal param',
+            'message': 'illegal params',
+            'code': 104000,
+        }), 400
+
+    public_key = payload.get('public_key')
+    name = payload.get('name')
+    if not public_key:
+        return jsonify({
+            'message': 'invalid public key',
             'code': 104000
         }), 400
 
-    password = form.get('password')
-    secret = get_secret(password)
-    name = form.get('name')
-    comment = form.get('comment', '')
-    file = files['file']
-    fer = Fernet(secret)
-    content = StringIO(fer.encrypt(file.read()))
-    filename = secure_filename(file.filename)
-    insert_id = db.save_file(filename, content)
-    private_key = {
-        'file_id': insert_id,
-        'username': user['username'],
-        'filename': name,
-        'comment': comment,
-        'created_at': int(time.time())
+    ssh = SSHKey(public_key)
+    try:
+        ssh.parse()
+    except Exception as err:
+        return jsonify({
+            'message': 'invalid ssh key: {}'.format(str(err)),
+            'code': 104001,
+        }), 400
+
+    fingerprint = ssh.hash_md5()
+    existed = db.collection('public_keys').find_one({'fingerprint': fingerprint})
+    if existed:
+        return jsonify({
+            'message': 'ssh public key existed',
+            'code': 104003
+        }), 400
+
+    options = {
+        'vault_pass':  config.vault.get('secret')
+    }
+    encode = Vault(options).encrypt_string(public_key)
+    data = {
+        'fingerprint': fingerprint,
+        'user_id': user.get('user_id'),
+        'content': encode,
+        'name': name,
+        'created_at': time.time()
     }
 
-    db.collection('private_keys').insert_one(private_key)
-    db.get_file(insert_id)
+    result = db.collection('public_keys').insert_one(data)
+    data['_id'] = result.inserted_id
+    logger.info('add public_keys', extra={'record': data})
 
     return jsonify({
         'message': 'ok',
@@ -46,8 +68,34 @@ def add_key():
     })
 
 
+@jwt_required
+def get_keys():
+    query = request.args
+    page = int(query.get('page', 1))
+    limit = int(query.get('pageSize', 50))
+    skip = (page - 1) * limit
+    where = {
+        'user_id': login_user.get('user_id')
+    }
+    projection = ['fingerprint', 'created_at', 'name']
+    records = db.collection('public_keys').find(where, limit=limit, skip=skip, projection=projection)
+    total = records.count()
+
+    return jsonify({
+        'message': 'ok',
+        'code': 0,
+        'data': {
+            'list': list(records),
+            'page': page,
+            'pageSize': limit,
+            'total': total,
+
+        }
+    })
+
+
 def get_secret(password):
-    salt = current_app.config.file_secret
+    salt = config.vault.get('secret')
     length = len(password)
     prefix = salt[:length]
     postfix = salt[length:]

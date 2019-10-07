@@ -3,12 +3,17 @@ author: shisang
 email: adming@admin.com
 repo: https://github.com
 home_path: {{ home_path }}
+dommain: "http://localhost:5001"
 log:
   eclogue: {{ home_path }}/storage/logs
   ansible: {{ home_path }}/storage/logs
 logging:
   version: 1
   loggers:
+    file:
+      level: DEBUG
+      handlers:
+        - file
     eclogue:
       level: DEBUG
       handlers:
@@ -90,3 +95,6 @@ celery:
   backend: 'mongodb://root:password@localhost/upward?authSource=admin&authMechanism=SCRAM-SHA-1'
   mongodb_backend_settings:
     taskmeta_collection: job_result
+
+task:
+  history: 20

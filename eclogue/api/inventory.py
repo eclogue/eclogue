@@ -100,17 +100,22 @@ def explore():
             'message': 'invalid credential',
             'code': 144040,
         }), 404
+
     vault = Vault({
         'vault_pass': config.vault.get('secret')
     })
 
     body = credential['body']
     body[credential['type']] = vault.decrypt_string(body[credential['type']])
+    maintainer = payload.get('maintainer')
+    if not maintainer or type(maintainer) != list:
+        maintainer = [login_user.get('username')]
+    else:
+        maintainer.extend(login_user.get('username'))
 
     if explore_type == 'manual':
         region = payload.get('region')
         group = payload.get('group')
-        maintainer = payload.get('maintainer')
         ssh_host = payload.get('ssh_host')
         ssh_user = payload.get('ssh_user')
         ssh_port = payload.get('ssh_port') or 22
@@ -119,18 +124,26 @@ def explore():
                 'message': 'illegal ssh connection params',
                 'code': 144001,
             }), 400
+
+        existed = db.collection('machines').find_one({'ansible_ssh_host': ssh_host})
+        # if existed:
+        #     return jsonify({
+        #         'message': 'record existed',
+        #         'code': 104001
+        #     }), 400
+
         region_record = db.collection('regions').find_one({'_id': ObjectId(region)})
         if not region_record:
             return jsonify({
                 'message': 'invalid region',
-                'code': 144000,
+                'code': 144002,
             }), 400
 
         group_record = Group().find_by_ids(group)
         if not group_record:
             return jsonify({
                 'message': 'invalid group',
-                'code': 144000,
+                'code': 144003,
             }), 400
 
         options = {
@@ -152,7 +165,10 @@ def explore():
             item['ansible_ssh_host'] = ssh_host
             item['ansible_ssh_user'] = ssh_user
             item['ansible_ssh_port'] = ssh_port
+            item['maitainer'] = maintainer
             item['group'] = list(map(lambda i: str(i['_id']), group_record))
+            item['add_by'] = login_user.get('username')
+            item['state'] = 'active'
 
             return item
 
@@ -181,7 +197,7 @@ def explore():
         }), 400
 
     sources = file.read().decode('utf-8')
-    "inventory is not only yaml"
+    # inventory is not only yaml
     with NamedTemporaryFile('w+t', delete=True) as fd:
         fd.write(sources)
         fd.seek(0)
@@ -209,18 +225,19 @@ def explore():
                     'name': group,
                     'region': 'default',
                     'description': 'auto generator',
-                    'status': 1,
+                    'state': 'active',
                     'add_by': login_user.get('username'),
+                    'maintainer': maintainer,
                     'created_at': int(time.time())
                 }
                 # insert_data = {'$set': insert_data}
-                group = None
                 existed = db.collection('groups').find_one(where)
                 if not existed:
                     insert_result = db.collection('groups').insert_one(insert_data)
                     group = insert_result.inserted_id
                 else:
                     group = existed['_id']
+
                 if host.get('name') == hostname:
                     vars = host.get('vars')
                     node['ansible_ssh_host'] = vars.get('ansible_ssh_host')
@@ -228,12 +245,15 @@ def explore():
                     node['ansible_ssh_port'] = vars.get('ansible_ssh_port', '22')
                     node['group'] = [group]
                     break
+
             records.append(node)
 
         for record in records:
-            result = db.collection('machines').insert_one(record)
+            where = {'ansible_ssh_host': record['ansible_ssh_host']}
+            update = {'$set': record}
+            result = db.collection('machines').update_one(where, update, upsert=True)
             extra = record.copy()
-            extra['_id'] = result.inserted_id
+            extra['_id'] = result.upserted_id
             logger.info('add machines', extra={'record': data})
 
         return jsonify({
@@ -241,7 +261,7 @@ def explore():
             'code': 0,
             'data': result,
             'records': records,
-        }), 400
+        })
 
 
 def test():

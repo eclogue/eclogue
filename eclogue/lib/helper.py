@@ -183,7 +183,7 @@ def load_ansible_playbook(payload):
     if app:
         # @todo status=1
         app_record = db.collection('apps').find_one({'_id': ObjectId(app)})
-        if not app_record:
+        if not app_record or not app_record.get('status'):
             return {
                 'message': 'invalid app',
                 'code': 104043
@@ -250,13 +250,12 @@ def load_ansible_playbook(payload):
             'vault_pass': config.vault.get('secret')
         })
         options['vault_pass'] = vault.decrypt_string(vault_body.get('vault_pass'))
-    # @todo
-    args = template.get('args', None)
+
     options['verbosity'] = template.get('verbosity', 0)
     options['diff'] = template.get('diff', False)
     # options['vault'] = template.get('vault')
-
     options['extra_vars'] = (json.dumps(extra_vars),)
+    status = int(extra.get('status'))
 
     return {
         'message': 'ok',
@@ -272,6 +271,7 @@ def load_ansible_playbook(payload):
             'private_key': private_key,
             'template': template,
             'extra': extra,
+            'status': status,
         }
     }
 
@@ -289,11 +289,6 @@ def load_ansible_adhoc(payload):
     extra_options = template.get('extraOptions')
     name = template.get('name')
     schedule = extra.get('schedule')
-    if not name:
-        return {
-            'message': 'name required',
-            'code': 104000,
-        }
 
     if not module or not inventory:
         return {

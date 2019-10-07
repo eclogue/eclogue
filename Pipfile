@@ -1,6 +1,6 @@
 [[source]]
 name = "pypi"
-url = "https://pypi.org/simple"
+url = "https://pypi.tuna.tsinghua.edu.cn/simple"
 verify_ssl = true
 
 [dev-packages]
@@ -30,7 +30,7 @@ PyYAML = "==3.13"
 Werkzeug = "==0.14.1"
 jenkinsapi = "*"
 deepdiff = "*"
-tasktiger = {editable = true,git = "https://github.com/closeio/tasktiger.git",ref = "master"}
+tasktiger = "==0.9.6"
 docker = "*"
 python-gitlab = "*"
 gitpython = "*"
@@ -39,8 +39,11 @@ prometheus-client = "*"
 prometheus-flask-exporter = "*"
 sshpubkeys = "*"
 apscheduler = "*"
-celery-once = "*"
-redis = "==3.3.4"
+redis = "==2.10.6"
+slackclient = "==2.1.0"
+nexmo = "*"
+wechatpy = "*"
+ansi2html = "*"
 
 [requires]
 python_version = "3.7"

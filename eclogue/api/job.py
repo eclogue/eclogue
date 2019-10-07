@@ -1,17 +1,22 @@
+import os
 import time
 import datetime
 import base64
 import yaml
+import shutil
 
 from bson import ObjectId
-from tempfile import NamedTemporaryFile
+from tempfile import NamedTemporaryFile, TemporaryDirectory
 from flask import request, jsonify
+from jinja2 import Template
+
 from eclogue.model import db
 from eclogue.middleware import jwt_required, login_user
 from eclogue.lib.helper import parse_cmdb_inventory, parse_file_inventory, load_ansible_playbook
 from eclogue.lib.inventory import get_inventory_from_cmdb, get_inventory_by_book
 from eclogue.lib.workspace import Workspace
-from eclogue.ansible.runer import PlayBookRunner, AdHocRunner, ResultsCollector
+from eclogue.ansible.runer import PlayBookRunner, AdHocRunner
+from eclogue.ansible.plugins.callback import CallbackModule
 from eclogue.lib.credential import get_credential_content_by_id
 from eclogue.tasks.dispatch import run_job, get_tasks_by_job
 from eclogue.ansible.doc import AnsibleDoc
@@ -19,7 +24,7 @@ from eclogue.ansible.playbook import check_playbook
 from eclogue.models.job import Job
 from eclogue.lib.logger import logger
 from flask_log_request_id import current_request_id
-from jinja2 import Template
+from eclogue.utils import extract
 
 
 @jwt_required
@@ -33,6 +38,7 @@ def get_job(_id):
 
     job = db.collection('jobs').find_one({
         '_id': ObjectId(_id),
+        'status': {'$gte': 0},
         'maintainer': {'$in': [username]}
     })
 
@@ -88,6 +94,13 @@ def get_job(_id):
         cursor = db.collection('playbook').find(where)
         roles = list(cursor)
 
+    logs = None
+    task = db.collection('tasks').find_one({'job_id': _id})
+    if task:
+        log = db.collection('logs').find_one({'task_id': str(task['_id'])})
+        if log:
+            logs = log.get('message')
+
     return jsonify({
         'message': 'ok',
         'code': 0,
@@ -96,6 +109,7 @@ def get_job(_id):
             'previewContent': inventory_content,
             'hosts': hosts,
             'roles': roles,
+            'logs': logs,
         },
     })
 
@@ -113,7 +127,12 @@ def get_jobs():
     job_type = query.get('type')
     start = query.get('start')
     end = query.get('end')
-    where = {}
+    where = {
+        'status': {
+            '$gt': -1
+        }
+    }
+
     if not is_admin:
         where['maintainer'] = {'$in': [username]}
 
@@ -222,7 +241,7 @@ def add_jobs():
             fd.write(key_text)
             fd.seek(0)
             options['private_key'] = fd.name
-            play = PlayBookRunner(data['inventory'], options, callback=ResultsCollector())
+            play = PlayBookRunner(data['inventory'], options, callback=CallbackModule())
             play.run(entry)
 
             return jsonify({
@@ -252,7 +271,7 @@ def add_jobs():
         'template': data.get('template'),
         'extra': data.get('extra'),
         'entry': data['entry'],
-        'status': 0,
+        'status': data['status'],
         'maintainer': [user.get('username')],
         'created_at': int(time.time()),
         'updated_at': datetime.datetime.now().isoformat(),
@@ -272,6 +291,34 @@ def add_jobs():
     })
 
 
+@jwt_required
+def delete_job(_id):
+    record = db.collection('jobs').find_one({'_id': ObjectId(_id)})
+    if not record:
+        return jsonify({
+            'message': 'record not found',
+            'code': 104040
+        }), 404
+
+    update = {
+        '$set': {
+            'status': -1
+        }
+    }
+
+    db.collection('jobs').update_one({'_id': record['_id']}, update=update)
+    extra = {
+        'record': record
+    }
+    logger.info('delete job', extra=extra)
+
+    return jsonify({
+        'message': 'ok',
+        'code': 0,
+    })
+
+
+@jwt_required
 def check_job(_id):
     record = db.collection('jobs').find_one({'_id': ObjectId(_id)})
     if not record:
@@ -360,13 +407,20 @@ def job_detail(_id):
     size = int(query.get('pageSize', 20))
     offset = (page - 1) * size
     tasks = get_tasks_by_job(_id, offset=offset, limit=size)
+    logs = []
+    sort = [('_id', -1)]
+    task = db.collection('tasks').find_one({'job_id': _id}, sort=sort)
+    if task:
+        logs = db.collection('task_logs').find({'task_id': str(task['_id'])})
+        logs = list(logs)
+
     return jsonify({
         'message': 'ok',
         'code': 0,
         'data': {
             'job': record,
-            # 'tasks': [],
             'tasks': list(tasks),
+            'logs': logs,
         }
     })
 
@@ -438,11 +492,12 @@ def add_adhoc():
     private_key = payload.get('private_key')
     verbosity = payload.get('verbosity')
     name = payload.get('name')
-    notification = payload.get('notification')
     schedule = payload.get('schedule')
     check = payload.get('check')
     job_id = payload.get('job_id')
     extra_options = payload.get('extraOptions')
+    status = int(payload.get('status', 0))
+    notification = payload.get('notification')
     maintainer = payload.get('maintainer') or []
     if maintainer and isinstance(maintainer, list):
         users = db.collection('users').find({'username': {'$in': maintainer}})
@@ -537,6 +592,7 @@ def add_adhoc():
             'maintainer': maintainer,
             'type': 'adhoc',
             'created_at': time.time(),
+            'status': status,
             'add_by': login_user.get('username')
         }
 
@@ -552,7 +608,7 @@ def add_adhoc():
                 '$set': data,
             }
             db.collection('jobs').update_one({'_id': ObjectId(job_id)}, update=update)
-            logger.log('update job', extra={'record': record, 'changed': data})
+            logger.info('update job', extra={'record': record, 'changed': data})
         else:
             result = db.collection('jobs').insert_one(data)
             data['_id'] = result.inserted_id
@@ -582,12 +638,17 @@ def job_webhook():
             'code': 104010
         }), 401
 
-    username = login_user.get('username')
     if record.get('type') == 'adhoc':
         task_id = run_job(str(record.get('_id')))
+        if not task_id:
+            return jsonify({
+                'message': 'try to queue task faield',
+                'code': 104008
+            }), 400
 
         return jsonify({
             'message': 'ok',
+            'code': 0,
             'data': task_id
         })
 
@@ -600,17 +661,18 @@ def job_webhook():
             'code': 104001
         }), 400
 
-    app_type = app_info.get('type')
     app_params = app_info.get('params')
     income = app_params.get('income')
     income_params = {'cache': True}
-    if income:
+    print(income, payload.get('income'))
+    if income and payload.get('income'):
         income = Template(income)
-        tpl = income.render(**payload)
+        tpl = income.render(**payload.get('income'))
         tpl = yaml.safe_load(tpl)
         if tpl:
             income_params.update(tpl)
 
+    print(income_params)
     task_id = run_job(str(record.get('_id')), **income_params)
 
     # if app_type == 'jenkins':
@@ -631,3 +693,4 @@ def job_webhook():
         'code': 0,
         'data': task_id
     })
+

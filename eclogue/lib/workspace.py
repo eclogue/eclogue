@@ -4,13 +4,13 @@ import re
 import pymongo
 import uuid
 import yaml
-from tempfile import gettempdir
+import shutil
+from tempfile import TemporaryDirectory, NamedTemporaryFile
 from bson import ObjectId
 from eclogue.config import config
 from eclogue.model import db
-from eclogue.utils import is_edit, file_md5, md5
+from eclogue.utils import is_edit, file_md5, md5, extract
 from eclogue.ansible.vault import Vault
-from eclogue.jenkins.api import JenkinsApi
 
 
 class Workspace(object):
@@ -23,6 +23,7 @@ class Workspace(object):
             'books': 0o755
         }
         self._initialize()
+        self.book_dirs = {}
 
     @property
     def workspace(self):
@@ -67,7 +68,6 @@ class Workspace(object):
 
         return path + '/' + filename
 
-    @classmethod
     def get_galaxy_roles_path(self):
         dirname = [self.workspace, 'galaxy']
         dirname = '/'.join(dirname)
@@ -76,18 +76,6 @@ class Workspace(object):
 
     def setup_book(self, name, roles=None):
         return self.load_book_from_db(name=name, roles=roles)
-
-    def setup_job(self, job_id):
-        """
-        TODO(sang),
-        :param job_id: string
-        :return: bool
-        """
-        record = db.collection('jobs').find_one({'_id': ObjectId(job_id)})
-        if not record or not record.get('jenkins'):
-            return False
-        jks_options = record['jenkins']
-        jks = JenkinsApi(options=jks_options)
 
     def get_workspace(self, name):
         """
@@ -208,7 +196,11 @@ class Workspace(object):
         return '/'.join([self.book, name, entry])
 
     def get_book_space(self, name):
-        return self.book + '/' + name
+        dir = self.book + '/' + name
+        if not os.path.exists(dir):
+            self.mkdir(dir)
+
+        return dir
 
     def write_book_file(self, book_name, document):
         filename = document.get('path')
@@ -238,7 +230,7 @@ class Workspace(object):
 
         bookspace = self.get_book_space(name)
         if build_id:
-            bookspace = os.path.join(self.book, md5(str(build_id)))
+            bookspace = os.path.join(bookspace, md5(str(build_id)))
 
         def parse_register(record):
             register = record.get('register')
@@ -291,8 +283,8 @@ class Workspace(object):
             if item['is_dir']:
                 if os.path.isdir(filename):
                     continue
-                else:
-                   self.mkdir(filename)
+
+                self.mkdir(filename)
             else:
                 if os.path.isfile(filename):
                     file_hash = file_md5(filename)
@@ -372,3 +364,21 @@ class Workspace(object):
             meta['role'] = path_split[2]
             meta['project'] = path_split[1]
         return meta
+
+    def build_book(self, build_id):
+        history = db.collection('build_history').find_one({'_id': ObjectId(build_id)})
+        task_id = history.get('task_id')
+        file_id = history.get('file_id')
+        job_info = history.get('job_info')
+        book = db.collection('books').find_one({'_id': ObjectId(job_info.get('book_id'))})
+        bookspace = self.get_book_space(book.get('name'))
+        bookspace = os.path.join(bookspace, md5(str(task_id)))
+        self.mkdir(bookspace)
+        save_file = NamedTemporaryFile(delete=False, suffix='.zip').name
+        with open(save_file, 'wb') as fd:
+            db.fs_bucket().download_to_stream(ObjectId(file_id), fd)
+
+        extract(save_file, bookspace)
+        os.unlink(save_file)
+
+        return bookspace

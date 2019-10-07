@@ -5,7 +5,7 @@ from datetime import datetime, date, timedelta
 from bson import ObjectId
 from flask import jsonify, request
 from eclogue.model import db
-from eclogue.tasks.dispatch import tiger
+from eclogue.tasks.dispatch import tiger, run_job
 from tasktiger import Task
 from tasktiger._internal import ERROR, ACTIVE, QUEUED, SCHEDULED
 from tasktiger.exceptions import TaskNotFound
@@ -118,7 +118,7 @@ def monitor():
         'code': 0,
         'data': {
             'queues': queues,
-            'taskHistogram': list(task_histogram.values()),
+            'taskHistogram': list(task_histogram),
             'taskPies': task_pies,
             'taskStatePies': task_state_pies,
             'schedule': schedules,
@@ -382,17 +382,12 @@ def task_logs(_id):
             'code': 104040
         }), 404
 
-    task_id = str(record.get('_id'))
-    logs = db.collection('logs').find({'task_id': task_id}, skip=skip, limit=limit)
+    logs = db.collection('task_logs').find({'task_id': _id}, skip=skip, limit=limit)
     total = logs.count()
     records = []
     for log in logs:
-        hostname = log.get('hostname')
-        level = log.get('level')
-        message = log.get('message')
-        timestamp = log.get('timestamp')
-        line_format = '{0}[{1}]{2}\n[{3}]\n'.format(timestamp, hostname, level, message)
-        records.append(line_format)
+        message = log.get('content')
+        records.append(message)
 
     return jsonify({
         'message': 'ok',
@@ -561,3 +556,48 @@ def modify_schedule(job_id):
         'message': 'ok',
         'code': 0,
     })
+
+
+@jwt_required
+def rollback(_id):
+    record = db.collection('tasks').find_one({'_id': ObjectId(_id)})
+    if not record:
+        return jsonify({
+            'message': 'task not found',
+            'code': 194041
+        }), 404
+
+    job_id = record.get('job_id')
+    if not job_id:
+        return jsonify({
+            'message': 'invalid job',
+            'code': 1040011
+        }), 400
+
+    where = {
+        '_id': ObjectId(job_id),
+        'status': 1,
+    }
+    job_record = Job().collection.find_one(where)
+    if not job_record:
+        return jsonify({
+            'message': 'invalid job',
+            'code': 1040010
+        }), 400
+
+    history = db.collection('build_history').find_one({'task_id': _id})
+    if not history:
+        return jsonify({
+            'message': 'failed load playbook from history',
+            'code': 104041
+        }), 404
+
+    build_id = str(history.get('_id'))
+    print(job_id, build_id)
+    run_job(job_id, build_id)
+
+    return jsonify({
+        'message': 'ok',
+        'code': 0,
+    })
+
