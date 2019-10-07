@@ -47,9 +47,11 @@ def run_job(_id, history_id=None, **kwargs):
     params = (_id, request_id, username, history_id)
     queue_name = get_queue_by_job(_id)
     extra = record.get('extra')
+    template = record.get('template')
     schedule = extra.get('schedule')
     ansible_type = record.get('type')
-    if schedule:
+    print(schedule)
+    if template.get('run_type') == 'schedule':
         existed = db.collection('scheduler_jobs').find_one({'_id': record['_id']})
         if existed:
             return False
@@ -59,7 +61,6 @@ def run_job(_id, history_id=None, **kwargs):
         return True
     else:
         func = run_playbook_task if ansible_type != 'adhoc' else run_adhoc_task
-
         task = Task(tiger, func=func, args=params, kwargs=kwargs, queue=queue_name,
                     unique=False, lock=True, lock_key=_id)
 
@@ -90,6 +91,7 @@ def run_adhoc_task(_id, request_id, username, history_id, **kwargs):
     db = Mongo()
     task_record = db.collection('tasks').find_one({'request_id': request_id})
     record = db.collection('jobs').find_one({'_id': ObjectId(_id)})
+    print(record, task_record)
     if not task_record:
         return False
 
@@ -100,7 +102,7 @@ def run_adhoc_task(_id, request_id, username, history_id, **kwargs):
     job_id = task_record.get('job_id')
     old_stdout = sys.stdout
     old_stderr = sys.stderr
-    sys.stderr = sys.stdout = temp_stdout = Reporter(StringIO())
+    sys.stderr = sys.stdout = temp_stdout = Reporter(str(task_id))
     try:
         ret = load_ansible_adhoc(record)
         if ret.get('message') != 'ok':
@@ -125,7 +127,7 @@ def run_adhoc_task(_id, request_id, username, history_id, **kwargs):
             runner = AdHocRunner(hosts, options=options, job_id=job_id)
             runner.run('all', tasks)
             result = runner.get_result()
-            state = 'success'
+            state = 'finish'
             update = {
                 '$set': {
                     'result': result,
@@ -142,16 +144,15 @@ def run_adhoc_task(_id, request_id, username, history_id, **kwargs):
         user_id = str(user['_id'])
         notification = record.get('notification')
         message = 'run job: {}, error:{}'.format(record.get('name'), str(e))
-        if notification and type(notification) == list:
-            for item in notification:
-                Notify().dispatch(user_id=user_id, msg_type=item, content=message)
+        sys.stdout.write(message)
+        Notify().dispatch(user_id=user_id, msg_type='task', content=message, channel=notification)
 
-        Notify().dispatch(user_id=user_id, msg_type='web', content=message)
         raise e
     finally:
         content = temp_stdout.getvalue()
         sys.stdout = old_stdout
         sys.stderr = old_stderr
+        print('xxxxxxvvccccccccccccc', content)
         finish_at = time()
         update = {
             '$set': {
@@ -286,21 +287,17 @@ def run_playbook_task(_id, request_id, username, history_id, **kwargs):
         user = db.collection('users').find_one({'username': username})
         user_id = str(user['_id'])
         notification = extra_options.get('notification')
-        message = 'run job: {}, error:{}'.format(record.get('name'), str(e))
+        message = '[error]run job: {}, message: {}'.format(record.get('name'), str(e))
+        sys.stdout.write(message)
         if notification and type(notification) == list:
-            for item in notification:
-                Notify().dispatch(user_id=user_id, msg_type=item, content=message)
+            Notify().dispatch(user_id=user_id, msg_type='task', content=message, channel=notification)
 
-        Notify().dispatch(user_id=user_id, msg_type='web', content=message)
         raise e
     finally:
         content = temp_stdout.getvalue()
         temp_stdout.close(True)
         sys.stdout = old_stdout
         sys.stderr = old_stderr
-        # eclogue_logger = get_logger('eclogue')
-        extra.update({'task_id': str(task_id), 'currentUser': username})
-        # eclogue_logger.info(content, extra=extra)
         finish_at = time()
         update = {
             '$set': {

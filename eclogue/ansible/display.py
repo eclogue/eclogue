@@ -24,11 +24,12 @@ logger = get_logger('console')
 
 
 class Display(AnsibleDisplay):
-
+    """
+    extend from ansible.utils.display
+    """
     def __init__(self, verbosity=2, task_id=None):
         AnsibleDisplay.__init__(self, verbosity=verbosity)
         self.task_id = task_id
-
 
     def display(self, msg, color=None, stderr=False, screen_only=False, log_only=False):
         """ Display a message to the user
@@ -36,8 +37,6 @@ class Display(AnsibleDisplay):
         function extend from ansible.utils.display
         """
         message = msg
-        # print('xxxxx----->?', color)
-        # logger.debug('xxxxx---vvvv')
         if color:
             message = stringc(msg, color)
 

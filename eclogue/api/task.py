@@ -386,7 +386,7 @@ def task_logs(_id):
     total = logs.count()
     records = []
     for log in logs:
-        message = log.get('message')
+        message = log.get('content')
         records.append(message)
 
     return jsonify({

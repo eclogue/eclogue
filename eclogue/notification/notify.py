@@ -1,4 +1,5 @@
 import time
+from collections.abc import Iterable
 
 from eclogue.notification.slack import Slack
 from eclogue.notification.smtp import SMTP
@@ -51,7 +52,7 @@ class Notify(object):
         }
         db.collection('notifications').insert_one(record)
 
-    def dispatch(self, user_id, msg_type, content):
+    def dispatch(self, user_id, msg_type, content, channel=None):
         user = User().find_by_id(user_id)
         if not user:
             return False
@@ -63,6 +64,14 @@ class Notify(object):
         items = alerts.get(msg_type)
         if not items:
             return False
+
+        if channel and isinstance(channel, Iterable):
+            items = [i for i in channel if i in items]
+
+        if not items:
+            self.web(user_id, msg_type, content)
+
+            return True
 
         if 'slack' in items:
             self.slack(content)

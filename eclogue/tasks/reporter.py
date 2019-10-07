@@ -35,7 +35,11 @@ class Reporter(object):
         pass
 
     def read(self):
-        return '\n'.join(self.store.lrange(self.key, 0, -1))
+        logs = self.store.lrange(self.key, 0, -1)
+        if not logs:
+            return ''
+
+        return '\n'.join(logs)
 
     def close(self, force=False):
         if force:

@@ -229,7 +229,6 @@ class Workspace(object):
             return False
 
         bookspace = self.get_book_space(name)
-        print('bbbbbbbbbbbbbbook space:: ', bookspace)
         if build_id:
             bookspace = os.path.join(bookspace, md5(str(build_id)))
 

@@ -289,11 +289,6 @@ def load_ansible_adhoc(payload):
     extra_options = template.get('extraOptions')
     name = template.get('name')
     schedule = extra.get('schedule')
-    if not name:
-        return {
-            'message': 'name required',
-            'code': 104000,
-        }
 
     if not module or not inventory:
         return {

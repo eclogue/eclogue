@@ -492,11 +492,12 @@ def add_adhoc():
     private_key = payload.get('private_key')
     verbosity = payload.get('verbosity')
     name = payload.get('name')
-    notification = payload.get('notification')
     schedule = payload.get('schedule')
     check = payload.get('check')
     job_id = payload.get('job_id')
     extra_options = payload.get('extraOptions')
+    status = int(payload.get('status', 0))
+    notification = payload.get('notification')
     maintainer = payload.get('maintainer') or []
     if maintainer and isinstance(maintainer, list):
         users = db.collection('users').find({'username': {'$in': maintainer}})
@@ -591,6 +592,7 @@ def add_adhoc():
             'maintainer': maintainer,
             'type': 'adhoc',
             'created_at': time.time(),
+            'status': status,
             'add_by': login_user.get('username')
         }
 
@@ -606,7 +608,7 @@ def add_adhoc():
                 '$set': data,
             }
             db.collection('jobs').update_one({'_id': ObjectId(job_id)}, update=update)
-            logger.log('update job', extra={'record': record, 'changed': data})
+            logger.info('update job', extra={'record': record, 'changed': data})
         else:
             result = db.collection('jobs').insert_one(data)
             data['_id'] = result.inserted_id
@@ -636,12 +638,17 @@ def job_webhook():
             'code': 104010
         }), 401
 
-    username = login_user.get('username')
     if record.get('type') == 'adhoc':
         task_id = run_job(str(record.get('_id')))
+        if not task_id:
+            return jsonify({
+                'message': 'try to queue task faield',
+                'code': 104008
+            }), 400
 
         return jsonify({
             'message': 'ok',
+            'code': 0,
             'data': task_id
         })
 
