@@ -1,4 +1,5 @@
 import time
+import datetime
 from bson import ObjectId
 from flask import request, jsonify
 from eclogue.middleware import jwt_required, login_user
@@ -125,7 +126,7 @@ def add_configuration():
 
     result = db.collection('configurations').insert_one(data)
     data['_id'] = result.inserted_id
-    logger.info('add configuration', extra={'record': data})
+    logger.info('add configuration, name: {}'.format(name), extra={'record': data})
 
     return jsonify({
         'message': 'ok',
@@ -192,6 +193,7 @@ def get_config_info(_id):
     })
 
 
+@jwt_required
 def update_configuration(_id):
     payload = request.get_json()
     if not payload:
@@ -229,9 +231,36 @@ def update_configuration(_id):
             '$set': data,
         }
         db.collection('configurations').update_one({'_id': record['_id']}, update=update)
-        logger.info('update configuration', extra={'record': record, 'changed': data})
+        msg = 'update configuration, name: {}'.format(record.get('name'))
+        logger.info(msg, extra={'record': record, 'changed': data})
 
     return jsonify({
         'message': 'ok',
         'code': 0,
     })
+
+
+@jwt_required
+def delete(_id):
+    record = db.collection('configurations').find_one({'_id': ObjectId(_id)})
+    if not record:
+        return jsonify({
+            'message': 'record not found',
+            'code': 104040,
+        }), 404
+
+    update = {
+        '$set': {
+            'status': -1,
+            'updated_at': datetime.datetime.now()
+        },
+    }
+    db.collection('configurations').update_one({'_id': record['_id']}, update=update)
+    msg = 'update configuration, name: {}'.format(record.get('name'))
+    logger.info(msg, extra={'record': record, 'force': False})
+
+    return jsonify({
+        'message': 'ok',
+        'code': 0,
+    })
+

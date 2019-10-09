@@ -522,6 +522,7 @@ def preview_inventory():
     if inventory_type == 'file':
         result = parse_file_inventory(inventory)
     else:
+        print('oooorigin', inventory)
         result = parse_cmdb_inventory(inventory)
 
     if not result:
@@ -718,17 +719,27 @@ def get_node_info(_id):
 
 @jwt_required
 def get_group_info(_id):
-    record = db.collection('groups').find_one({'_id': ObjectId(_id)})
-    if not record:
-        return jsonify({
-            'message': 'record not found',
-            'code': 104040
-        }), 404
+    if _id == 'ungrouped':
+        record = {
+            '_id': _id,
+            'name': _id,
+            'description': _id,
+            'region': {
+                'name': 'ungrouped'
+            }
+        }
+    else:
+        record = db.collection('groups').find_one({'_id': ObjectId(_id)})
+        if not record:
+            return jsonify({
+                'message': 'record not found',
+                'code': 104040
+            }), 404
 
-    dc = db.collection('regions').find_one({
-        '_id': record.get('region')
-    })
-    record['region'] = dc or {}
+        dc = db.collection('regions').find_one({
+            '_id': ObjectId(record.get('region'))
+        })
+        record['region'] = dc or {}
 
     return jsonify({
         'message': 'ok',

@@ -12,8 +12,6 @@ from eclogue.ansible.host import parser_inventory
 from eclogue.ansible.vault import Vault
 from eclogue.config import config
 from eclogue.lib.integration import Integration
-from eclogue.lib.logger import get_logger
-from eclogue.ansible.runer import get_default_options
 from eclogue.lib.credential import get_credential_content_by_id
 
 
@@ -457,13 +455,18 @@ def parse_cmdb_inventory(inventory):
 
         collection, _id, group_name = inventory_list
         if collection == 'group':
-            group = db.collection('groups').find_one({'_id': ObjectId(_id)})
-            if not group:
-                continue
+            if _id == 'ungrouped':
+                group = {
+                    '_id': _id,
+                }
+            else:
+                group = db.collection('groups').find_one({'_id': ObjectId(_id)})
+                if not group:
+                    continue
 
             records = db.collection('machines').find({'group': {'$in': [str(group['_id'])]}})
             for record in records:
-                hosts[record['node_name']] = {
+                hosts[record['hostname']] = {
                     'ansible_ssh_host': record.get('ansible_ssh_host'),
                     'ansible_ssh_user': record.get('ansible_ssh_user', 'root'),
                     'ansible_ssh_port': record.get('ansible_ssh_port', '22'),

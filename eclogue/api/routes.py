@@ -102,6 +102,7 @@ routes = [
     ('/configurations/<playbook_id>/register', configuration.get_register_config, ['get']),
     ('/configurations/<_id>', configuration.update_configuration, ['put']),
     ('/configurations/<_id>', configuration.get_config_info, ['get']),
+    ('/configurations/<_id>', configuration.delete, ['delete']),
     ('/configurations', configuration.add_configuration, ['post']),
     ('/configurations/list/ids', configuration.get_configs_by_ids, ['get']),
     ('/execute', run_task, ['post']),
