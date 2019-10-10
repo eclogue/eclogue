@@ -21,7 +21,11 @@ def list_config():
     start = query.get('start')
     end = query.get('end')
     maintainer = query.get('maintainer')
-    where = {}
+    where = {
+        'status': {
+            '$ne': -1
+        }
+    }
     if keyword:
         where['name'] = {
             '$regex': keyword
@@ -53,8 +57,6 @@ def list_config():
 
     if date:
         where['$and'] = date
-
-    print(where)
 
     cursor = db.collection('configurations').find(where, skip=offset, limit=size)
     total = cursor.count()
@@ -92,6 +94,7 @@ def list_config():
     })
 
 
+@jwt_required
 def add_configuration():
     payload = request.get_json()
     if not payload:
@@ -116,11 +119,14 @@ def add_configuration():
     description = payload.get('description')
     maintainer = payload.get('maintainer') or []
     variables = payload.get('variables')
+    status = payload.get('status', 0) or 0
     data = {
         'name': name,
         'description': description,
         'maintainer': maintainer,
         'variables': variables,
+        'status': status,
+        'add_by': login_user.get('username'),
         'created_at': int(time.time())
     }
 
@@ -213,6 +219,7 @@ def update_configuration(_id):
     description = payload.get('description')
     maintainer = payload.get('maintainer') or []
     variables = payload.get('variables')
+    status = payload.get('status')
     data = {}
     if name:
         data['name'] = name
@@ -225,6 +232,9 @@ def update_configuration(_id):
 
     if maintainer:
         data['maintainer'] = maintainer
+
+    if status is not None:
+        data['status'] = int(status)
 
     if len(data.keys()):
         update = {

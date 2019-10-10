@@ -384,19 +384,19 @@ def process_ansible_setup(result):
     success = result.get('success')
     if not success:
         return False
+
     records = []
     for host, info in success.items():
         facts = info['ansible_facts']
-        processor = facts.get('ansible_processor')
-        processors = []
-        if processor:
-            for item in processor:
-                if item.isdigit():
-                    processors.append(item)
+        processor = {
+            'architecture': facts.get('ansible_processor'),
+            'cores': facts.get('ansible_processor_cores'),
+            'vscups': facts.get('ansible_processor_vcpus'),
+        }
         record = {
             'ansible_hostname': host,
             'memory': facts['ansible_memtotal_mb'],
-            'processor': processors,
+            'processor': processor,
             'ipv6': facts.get('ansible_default_ipv6'),
             'ipv4': facts.get('ansible_default_ipv4'),
             'kernel': facts.get('ansible_kernel'),
@@ -404,7 +404,10 @@ def process_ansible_setup(result):
             'swap': facts.get('ansible_swaptotal_mb'),
             'bios_version': facts.get('ansible_bios_version'),
             'all_ipv4_addresses': facts.get('ansible_all_ipv4_addresses'),
+            'all_ipv6_addresses': facts.get('ansible_all_ipv6_addresses'),
+            'apparmor': facts.get('ansible_apparmor'),
             'architecture': facts.get('ansible_architecture'),
+            'domain': facts.get('ansible_domain'),
             'disk': facts.get('ansible_mounts'),
             'system': facts.get('ansible_system'),
             'dns': facts.get('ansible_dns'),
@@ -412,9 +415,11 @@ def process_ansible_setup(result):
             'hostname': facts.get('ansible_hostname'),
             'lsb': facts.get('ansible_lsb'),
             'interfaces': facts.get('ansible_interfaces'),
+            'os_family': facts.get('ansible_os_family'),
             'created_at': int(time.time()),
         }
         records.append(record)
+
     return records
 
 

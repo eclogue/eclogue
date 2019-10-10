@@ -7,12 +7,6 @@ from flask import request, jsonify
 class Auth(object):
     @staticmethod
     def login():
-        # parser = reqparse.RequestParser()
-        # parser.add_argument('username', required=True, help='user name require')
-        # parser.add_argument('password', required=True, help='password name require')
-        # args = parser.parse_args()
-        # username = args.username
-        # password = args.password
         params = request.get_json()
         if not params:
             return jsonify({
