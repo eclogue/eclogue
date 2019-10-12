@@ -16,7 +16,6 @@ class JWTAuth(object):
         }
 
     def encode(self, payload):
-        print('eeexxxp', int(time.time()) + self.config.get('exp'))
         data = {
             'iss': self.config['iss'],
             'aud': self.config['aud'],
@@ -87,7 +86,7 @@ def get_claims():
         user_id = claims.get('user_id')
         user = User()
         if not user_id:
-            user_info = user.collection.find_one({'username': username})
+            user_info = User.find_one({'username': username})
             user_id = str(user_info['_id'])
 
         menus, roles = user.get_permissions(user_id)
@@ -99,10 +98,11 @@ def get_claims():
         is_allow = -1
         for block in blocks:
             menu_name = block.get('name')
-            # print(menu_name, url_rule)
+            print(menu_name, url_rule)
             actions = block.get('actions', ['get'])
             if menu_name not in routes:
                 continue
+
             rules = routes.get(menu_name)
             for rule in rules:
                 if url_rule == rule and method in actions:

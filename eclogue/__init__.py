@@ -28,7 +28,7 @@ class JSONEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, o)
 
 
-def create_app():
+def create_app(schedule=True):
     # dictConfig(config.logging)
     instance = Flask(__name__)
     instance.json_encoder = JSONEncoder
@@ -38,7 +38,8 @@ def create_app():
     Middleware(instance)
     bp = router(routes)
     instance.register_blueprint(bp)
-    scheduler.start()
+    if schedule:
+        scheduler.start()
     # api.add_resource(Menus, '/menus')
 
     return instance
