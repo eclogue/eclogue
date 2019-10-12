@@ -11,6 +11,7 @@ from eclogue.middleware import Middleware
 from eclogue.api import router
 from eclogue.api.routes import routes
 from eclogue.scheduler import scheduler
+from eclogue.logger.formatter import MongoFormatter
 
 
 cfg = config.logging

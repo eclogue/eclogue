@@ -1,8 +1,11 @@
+import json
+import time
 from pymongo import MongoClient
 from bson import ObjectId
 from eclogue.config import config
 from gridfs import GridFS, GridFSBucket
 from mimetypes import guess_type
+from eclogue.lib.logger import logger
 
 
 class Mongo(object):
@@ -47,9 +50,11 @@ class Mongo(object):
 
 class Model(object):
     name = ''
+    indices = []
 
-    def __init__(self, data=None):
-        self._attr = data
+    def __init__(self, data=None, database=None):
+        self._attr = data or {}
+        self.db = database or db
         self._collection = self.get_collection()
 
     @property
@@ -60,22 +65,69 @@ class Model(object):
     def get_collection(cls):
         return db.collection(cls.name)
 
-    def find_by_id(self, _id):
+    @classmethod
+    def find_by_id(cls, _id):
         if not ObjectId.is_valid(_id):
             return None
+
         _id = ObjectId(_id)
+        model = cls()
 
-        return self.collection.find_one({'_id': _id})
+        return model.collection.find_one({'_id': _id})
 
-    def find_by_ids(self, ids):
-        ids = self.check_ids(ids)
+    @classmethod
+    def find_by_ids(cls, ids):
+        model = cls()
+        ids = cls.check_ids(ids)
         where = {
             '_id': {
                 '$in': ids
             }
         }
 
-        return list(self.collection.find(where))
+        return list(model.collection.find(where))
+
+    @classmethod
+    def find(cls, where, *args, **kwargs):
+        model = cls()
+
+        return model.collection.find(where, *args, **kwargs)
+
+    @classmethod
+    def update_one(cls, where, update, **kwargs):
+        model = cls()
+        record = model.collection.find_one(where)
+        if not record and not kwargs.get('upsert'):
+            return False
+
+        msg = 'update record from {}, _id: {}'.format(model.name, record['_id'])
+        extra = {
+            'record': record,
+            'change': update
+        }
+        logger.info(msg, extra)
+
+        return model.collection.update_one(where, update, **kwargs)
+
+    @classmethod
+    def delete_one(cls, where, **kwargs):
+        model = cls()
+        record = model.collection.find_one(where)
+        if not record:
+            return None
+
+        msg = 'delete record from {}, _id: {}'.format(model.name, record['_id'])
+        extra = {
+            'record': record,
+        }
+        update = {
+            'delete_at': time.time(),
+            'status': -1,
+        }
+
+        logger.info(msg, extra)
+
+        return model.collection.update(where, update=update, **kwargs)
 
     @staticmethod
     def check_ids(ids):
@@ -87,7 +139,32 @@ class Model(object):
         return result
 
     def save(self):
-        return self.collection.insert_one(self._attr)
+        if self._attr:
+            result = self.collection.insert_one(self._attr)
+            self._attr = {}
+
+            return result
+
+        return None
+
+    def __setitem__(self, key, value):
+        self._attr[key] = value
+
+    def __getitem__(self, item):
+        return self._attr.get(item)
+
+    def __delitem__(self, key):
+        if key in self._attr:
+            return self._attr.pop(key)
+
+    def __iter__(self):
+        return iter(self._attr)
+
+    def __dict__(self):
+        return self._attr
+
+    def __str__(self):
+        return json.dumps(self._attr)
 
 
 db = Mongo()

@@ -298,6 +298,7 @@ def run_playbook_task(_id, request_id, username, history_id, **kwargs):
         temp_stdout.close(True)
         sys.stdout = old_stdout
         sys.stderr = old_stderr
+        print('xxxcccccontent', content)
         finish_at = time()
         update = {
             '$set': {

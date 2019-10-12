@@ -26,7 +26,7 @@ logging:
         - console
   handlers:
     mongo:
-      (): eclogue.lib.logger.MongoHandler
+      (): eclogue.logger.handler.MongoHandler
       level: INFO
       formatter: mongo
       filters:
@@ -36,7 +36,7 @@ logging:
       filename: {{ home_path }}/storage/logs/eclogue.log
       level: DEBUG
     console:
-      (): eclogue.lib.logger.ConsoleHandler
+      (): eclogue.logger.handler.ConsoleHandler
       level: DEBUG
     default:
       class: logging.StreamHandler
@@ -48,7 +48,7 @@ logging:
       formate: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
       datefmt: '%Y-%m-%d %H:%M:%S'
     mongo:
-      (): eclogue.lib.logger.MongoFormatter
+      (): eclogue.logger.formatter.MongoFormatter
   filters:
     requestId:
       (): flask_log_request_id.RequestIDLogFilter
