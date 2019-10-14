@@ -98,3 +98,7 @@ celery:
 
 task:
   history: 20
+
+api:
+  prefix: ''
+  force_check_binding: true

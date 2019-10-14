@@ -7,6 +7,7 @@ from eclogue.model import db
 from eclogue.middleware import jwt_required, login_user
 from flask import jsonify, request
 from eclogue.models.user import User
+from eclogue.models.menu import Menu
 from eclogue.lib.logger import logger
 from eclogue.utils import md5
 
@@ -51,7 +52,6 @@ class Menus(Resource):
                 'code': 4000
             }), 400
 
-        print(params)
         checked = True
         if 'name' not in params:
             checked = False
@@ -74,6 +74,7 @@ class Menus(Resource):
             'name': params['name'],
             'route': params['route'],
             'id': id,
+            'apis': params.get('apis') or [],
             'icon': params.get('icon', ''),
             'bpid': params.get('bpid') or '0',
             'mpid': params.get('mpid') or '0',
@@ -120,7 +121,10 @@ class Menus(Resource):
         mpid = params.get('mpid')
         bpid = params.get('bpid')
         status = params.get('status', 1)
-        update = {}
+        apis = params.get('apis') or []
+        update = {
+            'apis': apis
+        }
         if name:
             update['name'] = name
 
@@ -200,4 +204,3 @@ class Menus(Resource):
             'message': 'ok',
             'code': 0,
         })
-

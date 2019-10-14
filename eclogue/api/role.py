@@ -227,3 +227,25 @@ def update_role(_id):
         'message': 'ok',
         'code': 0,
     })
+
+
+@jwt_required
+def get_role_menus(_id):
+    menus = []
+    where = {
+        'role_id': _id
+    }
+    records = db.collection('role_menus').find(where).sort('id', 1)
+    for record in records:
+        item = Menu.find_by_id(record['m_id'])
+        if not item or item.get('mpid') == '-1' or item.get('status') < 1:
+            continue
+
+        item['actions'] = record.get('actions', ['get'])
+        menus.append(item)
+
+    return jsonify({
+        'message': 'ok',
+        'code': 0,
+        'data': menus,
+    })

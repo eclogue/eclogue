@@ -59,6 +59,7 @@ def get_user_info(_id):
     record.pop('password')
     permissions, roles = user.get_permissions(_id)
     hosts = user.get_hosts(_id)
+
     return jsonify({
         'message': 'ok',
         'code': 0,

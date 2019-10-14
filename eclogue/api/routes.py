@@ -3,7 +3,6 @@ from eclogue.api.catheter import Catheter
 from eclogue.api.auth import Auth
 from eclogue.api.host import dump_inventory
 from eclogue.api.bookshelf import get_entry
-from eclogue.api.role import add_role, get_roles, update_role
 import eclogue.api.inventory as cmdb
 from eclogue.api.credential import credentials, add_credential, update_credential
 from eclogue.api.console import run_task
@@ -20,6 +19,7 @@ import eclogue.api.dashboard as dashboard
 import eclogue.api.setting as setting
 import eclogue.api.user as user
 import eclogue.api.key as keys
+import eclogue.api.role as role
 
 routes = [
     ('/login', Auth.login, ['POST']),
@@ -126,9 +126,10 @@ routes = [
     ('/users/password/reset', user.reset_pwd, ['put']),
     ('/sshkeys/public', keys.get_keys, ['get']),
     ('/sshkeys/public', keys.add_key, ['POST']),
-    ('/roles', add_role, ['post']),
-    ('/roles', get_roles, ['get']),
-    ('/roles/<_id>', update_role, ['put']),
+    ('/roles', role.add_role, ['post']),
+    ('/roles', role.get_roles, ['get']),
+    ('/roles/<_id>', role.update_role, ['put']),
+    ('/roles/<_id>/menus', role.get_role_menus, ['get']),
     ('/notifications', notification.get_notify, ['get']),
     ('/notifications/read', notification.mark_read, ['put']),
     # ('/docker', docker.test_docker, ['get']),

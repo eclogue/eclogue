@@ -4,6 +4,7 @@ from authlib.specs.rfc7519 import jwt, JWTError
 from eclogue.config import config
 from flask import request
 from eclogue.models.user import User
+from eclogue.models.menu import Menu
 from eclogue.routes import routes
 
 
@@ -51,7 +52,7 @@ class JWTAuth(object):
     def verify(self, token):
         try:
             claims = self.decode(token)
-            result = claims.validate()
+            claims.validate()
 
             return claims
         except JWTError:
@@ -70,15 +71,19 @@ def get_claims():
 
         token = parts[1]
         claims = jws.verify(token)
+        url_rule = str(request.url_rule)
+        if config.api.get('force_check_binding'):
+            found = _force_check_menu_apis(url_rule)
+            if not found:
+                return -1
+
         if claims is False:
             return 0
 
         if claims.get('is_admin'):
             return claims
 
-        url_rule = str(request.url_rule)
         method = request.method.lower()
-
         if url_rule in routes.get('Default'):
             return claims
 
@@ -93,28 +98,56 @@ def get_claims():
         if not menus:
             return False
 
-        blocks = filter(lambda i: int(i['bpid']) < 1, menus)
-        # blocks = list(blocks)
         is_allow = -1
-        for block in blocks:
-            menu_name = block.get('name')
-            print(menu_name, url_rule)
-            actions = block.get('actions', ['get'])
-            if menu_name not in routes:
+        for menu in menus:
+            apis = menu.get('apis')
+            actions = menu.get('actions')
+            if not apis:
                 continue
 
-            rules = routes.get(menu_name)
-            for rule in rules:
-                if url_rule == rule and method in actions:
-                    is_allow = 1
-                    break
+            if url_rule in apis and method in actions:
+                print(apis, url_rule, actions, method)
 
-            if is_allow != -1:
+                is_allow = 1
                 break
 
         return claims if is_allow == 1 else is_allow
+        # blocks = filter(lambda i: int(i['bpid']) < 1, menus)
+        # # blocks = list(blocks)
+        # is_allow = -1
+        # for block in blocks:
+        #     menu_name = block.get('name')
+        #     actions = block.get('actions', ['get'])
+        #     if menu_name not in routes:
+        #         continue
+        #
+        #     rules = routes.get(menu_name)
+        #     for rule in rules:
+        #         if url_rule == rule and method in actions:
+        #             is_allow = 1
+        #             break
+        #
+        #     if is_allow != -1:
+        #         break
+        #
+        # return claims if is_allow == 1 else is_allow
     except JWTError:
         return False
+
+
+def _force_check_menu_apis(url):
+    menus = Menu.find({})
+    found = False
+    for menu in menus:
+        apis = menu.get('apis')
+        if not apis:
+            continue
+
+        if url in apis:
+            found = True
+            break
+
+    return found
 
 
 jws = JWTAuth()
