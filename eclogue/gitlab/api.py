@@ -97,7 +97,7 @@ class GitlabApi(object):
                 file_id = db.save_file(filename=name, fileobj=fd)
                 store_info = {
                     'app_type': 'jenkins',
-                    'file_id': file_id,
+                    'file_id': str(file_id),
                     'project_id': project_id,
                     'job_id': job_id,
                     'filename': name,

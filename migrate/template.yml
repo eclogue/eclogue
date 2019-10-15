@@ -1,25 +1,25 @@
 ---
-  uuid: {{ uuid }}
-  version: 0.0.1
-  description: demo
-  maintainer:
-    - eclogue team
-  setup:
-    - collection: test
-      insert:
-        - name: test
-          description: test
-      update:
-        filter:
-          name: test
-        change:
-          $set:
-            description: test1
-      delete:
-        filter:
-          name: test
-      indexes:
-        - name: demo
-          keys:
-            name: -1
-  rollback: null
+uuid: {{ uuid }}
+version: {{ version }}
+description: demo
+maintainer:
+  - eclogue team
+setup:
+  - collection: test
+    insert:
+      - name: test
+        description: test
+    update:
+      filter:
+        name: test
+      change:
+        $set:
+          description: test1
+    delete:
+      filter:
+        name: test
+    indexes:
+      - name: demo
+        keys:
+          name: -1
+rollback: null

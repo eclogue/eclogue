@@ -15,11 +15,10 @@ class Migration(object):
     def __init__(self):
         self.db = db
         self.base_dir = os.path.join(config.home_path, 'migrate')
-        print(self.base_dir)
 
     @property
     def template(self):
-        file = os.path.join(self.base_dir, 'data/template.yml')
+        file = os.path.join(self.base_dir, 'template.yml')
         with open(file, 'r') as f:
             return f.read()
 
@@ -41,16 +40,29 @@ class Migration(object):
 
     def generate(self):
         uid = str(uuid4())
+        version = int(time.time())
         template = self.template
         tpl = Template(template)
-        content = tpl.render(uuid=uid)
-        print(content)
+        content = tpl.render(uuid=uid, version=version)
         self.put(uid, content)
 
     def compare(self, uuid):
         pass
 
     def setup(self):
+        # menus = db.collection('menus').find()
+        # cc = []
+        # for menu in menus:
+        #     menu.pop('_id')
+        #     if menu.get('updated_at'):
+        #         menu.pop('updated_at')
+        #
+        #     cc.append(menu)
+        # with open(self.base_dir + '/cc.yml', 'w') as t:
+        #     yaml.dump(cc, stream=t)
+        #
+        #
+        # return False
         files = os.listdir(self.data_path)
         for file in files:
             filename = os.path.join(self.data_path, file)
@@ -78,7 +90,6 @@ class Migration(object):
 
     def rollback(self, uuid=None, version=None):
         if not uuid and not version:
-            print('nothing to do')
             return None
 
         if uuid:

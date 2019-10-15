@@ -91,7 +91,6 @@ def run_adhoc_task(_id, request_id, username, history_id, **kwargs):
     db = Mongo()
     task_record = db.collection('tasks').find_one({'request_id': request_id})
     record = db.collection('jobs').find_one({'_id': ObjectId(_id)})
-    print(record, task_record)
     if not task_record:
         return False
 

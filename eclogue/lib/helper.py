@@ -347,6 +347,7 @@ def load_ansible_adhoc(payload):
         }
     }
 
+
 def _load_extra_vars(data):
     extra_vars = []
     for key, value in data.items():
