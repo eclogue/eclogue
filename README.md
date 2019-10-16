@@ -25,6 +25,14 @@ eclogue（牧歌），基于 ansible 的 devops 平台。让 ansible 更简单�
 ### Docker
 `docker-composer up` visit http://localhost:5000/
 
+### Document
+not ready
+
+### Demo
+[https://eclogue.ecloguelabs.org](https://eclogue.ecloguelabs.org)
+
+- username: natsume
+- password: takashi
 ### Graph
 
 ![image](https://raw.githubusercontent.com/eclogue/eclogue/master/images/graph.png)

@@ -7,7 +7,7 @@ setup:
   - collection: menus
     insert:
       - apis:
-          - /dashboard
+          - /api/v1/dashboard
         bpid: '0'
         icon: home
         id: '1'
@@ -17,8 +17,8 @@ setup:
         route: /dashboard
         status: 1
       - apis:
-          - /books
-          - /search/users
+          - /api/v1/books
+          - /api/v1/search/users
         bpid: '0'
         icon: book
         id: '2'
@@ -34,7 +34,7 @@ setup:
         route: /cmdb
         status: 1
       - apis:
-          - /tasks
+          - /api/v1/tasks
         bpid: '0'
         icon: rocket
         id: '6'
@@ -44,7 +44,7 @@ setup:
         route: /task
         status: 1
       - apis:
-          - /tasks/history
+          - /api/v1/tasks/history
         bpid: '6'
         icon: ordered-list
         id: '62'
@@ -60,9 +60,9 @@ setup:
         route: /task
         status: 1
       - apis:
-          - /cmdb/regions
-          - /cmdb/groups
-          - /cmdb/groups/<_id>
+          - /api/v1/cmdb/regions
+          - /api/v1/cmdb/groups
+          - /api/v1/cmdb/groups/<_id>
         bpid: '4'
         icon: gold
         id: '43'
@@ -73,9 +73,9 @@ setup:
         status: 1
       - apis:
           - cmdb/regions
-          - /cmdb/regions/<_id>
-          - /cmdb/groups
-          - /cmdb/groups/<_id>
+          - /api/v1/cmdb/regions/<_id>
+          - /api/v1/cmdb/groups
+          - /api/v1/cmdb/groups/<_id>
         bpid: '4'
         icon: cloud
         id: '42'
@@ -85,15 +85,15 @@ setup:
         route: /cmdb/region
         status: 1
       - apis:
-          - /cmdb/devices/<_id>
-          - /cmdb/inventory/<_id>
-          - /cmdb/devices
-          - /cmdb/inventory
-          - /search/users
-          - /inventory/<_id>
-          - /cmdb/regions
-          - /cmdb/groups
-          - /credentials
+          - /api/v1/cmdb/devices/<_id>
+          - /api/v1/cmdb/inventory/<_id>
+          - /api/v1/cmdb/devices
+          - /api/v1/cmdb/inventory
+          - /api/v1/search/users
+          - /api/v1/inventory/<_id>
+          - /api/v1/cmdb/regions
+          - /api/v1/cmdb/groups
+          - /api/v1/credentials
         bpid: '4'
         icon: apartment
         id: '41'
@@ -102,9 +102,9 @@ setup:
         route: /cmdb
         status: 1
       - apis:
-          - /apps
-          - /apps/<_id>
-          - /cmdb/groups
+          - /api/v1/apps
+          - /api/v1/apps/<_id>
+          - /api/v1/cmdb/groups
         bpid: '4'
         icon: container
         id: '45'
@@ -114,8 +114,8 @@ setup:
         route: /cmdb/application
         status: 1
       - apis:
-          - /jobs
-          - /jobs/<_id>
+          - /api/v1/jobs
+          - /api/v1/jobs/<_id>
         bpid: '0'
         icon: deployment-unit
         id: '5'
@@ -125,17 +125,17 @@ setup:
         route: /job
         status: 1
       - apis:
-          - /books/all
-          - /books/<name>/inventory
-          - /books/<_id>/roles
-          - /books/<_id>/entries
-          - /cmdb/inventory
-          - /playbook/tags
-          - /search/users
-          - /jobs/preview/inventory
-          - /credentials
-          - /apps
-          - /jobs/<_id>
+          - /api/v1/books/all
+          - /api/v1/books/<name>/inventory
+          - /api/v1/books/<_id>/roles
+          - /api/v1/books/<_id>/entries
+          - /api/v1/cmdb/inventory
+          - /api/v1/playbook/tags
+          - /api/v1/search/users
+          - /api/v1/jobs/preview/inventory
+          - /api/v1/credentials
+          - /api/v1/apps
+          - /api/v1/jobs/<_id>
         bpid: '5'
         icon: book
         id: '52'
@@ -151,9 +151,9 @@ setup:
         route: /job
         status: 1
       - apis:
-          - /credentials
-          - /credentials/<_id>
-          - /search/users
+          - /api/v1/credentials
+          - /api/v1/credentials/<_id>
+          - /api/v1/search/users
         bpid: '0'
         icon: deployment-unit
         id: '8'
@@ -163,9 +163,9 @@ setup:
         route: /credential
         status: 1
       - apis:
-          - /teams
-          - /teams/<_id>
-          - /users/<_id>
+          - /api/v1/teams
+          - /api/v1/teams/<_id>
+          - /api/v1/users/<_id>
         bpid: '0'
         icon: deployment-unit
         id: '9'
@@ -183,16 +183,16 @@ setup:
         route: /plugin
         status: 1
       - apis:
-          - /books/<_id>/playbook
-          - /playbook/edit/<_id>
-          - /playbook/<_id>/file
-          - /books/<_id>
-          - /books/<_id>/download
-          - /playbook/upload
-          - /playbook/folder
-          - /playbook/rename/<_id>
-          - /configurations/<playbook_id>/register
-          - /configurations/list/ids
+          - /api/v1/books/<_id>/playbook
+          - /api/v1/playbook/edit/<_id>
+          - /api/v1/playbook/<_id>/file
+          - /api/v1/books/<_id>
+          - /api/v1/books/<_id>/download
+          - /api/v1/playbook/upload
+          - /api/v1/playbook/folder
+          - /api/v1/playbook/rename/<_id>
+          - /api/v1/configurations/<playbook_id>/register
+          - /api/v1/configurations/list/ids
         bpid: '2'
         icon: read
         id: '21'
@@ -201,8 +201,8 @@ setup:
         route: /book/view
         status: 1
       - apis:
-          - /configurations
-          - /configurations/<_id>
+          - /api/v1/configurations
+          - /api/v1/configurations/<_id>
         bpid: '4'
         icon: deployment-unit
         id: '10'
@@ -212,8 +212,8 @@ setup:
         route: /cmdb/configuration
         status: 1
       - apis:
-          - /tasks/<job_id>/schedule/remove
-          - /tasks/queue
+          - /api/v1/tasks/<job_id>/schedule/remove
+          - /api/v1/tasks/queue
         bpid: '6'
         icon: ordered-list
         id: '63'
@@ -222,9 +222,9 @@ setup:
         route: /task/queue
         status: 1
       - apis:
-          - /jobs/<_id>/tasks
-          - /webhooks/job
-          - /tasks/<_id>/rollback
+          - /api/v1/jobs/<_id>/tasks
+          - /api/v1/webhooks/job
+          - /api/v1/tasks/<_id>/rollback
         bpid: '5'
         icon: book
         id: '53'
@@ -233,11 +233,11 @@ setup:
         route: /job/detail
         status: 1
       - apis:
-          - /jobs/<_id>
-          - /jobs/runner/doc
-          - /jobs/runner/modules
-          - /cmdb/inventory
-          - /jobs/preview/inventory
+          - /api/v1/jobs/<_id>
+          - /api/v1/jobs/runner/doc
+          - /api/v1/jobs/runner/modules
+          - /api/v1/cmdb/inventory
+          - /api/v1/jobs/preview/inventory
         bpid: '5'
         icon: code
         id: '54'
@@ -246,12 +246,12 @@ setup:
         route: /job/adhoc
         status: 1
       - apis:
-          - /credentials
-          - /jobs/runner/doc
-          - /jobs/runner/modules
-          - /cmdb/inventory
-          - /jobs/preview/inventory
-          - /execute
+          - /api/v1/credentials
+          - /api/v1/jobs/runner/doc
+          - /api/v1/jobs/runner/modules
+          - /api/v1/cmdb/inventory
+          - /api/v1/jobs/preview/inventory
+          - /api/v1/execute
         bpid: '5'
         icon: code
         id: '55'
@@ -268,8 +268,8 @@ setup:
         route: '/cmdb/configuration/:id'
         status: 1
       - apis:
-          - /cmdb/devices/<_id>
-          - /cmdb/inventory/<_id>
+          - /api/v1/cmdb/devices/<_id>
+          - /api/v1/cmdb/inventory/<_id>
         bpid: '4'
         icon: gold
         id: '46'
@@ -279,11 +279,11 @@ setup:
         route: '/cmdb/inventory/:id'
         status: 1
       - apis:
-          - /roles
-          - /menus
-          - /roles/<_id>
-          - /users/<user_id>/roles
-          - /roles/<_id>/menus
+          - /api/v1/roles
+          - /api/v1/menus
+          - /api/v1/roles/<_id>
+          - /api/v1/users/<user_id>/roles
+          - /api/v1/roles/<_id>/menus
         bpid: '9'
         icon: user
         id: '92'
@@ -293,15 +293,15 @@ setup:
         route: /team/role
         status: 1
       - apis:
-          - /users/<_id>/profile
-          - /users/alert/notification
-          - /sshkeys/public
-          - /users/<_id>
-          - /users/email/send
-          - /users/password/reset
-          - /users/roles
-          - /users/<_id>/roles
-          - /users/<_id>/hosts
+          - /api/v1/users/<_id>/profile
+          - /api/v1/users/alert/notification
+          - /api/v1/sshkeys/public
+          - /api/v1/users/<_id>
+          - /api/v1/users/email/send
+          - /api/v1/users/password/reset
+          - /api/v1/users/roles
+          - /api/v1/users/<_id>/roles
+          - /api/v1/users/<_id>/hosts
         bpid: '-1'
         icon: user
         id: '111'
@@ -311,8 +311,8 @@ setup:
         route: /user
         status: 1
       - apis:
-          - /notifications
-          - /notifications/read
+          - /api/v1/notifications
+          - /api/v1/notifications/read
         bpid: '-1'
         icon: notification
         id: '112'
@@ -322,11 +322,11 @@ setup:
         route: /notification
         status: 1
       - apis:
-          - /users/<_id>/profile
-          - /cmdb/<user_id>/groups
-          - /cmdb/groups/<_id>/hosts
-          - /cmdb/hosts/<_id>
-          - /cmdb/groups/<_id>
+          - /api/v1/users/<_id>/profile
+          - /api/v1/cmdb/<user_id>/groups
+          - /api/v1/cmdb/groups/<_id>/hosts
+          - /api/v1/cmdb/hosts/<_id>
+          - /api/v1/cmdb/groups/<_id>
         bpid: '4'
         icon: folder-open
         id: '47'
@@ -336,9 +336,9 @@ setup:
         route: /cmdb/hosttree
         status: 1
       - apis:
-          - /teams
-          - /teams/<_id>
-          - /users/<_id>
+          - /api/v1/teams
+          - /api/v1/teams/<_id>
+          - /api/v1/users/<_id>
         bpid: '9'
         icon: user
         id: '91'
@@ -349,7 +349,7 @@ setup:
         status: 1
       - apis:
           - ''
-          - /logs
+          - /api/v1/logs
         bpid: '0'
         icon: filter
         id: '3'
@@ -366,7 +366,7 @@ setup:
         route: /task/schedule
         status: 1
       - apis:
-          - /tasks/<_id>/info
+          - /api/v1/tasks/<_id>/info
         bpid: '62'
         icon: coffee
         id: '621'
@@ -375,7 +375,7 @@ setup:
         route: '/task/history/:id'
         status: 1
       - apis:
-          - /setting
+          - /api/v1/setting
         bpid: '0'
         icon: setting
         id: z
@@ -392,8 +392,8 @@ setup:
         route: /book
         status: 1
       - apis:
-          - /menus
-          - /menus/<_id>
+          - /api/v1/menus
+          - /api/v1/menus/<_id>
         bpid: '0'
         icon: menu
         id: a

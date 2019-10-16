@@ -36,7 +36,7 @@ def bootstrap():
 
 
 @click.command()
-def server():
+def start():
     debug = config.debug
     app.run(debug=debug)
     print('sssserver')
@@ -44,7 +44,7 @@ def server():
 
 eclogue.add_command(migrate)
 eclogue.add_command(bootstrap)
-eclogue.add_command(server)
+eclogue.add_command(start)
 
 if __name__ == '__main__':
     eclogue()
