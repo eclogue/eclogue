@@ -44,6 +44,7 @@ slackclient = "==2.1.0"
 nexmo = "*"
 wechatpy = "*"
 ansi2html = "*"
+gevent = "*"
 
 [requires]
 python_version = "3.7"

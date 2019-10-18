@@ -62,16 +62,8 @@ workspace:
   tmp: {{ home_path }}/storage/tmp
   playbook: {{ home_path }}/storage/tmp
   base_dir: {{ home_path }}/storage/eclogue
-  job: {{ home_path }}/storage/eclogue/job
-  build: {{ home_path }}/storage/eclogue/job
-jenkins:
-  default:
-    base_url: xx
-    username: xx
-    password: xx
-gitlab:
-  token: xx
-  base_url: https://gitlab.com
+  job: {{ home_path }}/storage/eclogue/jobs
+  build: {{ home_path }}/storage/eclogue/builds
 vault:
   secret: xx
 
@@ -92,7 +84,7 @@ redis:
     decode_responses: !!bool "true"
 
 task:
-  history: 20
+  history: 50
 
 api:
   prefix: ''

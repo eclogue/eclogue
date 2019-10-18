@@ -6,6 +6,7 @@ from eclogue.model import db
 from eclogue.models.user import User
 from eclogue.models.role import Role
 from eclogue.models.menu import Menu
+from eclogue.models.team import Team
 
 
 @jwt_required
@@ -91,6 +92,22 @@ def add_role():
             'message': 'name existed',
             'code': 104001
         }), 400
+
+    if role_type == 'team':
+        team_existed = Team.find_one({'name': name})
+        if team_existed:
+            return jsonify({
+                'message': 'team existed',
+                'code': 104005
+            }), 400
+
+        team = {
+            'name': name,
+            'description': 'team of role {}'.format(name),
+            'add_by': login_user.get('username'),
+            'created_at': time.time()
+        }
+        Team.insert_one(team)
 
     data = {
         'name': name,

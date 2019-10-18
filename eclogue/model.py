@@ -100,6 +100,12 @@ class Model(object):
         return model.collection.find(where, *args, **kwargs)
 
     @classmethod
+    def insert_one(cls, data, *args, **kwargs):
+        model = cls()
+
+        return model.collection.insert_one(data, *args, **kwargs)
+
+    @classmethod
     def update_one(cls, where, update, **kwargs):
         model = cls()
         record = model.collection.find_one(where)

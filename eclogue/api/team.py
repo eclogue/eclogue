@@ -258,6 +258,7 @@ def get_team_tree():
         relations = db.collection('team_members').find({'team_id': str(team['_id'])})
         relations = list(relations)
         if not relations:
+            tree.append(item)
             continue
 
         user_ids = map(lambda i: i['user_id'], relations)

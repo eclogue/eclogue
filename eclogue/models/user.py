@@ -53,6 +53,7 @@ class User(Model):
             records = db.collection('role_menus').find(where).sort('id', 1)
             for record in records:
                 item = Menu.find_by_id(record['m_id'])
+                print('iiii', record)
                 if not item or item.get('mpid') == '-1' or item.get('status') < 1:
                     continue
 
