@@ -97,7 +97,7 @@ class Model(object):
     def find_one(cls, where, *args, **kwargs):
         model = cls()
 
-        return model.collection.find(where, *args, **kwargs)
+        return model.collection.find_one(where, *args, **kwargs)
 
     @classmethod
     def insert_one(cls, data, *args, **kwargs):

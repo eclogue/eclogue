@@ -106,31 +106,10 @@ def get_claims():
                 continue
 
             if url_rule in apis and method in actions:
-                print(apis, url_rule, actions, method)
-
                 is_allow = 1
                 break
 
         return claims if is_allow == 1 else is_allow
-        # blocks = filter(lambda i: int(i['bpid']) < 1, menus)
-        # # blocks = list(blocks)
-        # is_allow = -1
-        # for block in blocks:
-        #     menu_name = block.get('name')
-        #     actions = block.get('actions', ['get'])
-        #     if menu_name not in routes:
-        #         continue
-        #
-        #     rules = routes.get(menu_name)
-        #     for rule in rules:
-        #         if url_rule == rule and method in actions:
-        #             is_allow = 1
-        #             break
-        #
-        #     if is_allow != -1:
-        #         break
-        #
-        # return claims if is_allow == 1 else is_allow
     except JWTError:
         return False
 
