@@ -1,11 +1,12 @@
+import os
+
 from flask import Blueprint
-# from eclogue.routes import routes
-# from eclogue.model import db
+from eclogue.config import config
 
-main = Blueprint('profile', __name__)
+main = Blueprint('apiv1', __name__, url_prefix='/api/v1')
 
 
-def router(rules):
+def router_v1(rules):
     bucket = []
     for route in rules:
         rule, func, methods = route
@@ -13,38 +14,17 @@ def router(rules):
         bucket.append(endpoint)
 
         main.add_url_rule(rule, endpoint=None, view_func=func, methods=methods)
+
     return main
 
 
-# def dispatch(app):
-#     for item in routes:
-#         name = item.get('name')
-#         rules = item.get('api')
-#         bp = Blueprint(name, __name__)
-#         for route in rules:
-#             rule, func, methods = route
-#             endpoint = rule + '@' + func.__name__
-#             bp.add_url_rule(rule, endpoint=endpoint, view_func=func, methods=methods)
-#         app.register_blueprint(bp)
+# def static():
+#     root_path = os.path.join(config.home_path)
+#     print(root_path)
+#     bp = Blueprint('static', __name__, url_prefix='', root_path=root_path, static_folder='public')
 #
-#     return app
+#     @bp.route('/')
+#     def index():
+#         return bp.send_static_file('index.html')
 #
-#
-# def init():
-#     for item in routes:
-#         name = item.get('name')
-#         rules = item.get('api')
-#         bp = Blueprint(name, __name__)
-#         for route in rules:
-#             rule, func, methods = route
-#             endpoint = rule + '@' + func.__name__
-#             bp.add_url_rule(rule, endpoint=endpoint, view_func=func, methods=methods)
-#             data = {
-#                 'rule': rule,
-#                 'methods': methods,
-#                 'endpoint': endpoint,
-#                 'module': name,
-#             }
-#
-#             db.collection('permissions').update_one(data, update=data, upsert=True)
-#
+#     return bp

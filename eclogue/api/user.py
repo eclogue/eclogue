@@ -3,7 +3,6 @@ import time
 
 from bson import ObjectId
 from flask import jsonify, request
-from werkzeug.security import generate_password_hash
 from flask_log_request_id import current_request_id
 from werkzeug.security import check_password_hash, generate_password_hash
 from eclogue.model import db
@@ -13,11 +12,13 @@ from eclogue.models.role import Role
 from eclogue.models.menu import Menu
 from eclogue.models.user import User
 from eclogue.models.team_user import TeamUser
+from eclogue.models.userrole import UserRole
+from eclogue.models.member import TeamMember
 from eclogue.utils import gen_password
-from eclogue.notification.smtp import SMTP
 from eclogue.config import config
 from eclogue.utils import md5
 from eclogue.lib.logger import logger
+from eclogue.notification.smtp import SMTP
 
 
 @jwt_required
@@ -59,6 +60,7 @@ def get_user_info(_id):
     record.pop('password')
     permissions, roles = user.get_permissions(_id)
     hosts = user.get_hosts(_id)
+
     return jsonify({
         'message': 'ok',
         'code': 0,
@@ -418,7 +420,8 @@ def add_user():
             'message': 'invalid params',
             'code': 104000
         }), 400
-
+    current_user = login_user.get('username')
+    is_admin = login_user.get('is_admin')
     username = payload.get('username')
     nickname = payload.get('nickname')
     email = payload.get('email')
@@ -432,14 +435,27 @@ def add_user():
             'code': 104001,
         }), 400
 
-    user = User()
+    if not is_admin:
+        if team_id:
+            team = Team.find_by_id(team_id)
+            if not team or current_user not in team.get('master'):
+                return jsonify({
+                    'message': 'permission deny',
+                    'code': 104031
+                }), 403
+        else:
+            return jsonify({
+                'message': 'permission deny',
+                'code': 104032,
+            }), 403
+
     where = {
         '$or': [
             {'username': username},
             {'email': email},
         ]
     }
-    existed = user.collection.find_one(where)
+    existed = User.find_one(where)
     if existed:
         return jsonify({
             'message': 'username or email existed',
@@ -458,12 +474,11 @@ def add_user():
         'created_at': time.time(),
         'add_by': login_user.get('username'),
     }
-    result = user.collection.insert_one(user_info)
+    result = User.insert_one(user_info)
     user_id = str(result.inserted_id)
-    role = Role()
     if role_ids:
         role_ids = role_ids if type(role_ids) == list else [role_ids]
-        roles = role.find_by_ids(role_ids)
+        roles = Role.find_by_ids(role_ids)
         if roles:
             for item in roles:
                 data = {
@@ -474,18 +489,22 @@ def add_user():
                 }
                 db.collection('user_roles').insert_one(data)
     if team_id:
-        data = {
-            'team_id': team_id,
-            'user_id': user_id,
-            'is_owner': False,
-            'add_by': login_user.get('username'),
-            'created_at': time.time(),
-        }
-        Team().add_member(data)
+        Team().add_member(team_id=team_id, members=[user_id], owner_id=login_user.get('user_id'))
+
+    notify = SMTP()
+    text = '''
+    <p>Dear user:</p>
+    <p>Your eclogue account is active~!</p>
+    <p>username: {}</p>
+    <p>password: {} </p>
+    '''
+    text = text.format(username, password)
+    notify.send(text, to=email, subject='', subtype='html')
 
     return jsonify({
         'message': 'ok',
         'code': 0,
+        'data': password
     })
 
 
@@ -569,7 +588,6 @@ def verify_mail():
             'code': 104040
         }), 404
 
-    print(record)
     update = {
         '$set': {
             'email_status': 1
@@ -666,4 +684,140 @@ def save_alert():
     return jsonify({
         'message': 'ok',
         'code': 0
+    })
+
+
+@jwt_required
+def update_user(_id):
+    payload = request.get_json()
+    record = User.find_by_id(_id)
+    if not record:
+        return jsonify({
+            'message': 'record not found',
+            'code': 104040
+        }), 404
+
+    if not payload:
+        return jsonify({
+            'message': 'illegal params',
+            'code': 104000
+        }), 400
+
+    current_user_id = login_user.get('user_id')
+    is_admin = login_user.get('is_admin')
+    username = payload.get('username')
+    nickname = payload.get('nickname')
+    email = payload.get('email')
+    phone = payload.get('phone')
+    role_ids = payload.get('role')
+    team_id = payload.get('team_id')
+    address = payload.get('address')
+    print(payload)
+    # current_team_id = payload.get('currentTeamId')
+    # current_role_ids = payload.get('currentRoleIds')
+    if not is_admin:
+        return jsonify({
+            'message': 'bad permission',
+            'code': 104130
+        }), 403
+
+    update = {}
+    if username and record['username'] != username:
+        update['username'] = username
+        check = User.find_one({'username': username})
+        if check:
+            return jsonify({
+                'message': 'username existed',
+                'code': 104001
+            }), 400
+
+    if email and record.get('email') != email:
+        update['email'] = email
+        check = User.find_one({'email': email})
+        if check:
+            return jsonify({
+                'message': 'email existed',
+                'code': 104001
+            }), 400
+
+    if phone and record.get('phone') != phone:
+        update['phone'] = phone
+        check = User.find_one({'phone': phone})
+        if check:
+            return jsonify({
+                'message': 'phone existed',
+                'code': 104001
+            }), 400
+
+    if nickname:
+        update['nickname'] = nickname
+
+    if address:
+        update['address'] = address
+
+    if team_id:
+        change = {
+            '$set': {
+                'team_id': team_id,
+                'user_id': _id,
+                'updated_at': time.time(),
+            }
+        }
+        condition = {
+            'user_id': _id,
+        }
+        db.collection('team_members').update_one(condition, update=change, upsert=True)
+
+    if role_ids:
+        print('role_ids', role_ids)
+        result = User().bind_roles(_id, role_ids, add_by=login_user.get('username'))
+        print(result)
+
+    User.update_one({'_id': record['_id']}, {'$set': update})
+
+    return jsonify({
+        'message': 'ok',
+        'code': 0,
+    })
+
+
+@jwt_required
+def delete_user(_id):
+    is_admin = login_user.get('is_admin')
+    if not is_admin:
+        return jsonify({
+            'message': 'admin required',
+            'code': 104033,
+        }), 403
+
+    record = User.find_by_id(_id)
+    if not record:
+        return jsonify({
+            'message': 'record not found',
+            'code': 104040,
+        }), 404
+
+    update = {
+        '$set': {
+            'status': -1,
+            'delete_at': time.time(),
+        }
+    }
+
+    condition = {
+        '_id': record['_id']
+    }
+    User.update_one(condition, update=update)
+
+    TeamMember.delete_one({'user_id': _id})
+    user_roles = UserRole.find(condition)
+    for item in user_roles:
+        where = {
+            '_id': item['_id']
+        }
+        UserRole.delete_one(where)
+
+    return jsonify({
+        'message': 'ok',
+        'code': 0,
     })

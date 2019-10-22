@@ -26,6 +26,7 @@ routes = {
         '/tasks/queue',
     ],
     'Dashboard': [
+        '/dashboard'
     ],
     'Configuration': [
         '/configurations',

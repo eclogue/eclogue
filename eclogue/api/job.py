@@ -507,7 +507,7 @@ def add_adhoc():
     maintainer.append(login_user.get('username'))
     if not job_id:
         existed = db.collection('jobs').find_one({'name': name})
-        if existed:
+        if existed and existed.get('status') != -1:
             return jsonify({
                 'message': 'name exist',
                 'code': 104007

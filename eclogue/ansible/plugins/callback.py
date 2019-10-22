@@ -22,6 +22,9 @@ class CallbackModule(CallbackBase):
         self.dumper = {}
 
     def get_job(self):
+        if not self.job_id:
+            return {}
+
         job = db.collection('jobs').find_one({'_id': ObjectId(self.job_id)})
 
         return job
@@ -64,7 +67,10 @@ class CallbackModule(CallbackBase):
         dumper = self.get_result(result)
         dumper.update({'state': 'unreachable'})
         self.dumper[hostname] = dumper
-        notification = 'ansible run on unreachable, host:{}, job:{}'.format(hostname, self.job.get('name'))
+        notification = 'ansible run on unreachable, host:{}'.format(hostname)
+        if self.job_id:
+            notification = notification + ',job name:'.format(self.job.get('name'))
+
         self.notify(notification)
 
     def v2_runner_on_ok(self, result, *args, **kwargs):
@@ -123,9 +129,11 @@ class CallbackModule(CallbackBase):
         dumper = self.get_result(result)
         dumper.update({'state': 'failed'})
         self.dumper[hostname] = dumper
-        notification = 'ansible run on failed, host:{}, job:{}'.format(hostname, self.job.get('name'))
-        self.notify(notification)
+        notification = 'ansible run on failed, host:{}'.format(hostname)
+        if self.job_id:
+            notification = notification + ',job name:'.format(self.job.get('name'))
 
+        self.notify(notification)
 
     def v2_on_file_diff(self, result):
         if 'diff' in result._result and result._result['diff']:

@@ -7,12 +7,6 @@ from flask import request, jsonify
 class Auth(object):
     @staticmethod
     def login():
-        # parser = reqparse.RequestParser()
-        # parser.add_argument('username', required=True, help='user name require')
-        # parser.add_argument('password', required=True, help='password name require')
-        # args = parser.parse_args()
-        # username = args.username
-        # password = args.password
         params = request.get_json()
         if not params:
             return jsonify({
@@ -43,21 +37,19 @@ class Auth(object):
                 'code': 104003,
             }), 401
 
-        # @todo is_admin set False
-        # @fixme
-        token = jws.encode({
+        user_info = {
             'user_id': str(user['_id']),
             'username': user['username'],
             'status': 1,
             'is_admin': user.get('is_admin', True),
-        })
+        }
+        token = jws.encode(user_info)
+        # auth_user = user_info.copy()
+        # auth_user.update({'token': token})
+        user_info['token'] =  token.decode('utf-8')
 
         return jsonify({
             'message': 'ok',
-            'data': {
-                'username': user['username'],
-                'token': token.decode('utf-8'),
-                'user_id': str(user['_id']),
-            }
+            'data': user_info,
         })
 

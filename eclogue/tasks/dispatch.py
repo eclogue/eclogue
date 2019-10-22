@@ -91,7 +91,6 @@ def run_adhoc_task(_id, request_id, username, history_id, **kwargs):
     db = Mongo()
     task_record = db.collection('tasks').find_one({'request_id': request_id})
     record = db.collection('jobs').find_one({'_id': ObjectId(_id)})
-    print(record, task_record)
     if not task_record:
         return False
 
@@ -298,6 +297,7 @@ def run_playbook_task(_id, request_id, username, history_id, **kwargs):
         temp_stdout.close(True)
         sys.stdout = old_stdout
         sys.stderr = old_stderr
+        print('xxxcccccontent', content)
         finish_at = time()
         update = {
             '$set': {

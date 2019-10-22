@@ -1,3 +1,4 @@
+import time
 from bson import ObjectId
 from eclogue.model import Model, db
 from eclogue.models.team import Team
@@ -10,7 +11,7 @@ from eclogue.models.host import Host
 class User(Model):
     name = 'users'
 
-    def get_permissions(self, user_id):
+    def get_permissions(self, user_id, filter=None):
         """
         get user permissions
         :param user_id: user id
@@ -51,17 +52,15 @@ class User(Model):
                 }
             }
             records = db.collection('role_menus').find(where).sort('id', 1)
-            # records = list(records)
-            # ids = list(map(lambda i: i['m_id'], records))
-            menu = Menu()
             for record in records:
-                item = menu.find_by_id(record['m_id'])
+                where = filter or {}
+                where['_id'] = ObjectId(record['m_id'])
+                item = Menu.find_one(where)
                 if not item or item.get('mpid') == '-1' or item.get('status') < 1:
                     continue
 
                 item['actions'] = record.get('actions', ['get'])
                 menus.append(item)
-            # menus = Menu().find_by_ids(ids)
 
         roles = Role().find_by_ids(role_ids)
 
@@ -90,5 +89,20 @@ class User(Model):
 
         return data
 
+    def bind_roles(self, user_id, role_ids, add_by=None):
+        collection = db.collection('user_roles')
+        collection.delete_many({'user_id': user_id})
+        inserted = []
+        for role_id in role_ids:
+            data = {
+                'role_id': role_id,
+                'user_id': user_id,
+                'add_by': add_by,
+                'created_at': time.time()
+            }
+            result = collection.insert_one(data)
+            inserted.append(result.inserted_id)
+
+        return inserted
 
 user_model = User()

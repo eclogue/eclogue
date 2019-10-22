@@ -6,6 +6,7 @@ from eclogue.model import db
 from eclogue.models.user import User
 from eclogue.models.role import Role
 from eclogue.models.menu import Menu
+from eclogue.models.team import Team
 
 
 @jwt_required
@@ -14,7 +15,10 @@ def get_roles():
     page = int(query.get('page', 1))
     size = int(query.get('size', 50))
     offset = (page - 1) * size
-    keyword = query.get('keyword')
+    name = query.get('name')
+    role_type = query.get('type')
+    start =query.get('start')
+    end = query.get('end')
     user = User()
     username = login_user.get('username')
     is_admin = login_user.get('is_admin')
@@ -22,6 +26,33 @@ def get_roles():
     total = 0
     role = Role()
     print(is_admin)
+    where = {
+        'status': {
+            '$ne': -1
+        }
+    }
+    if name:
+        where['name'] = {
+            '$regex': name
+        }
+
+    if role_type:
+        where['type'] = role_type
+
+    date = []
+    if start:
+        date.append({
+            'created_at': {
+                '$gte': int(time.mktime(time.strptime(start, '%Y-%m-%d')))
+            }
+        })
+
+    if end:
+        date.append({
+            'created_at': {
+                '$lte': int(time.mktime(time.strptime(end, '%Y-%m-%d')))
+            }
+        })
     if not is_admin:
         user_info = user.collection.find_one({'username': username})
         where = {
@@ -31,22 +62,16 @@ def get_roles():
         roles = list(roles)
         if roles:
             role_ids = map(lambda i: ObjectId(i['role_id']), roles)
-            where = {
-                '_id': {
-                    '$in': list(role_ids),
-                },
+            where['_id'] = {
+                '$in': list(role_ids),
             }
-            if keyword:
-                where['name'] = {
-                    '$regex': keyword
-                }
-
             print(where)
             cursor = role.collection.find(where, skip=offset, limit=size)
             total = cursor.count()
             data = list(cursor)
     else:
-        cursor = role.collection.find({}, skip=offset, limit=size)
+        print(where)
+        cursor = role.collection.find(where, skip=offset, limit=size)
         total = cursor.count()
         data = list(cursor)
 
@@ -91,6 +116,23 @@ def add_role():
             'message': 'name existed',
             'code': 104001
         }), 400
+
+    if role_type == 'team':
+        team_existed = Team.find_one({'name': name})
+        if team_existed:
+            return jsonify({
+                'message': 'team existed',
+                'code': 104005
+            }), 400
+
+        team = {
+            'name': name,
+            'description': 'team of role {}'.format(name),
+            'add_by': login_user.get('username'),
+            'master': [login_user.get('username')],
+            'created_at': time.time()
+        }
+        Team.insert_one(team)
 
     data = {
         'name': name,
@@ -226,4 +268,26 @@ def update_role(_id):
     return jsonify({
         'message': 'ok',
         'code': 0,
+    })
+
+
+@jwt_required
+def get_role_menus(_id):
+    menus = []
+    where = {
+        'role_id': _id
+    }
+    records = db.collection('role_menus').find(where).sort('id', 1)
+    for record in records:
+        item = Menu.find_by_id(record['m_id'])
+        if not item or item.get('mpid') == '-1' or item.get('status') < 1:
+            continue
+
+        item['actions'] = record.get('actions', ['get'])
+        menus.append(item)
+
+    return jsonify({
+        'message': 'ok',
+        'code': 0,
+        'data': menus,
     })

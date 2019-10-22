@@ -52,6 +52,7 @@ def dashboard():
     }])
     config_count = db.collection('configurations').count()
     duration = task_model.duration()
+    run_number_pies = task_model.job_run_pies()
 
     return jsonify({
         'message': 'ok',
@@ -65,5 +66,6 @@ def dashboard():
             'playbooks': list(playbooks),
             'config': config_count,
             'jobDuration': duration,
+            'jobRunPies': run_number_pies,
         }
     })
