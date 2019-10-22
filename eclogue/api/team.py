@@ -8,7 +8,10 @@ from eclogue.models.team import Team
 from eclogue.models.user import User
 from eclogue.models.menu import Menu
 from eclogue.models.role import Role
+from eclogue.models.member import TeamMember
+from eclogue.models.teamrole import TeamRole
 from eclogue.lib.logger import logger
+
 
 
 @jwt_required
@@ -423,8 +426,6 @@ def update_team(_id):
     team = Team()
     team.update_one(where, update=update)
     team.add_member(_id, members, owner_id=owner_id)
-
-
     for role_id in role_ids:
         team_role = {
             '$set': {
@@ -445,3 +446,48 @@ def update_team(_id):
         'code': 0,
     })
 
+
+@jwt_required
+def delete_team(_id):
+    is_admin = login_user.get('is_admin')
+    if not is_admin:
+        return jsonify({
+            'message': 'admin required',
+            'code': 104033,
+        }), 403
+
+    record = Team.find_by_id(_id)
+    if not record:
+        return jsonify({
+            'message': 'record not found',
+            'code': 104040,
+        }), 404
+
+    update = {
+        '$set': {
+            'status': -1,
+            'delete_at': time.time(),
+        }
+    }
+
+    condition = {
+        '_id': record['_id']
+    }
+    Team.update_one(condition, update=update)
+    members = TeamMember.find({'team_id': _id})
+    for member in members:
+        where = {
+            '_id': member['_id']
+        }
+        TeamMember.delete_one(where)
+    team_roles = TeamRole.find(condition)
+    for item in team_roles:
+        where = {
+            '_id': item['_id']
+        }
+        TeamRole.delete_one(where)
+
+    return jsonify({
+        'message': 'ok',
+        'code': 0,
+    })

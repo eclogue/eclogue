@@ -73,7 +73,7 @@ class Model(object):
         _id = ObjectId(_id)
         model = cls()
 
-        return model.collection.find_one({'_id': _id})
+        return model.find_one({'_id': _id})
 
     @classmethod
     def find_by_ids(cls, ids):
@@ -83,19 +83,26 @@ class Model(object):
             '_id': {
                 '$in': ids
             }
+
         }
 
-        return list(model.collection.find(where))
+        return list(model.find(where))
 
     @classmethod
     def find(cls, where, *args, **kwargs):
         model = cls()
+        where['status'] = {
+            '$ne': -1
+        }
 
         return model.collection.find(where, *args, **kwargs)
 
     @classmethod
     def find_one(cls, where, *args, **kwargs):
         model = cls()
+        where['status'] = {
+            '$ne': -1
+        }
 
         return model.collection.find_one(where, *args, **kwargs)
 
@@ -103,7 +110,11 @@ class Model(object):
     def insert_one(cls, data, *args, **kwargs):
         model = cls()
 
-        return model.collection.insert_one(data, *args, **kwargs)
+        result = model.collection.insert_one(data, *args, **kwargs)
+        record = data.copy()
+        record['_id'] = result.inserted_id
+        msg = 'insert new record to {}, _id: {}'.format(model.name, record['_id'])
+        logger.info(msg, extra={'record': record})
 
     @classmethod
     def update_one(cls, where, update, **kwargs):
@@ -115,7 +126,8 @@ class Model(object):
         msg = 'update record from {}, _id: {}'.format(model.name, record['_id'])
         extra = {
             'record': record,
-            'change': update
+            'change': update,
+            'filter': where,
         }
         logger.info(msg, extra)
 
@@ -131,15 +143,18 @@ class Model(object):
         msg = 'delete record from {}, _id: {}'.format(model.name, record['_id'])
         extra = {
             'record': record,
+            'filter': where,
         }
         update = {
-            'delete_at': time.time(),
-            'status': -1,
+            '$set': {
+                'delete_at': time.time(),
+                'status': -1,
+            }
         }
 
         logger.info(msg, extra)
 
-        return model.collection.update(where, update=update, **kwargs)
+        return model.collection.update_one(where, update=update, **kwargs)
 
     @staticmethod
     def check_ids(ids):

@@ -12,12 +12,12 @@ from eclogue.models.role import Role
 from eclogue.models.menu import Menu
 from eclogue.models.user import User
 from eclogue.models.team_user import TeamUser
+from eclogue.models.userrole import UserRole
+from eclogue.models.member import TeamMember
 from eclogue.utils import gen_password
-from eclogue.notification.smtp import SMTP
 from eclogue.config import config
 from eclogue.utils import md5
 from eclogue.lib.logger import logger
-from eclogue.notification.notify import Notify
 from eclogue.notification.smtp import SMTP
 
 
@@ -774,6 +774,48 @@ def update_user(_id):
         print(result)
 
     User.update_one({'_id': record['_id']}, {'$set': update})
+
+    return jsonify({
+        'message': 'ok',
+        'code': 0,
+    })
+
+
+@jwt_required
+def delete_user(_id):
+    is_admin = login_user.get('is_admin')
+    if not is_admin:
+        return jsonify({
+            'message': 'admin required',
+            'code': 104033,
+        }), 403
+
+    record = User.find_by_id(_id)
+    if not record:
+        return jsonify({
+            'message': 'record not found',
+            'code': 104040,
+        }), 404
+
+    update = {
+        '$set': {
+            'status': -1,
+            'delete_at': time.time(),
+        }
+    }
+
+    condition = {
+        '_id': record['_id']
+    }
+    User.update_one(condition, update=update)
+
+    TeamMember.delete_one({'user_id': _id})
+    user_roles = UserRole.find(condition)
+    for item in user_roles:
+        where = {
+            '_id': item['_id']
+        }
+        UserRole.delete_one(where)
 
     return jsonify({
         'message': 'ok',
