@@ -53,7 +53,6 @@ def create_app(schedule=True):
 
     @instance.errorhandler(404)
     def not_found(error):
-        print('4444400000444', error, request.full_path)
         return jsonify({
             'message': 'not found',
             'code': 404

@@ -38,7 +38,6 @@ class Task(Model):
 
         task_histogram = {}
         for item in histogram:
-            print(item)
             primary = item['_id']
             state = primary.get('state')
             timestamp = hour * primary.get('interval')
@@ -109,7 +108,6 @@ class Task(Model):
         ])
 
         duration = list(duration)
-        print(duration)
         if not duration:
             return {
                 'avg': 0,

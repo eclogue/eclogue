@@ -52,6 +52,7 @@ class User(Model):
                 }
             }
             records = db.collection('role_menus').find(where).sort('id', 1)
+
             for record in records:
                 where = filter or {}
                 where['_id'] = ObjectId(record['m_id'])

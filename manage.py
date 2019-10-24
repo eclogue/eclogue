@@ -4,7 +4,7 @@
 import click
 from eclogue import create_app
 from migrate import Migration
-from eclogue.tasks.system import register_schedule
+from eclogue.tasks.system import register_schedule, scheduler
 from eclogue.config import config
 
 app = create_app(schedule=False)
@@ -31,13 +31,12 @@ def migrate(action):
 def bootstrap():
     migration = Migration()
     migration.setup()
-    register_schedule()
-    print('this isxxxxxxxxxxxxxxxx---')
 
 
 @click.command()
 def start():
     debug = config.debug
+    register_schedule()
     app.run(debug=debug)
     print('sssserver')
 

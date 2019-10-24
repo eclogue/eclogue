@@ -3,6 +3,7 @@ from eclogue.models.host import Host
 from eclogue.ansible.runer import AdHocRunner
 from eclogue.lib.logger import logger
 from eclogue.scheduler import scheduler
+from eclogue.model import db
 
 
 def ansible_inventory_patrol():
@@ -71,4 +72,13 @@ def _pack_inventory(records):
 
 def register_schedule(minutes=0):
     minutes = minutes or 60
-    scheduler.add_job(func=ansible_inventory_patrol, trigger='interval', minutes=minutes)
+
+    func = ansible_inventory_patrol
+    name = func.__name__
+    job_id = '5db150f3e3f7e0677091329f'
+    if scheduler.state != 1:
+        scheduler.start()
+    job = scheduler.get_job(job_id=job_id)
+    if not job:
+        scheduler.add_job(func=func, trigger='interval', minutes=minutes, name=name, id=job_id)
+
