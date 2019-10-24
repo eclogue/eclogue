@@ -1,7 +1,9 @@
-from eclogue.celery import celery
-from eclogue.lib.logger import logger
+#!/usr/bin/env python
+# coding=utf-8
 
-if __name__ == '__main__':
-    logger.info('start worker')
-    celery.worker_main()
+from eclogue.tasks.dispatch import tiger
+
+if __name__ == "__main__":
+    tiger.run_worker()
+
 
