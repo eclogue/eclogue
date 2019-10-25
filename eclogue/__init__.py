@@ -69,3 +69,4 @@ def create_app(schedule=True):
     return instance
 
 
+__version__ = '0.0.1'
