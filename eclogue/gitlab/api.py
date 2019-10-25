@@ -72,7 +72,6 @@ class GitlabApi(object):
                     if not file_id:
                         continue
 
-                    print(save_dir, record['filename'])
                     filename = os.path.join(save_dir, record['filename'])
                     with open(filename, 'wb') as stream:
                         db.fs_bucket().download_to_stream(file_id, stream)

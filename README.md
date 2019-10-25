@@ -1,5 +1,24 @@
 ### eclogue
-eclogue（牧歌），基于 ansible 的 devops 平台。让 ansible 更简单易用，WYSIWYG，让持续交付更高效。
+<p align="center">
+  <a href="//ecloguelabs.org">
+    <img alt="docsify" src="./images/logo.svg" width="320">
+  </a>
+</p>
+<p align="center">
+  eclogue（牧歌），基于 ansible 的 devops 平台。让 ansible 更简单易用，WYSIWYG，让持续交付更高效。
+</p>
+
+<p align="center">
+
+![](https://img.shields.io/github/issues/eclogue/eclogue)
+![](https://img.shields.io/github/search/eclogue/eclogue/devops)
+![GitHub Pipenv locked Python version](https://img.shields.io/github/pipenv/locked/python-version/eclogue/eclogue)
+![GitHub Pipenv locked dependency version](https://img.shields.io/github/pipenv/locked/dependency-version/eclogue/eclogue/flask)
+![GitHub Pipenv locked dependency version](https://img.shields.io/github/pipenv/locked/dependency-version/eclogue/eclogue/ansible)
+![GitHub commit activity](https://img.shields.io/github/commit-activity/m/eclogue/eclogue)
+![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/eclogue/eclogue)
+
+</p>
 
 **~~最初目的~~**：
 - 提供一个 ansible tower(awx)外更多选择 ansible web platform（仅个人认为觉得 awx 太难掌控）
@@ -25,17 +44,18 @@ eclogue（牧歌），基于 ansible 的 devops 平台。让 ansible 更简单�
 ### Docker
 `docker-composer up` visit http://localhost:5000/
 
-### Document
-not ready
 
 ### Demo
 [https://eclogue.ecloguelabs.org](https://eclogue.ecloguelabs.org)
 
-- username: natsume
-- password: takashi
-### Graph
+- `username`: natsume
+- `password`: takashi
+### Job workflow
 
-![image](https://raw.githubusercontent.com/eclogue/eclogue/master/images/graph.png)
+![image](https://raw.githubusercontent.com/eclogue/eclogue/master/images/flow.png)
+
+### Document
+[中文文档](https://doc.ecloguelabs.org)|~~English~~
 
 ### Community
 QQ 群：362847712

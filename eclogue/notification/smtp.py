@@ -52,7 +52,6 @@ class SMTP(BaseSender):
         message['From'] = Header(self.sender, 'utf-8')
         message['to'] = Header(to, 'utf-8')
         message['Subject'] = Header(subject, 'utf-8')
-        print(message.as_string())
         data = params.copy()
         data['task_id'] = self.task_id
         data['created_at'] = time.time()

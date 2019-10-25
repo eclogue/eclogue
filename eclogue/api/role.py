@@ -228,13 +228,15 @@ def update_role(_id):
     }
 
     db.collection('roles').update_one({'_id': record['_id']}, update=update)
-    if menus and type(menus) == dict:
+    if menus is not None and type(menus) == dict:
         model = Menu()
         methods = {
             'read': ['option', 'get'],
             'edit': ['post', 'put', 'patch'],
             'delete': ['delete']
         }
+        # 先删除原先的关联
+        db.collection('role_menus').delete_many({'role_id': str(role_id)})
         for _id, actions in menus.items():
             record = model.find_by_id(_id)
             if not record:
@@ -251,19 +253,22 @@ def update_role(_id):
                 'role_id': str(role_id),
                 'm_id': _id,
                 'actions': action_list,
+                'created_at': time.time(),
+                'add_by': login_user.get('username'),
             }
 
-            where = {
-                'role_id': str(role_id),
-                'm_id': _id,
-            }
-            check = db.collection('role_menus').find_one(where)
-            if not check:
-                data['created_at'] = time.time(),
-                data['add_by'] = login_user.get('username'),
-                db.collection('role_menus').insert_one(data)
-            else:
-                db.collection('role_menus').update_one(where, update={'$set': data})
+            db.collection('role_menus').insert_one(data)
+            # where = {
+            #     'role_id': str(role_id),
+            #     'm_id': _id,
+            # }
+            # check = db.collection('role_menus').find_one(where)
+            # if not check:
+            #     data['created_at'] = time.time(),
+            #     data['add_by'] = login_user.get('username'),
+            #     db.collection('role_menus').insert_one(data)
+            # else:
+            #     db.collection('role_menus').update_one(where, update={'$set': data})
 
     return jsonify({
         'message': 'ok',

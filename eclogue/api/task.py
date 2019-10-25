@@ -24,6 +24,7 @@ def monitor():
     queue_stats = tiger.get_queue_stats()
     sorted_stats = sorted(queue_stats.items(), key=lambda k: k[0])
     queues = dict()
+    print('ssss', sorted_stats)
     for queue, stats in sorted_stats:
         queue_list = queue.split('.')
         if len(queue_list) == 2:
