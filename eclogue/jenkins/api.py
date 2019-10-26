@@ -31,9 +31,12 @@ class JenkinsApi(object):
     def get_builds(self, job_name):
         job = self.jenkins.get_job(job_name)
         last_build = job.get_last_stable_build()
+        print(last_build.splite(' #'))
 
         mjn = last_build.get_master_job_name()
         # search_artifact_by_regexp(re.compile('(.*?).tar.gz'))
+
+        print(mjn)
 
     def job_space(self, name):
         job_space = self._config.get('job_space')

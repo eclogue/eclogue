@@ -7,11 +7,7 @@ from eclogue.middleware import jwt_required, login_user
 from eclogue.models.team import Team
 from eclogue.models.user import User
 from eclogue.models.menu import Menu
-from eclogue.models.role import Role
-from eclogue.models.member import TeamMember
-from eclogue.models.teamrole import TeamRole
 from eclogue.lib.logger import logger
-
 
 
 @jwt_required
@@ -24,77 +20,39 @@ def add_team():
             'code': 104000
         }), 400
 
-    is_admin = login_user.get('is_admin')
-    if not is_admin:
-        return jsonify({
-            'message': 'admin required',
-            'code': 104039
-        }), 403
-
     name = payload.get('name')
     description = payload.get('description')
     parent = payload.get('parent')
-    role_ids = payload.get('role_ids')
-    members = payload.get('members') or []
-    master = payload.get('master') or [login_user.get('username')]
-    record = Team.find_one({'name': name})
+    record = db.collection('teams').find_one({'name': name})
     if record:
         return jsonify({
             'message': 'name existed',
             'code': 104001
         }), 400
 
-    if role_ids:
-        role_record = Role.find_by_ids(role_ids)
-        if not role_record:
-            return jsonify({
-                'message': 'role not found',
-                'code': 104041
-            }), 404
-
     data = {
         'name': name,
         'description': description,
-        'master': master,
         'parent': parent,
         'add_by': login_user.get('username'),
         'created_at': time.time(),
     }
 
-    result = Team.insert_one(data)
-    team_id = str(result.inserted_id)
-    data['_id'] = team_id
+    result = db.collection('teams').insert_one(data)
+    data['_id'] = result['_id']
     logger.info('add team', extra={'record': data})
-    if not role_ids:
-        role = {
-            'name': name,
-            'type': 'team',
-            'role': 'owner',
-            'add_by': login_user.get('username'),
-            'created_at': time.time(),
-        }
-        result = Role.insert_one(role)
-        role['_id'] = result.inserted_id
-        role['team_id'] = data['_id']
-        logger.info('add role by team', extra={'record': role})
-        role_ids = [role['_id']]
 
-    for role_id in role_ids:
-        team_role = {
-            '$set': {
-                'team_id': team_id,
-                'role_id': role_id,
-                'created_at': time.time()
-            }
-        }
-        where = {
-            'team_id': team_id,
-            'role_id': role_id,
-        }
-
-        db.collection('team_roles').update_one(where, team_role, upsert=True)
-
-    Team().add_member(team_id, members, owner_id=login_user.get('user_id'))
+    role = {
+        'name': name,
+        'type': 'team',
+        'role': 'owner',
+        'add_by': login_user.get('username'),
+        'created_at': time.time(),
+    }
+    result = db.collection('roles').insert_one(role)
+    role['_id'] = result.inserted_id
+    role['team_id'] = data['_id']
+    logger.info('add role by team', extra={'record': role})
 
     return jsonify({
         'message': 'ok',
@@ -287,17 +245,7 @@ def add_permission():
 
 @jwt_required
 def get_team_tree():
-    is_admin = login_user.get('is_admin')
-    username = login_user.get('username')
-    where = {}
-    if not is_admin:
-        where = {
-            'master': {
-                '$in': [username]
-            }
-        }
-
-    teams = db.collection('teams').find(where)
+    teams = db.collection('teams').find({})
     teams = list(teams)
     tree = []
     user_collection = User()
@@ -310,7 +258,6 @@ def get_team_tree():
         relations = db.collection('team_members').find({'team_id': str(team['_id'])})
         relations = list(relations)
         if not relations:
-            tree.append(item)
             continue
 
         user_ids = map(lambda i: i['user_id'], relations)
@@ -335,14 +282,19 @@ def get_team_tree():
 
 @jwt_required
 def get_team_info(_id):
-    record = Team.find_by_id(_id)
+    record = Team().find_by_id(_id)
     if not record:
         return jsonify({
             'message': 'record not found',
             'code': 104040,
         }), 404
 
-    roles = Team().get_roles(_id)
+    where = {
+        'name': record.get('name'),
+        'type': 'team',
+    }
+
+    roles = db.collection('roles').find(where)
     roles = list(roles)
     permissions = []
     if roles:
@@ -357,9 +309,6 @@ def get_team_info(_id):
         ids = list(map(lambda i: i['m_id'], records))
         permissions = Menu().find_by_ids(ids)
 
-    members = db.collection('team_members').find({'team_id': _id}, projection=['user_id'])
-    record['members'] = list(map(lambda i: i['user_id'], members))
-
     return jsonify({
         'message': 'ok',
         'code': 0,
@@ -368,126 +317,4 @@ def get_team_info(_id):
             'roles': list(roles),
             'permissions': permissions,
         }
-    })
-
-
-@jwt_required
-def update_team(_id):
-    payload = request.get_json()
-    if not payload:
-        return jsonify({
-            'message': 'invalid params',
-            'code': 104000
-        }), 400
-
-    is_admin = login_user.get('is_admin')
-    owner_id = login_user.get('user_id')
-    record = Team.find_by_id(_id)
-    if not record:
-        return jsonify({
-            'message': 'record not found',
-            'code': 104040,
-        }), 404
-
-    if not is_admin and owner_id not in record.get('master'):
-        return jsonify({
-            'message': 'bad permission',
-            'code': 104038
-        }), 403
-
-    name = payload.get('name')
-    description = payload.get('description')
-    parent = payload.get('parent')
-    role_ids = payload.get('role') or []
-    members = payload.get('members') or []
-    master = payload.get('master') or [login_user.get('username')]
-    if name and name != record.get('name'):
-        check = Team.find_one({'name': name})
-        if check:
-            return jsonify({
-                'message': 'name existed',
-                'code': 104001
-            }), 400
-
-    update = {
-        '$set': {
-            'name': name,
-            'description': description,
-            'master': master,
-            'parent': parent,
-            'updated_at': time.time(),
-        },
-    }
-
-    where = {
-        '_id': record['_id']
-    }
-
-    team = Team()
-    team.update_one(where, update=update)
-    team.add_member(_id, members, owner_id=owner_id)
-    for role_id in role_ids:
-        team_role = {
-            '$set': {
-                'team_id': _id,
-                'role_id': role_id,
-                'created_at': time.time()
-            }
-        }
-        where = {
-            'team_id': _id,
-            'role_id': role_id,
-        }
-
-        db.collection('team_roles').update_one(where, team_role, upsert=True)
-
-    return jsonify({
-        'message': 'ok',
-        'code': 0,
-    })
-
-
-@jwt_required
-def delete_team(_id):
-    is_admin = login_user.get('is_admin')
-    if not is_admin:
-        return jsonify({
-            'message': 'admin required',
-            'code': 104033,
-        }), 403
-
-    record = Team.find_by_id(_id)
-    if not record:
-        return jsonify({
-            'message': 'record not found',
-            'code': 104040,
-        }), 404
-
-    update = {
-        '$set': {
-            'status': -1,
-            'delete_at': time.time(),
-        }
-    }
-
-    condition = {
-        '_id': record['_id']
-    }
-    Team.update_one(condition, update=update)
-    members = TeamMember.find({'team_id': _id})
-    for member in members:
-        where = {
-            '_id': member['_id']
-        }
-        TeamMember.delete_one(where)
-    team_roles = TeamRole.find(condition)
-    for item in team_roles:
-        where = {
-            '_id': item['_id']
-        }
-        TeamRole.delete_one(where)
-
-    return jsonify({
-        'message': 'ok',
-        'code': 0,
     })

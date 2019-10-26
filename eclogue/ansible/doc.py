@@ -91,6 +91,8 @@ class AnsibleDoc(DocCLI):
                     if plugin_info is not None:
                         plugin_data[plugin_type][plugin_name] = plugin_info
 
+            print(plugin_data)
+
             return plugin_data
 
         search_paths = DocCLI.print_paths(loader)

@@ -52,8 +52,7 @@ def log_query():
     if date:
         where['$and'] = date
 
-    sort = [('_id', -1)]
-    cursor = db.collection('logs').find(where, skip=skip, limit=limit, sort=sort)
+    cursor = db.collection('logs').find(where, skip=skip, limit=limit)
     total = cursor.count()
 
     return jsonify({

@@ -1,6 +1,5 @@
 import time
 import datetime
-from bson import ObjectId
 from eclogue.model import Model
 
 
@@ -38,6 +37,7 @@ class Task(Model):
 
         task_histogram = {}
         for item in histogram:
+            print(item)
             primary = item['_id']
             state = primary.get('state')
             timestamp = hour * primary.get('interval')
@@ -108,6 +108,7 @@ class Task(Model):
         ])
 
         duration = list(duration)
+        print(duration)
         if not duration:
             return {
                 'avg': 0,
@@ -116,34 +117,8 @@ class Task(Model):
                 'sum': 0,
             }
 
+
         return duration[0]
-
-    def job_run_pies(self):
-        runs = self.collection.aggregate([
-            {
-                '$group': {
-                    '_id': {
-                        'job_id': '$job_id',
-                    },
-                    'count': {
-                        '$sum': 1
-                    }
-                }
-            },
-            {
-                '$limit': 10,
-            }
-        ])
-
-        run_pies = list(runs)
-        for item in run_pies:
-            item['job_id'] = item['_id']['job_id']
-            job_info = self.db.collection('jobs').find_one({'_id': ObjectId(item['job_id'])})
-            item['job_id'] = item['_id']['job_id']
-            item['job_name'] = job_info.get('name')
-            item['job_type'] = job_info.get('type')
-
-        return run_pies
 
 
 task_model = Task()

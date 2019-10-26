@@ -1,8 +1,10 @@
 from eclogue.api.menus import Menus
 from eclogue.api.catheter import Catheter
 from eclogue.api.auth import Auth
+from eclogue.api.deviece import add_deviece, get_devices, get_device_info
 from eclogue.api.host import dump_inventory
 from eclogue.api.bookshelf import get_entry
+from eclogue.api.role import add_role, get_roles, update_role
 import eclogue.api.inventory as cmdb
 from eclogue.api.credential import credentials, add_credential, update_credential
 from eclogue.api.console import run_task
@@ -19,7 +21,6 @@ import eclogue.api.dashboard as dashboard
 import eclogue.api.setting as setting
 import eclogue.api.user as user
 import eclogue.api.key as keys
-import eclogue.api.role as role
 
 routes = [
     ('/login', Auth.login, ['POST']),
@@ -57,7 +58,6 @@ routes = [
     ('/books', book.add_book, ['POST']),
     ('/books/<_id>', book.book_detail, ['get']),
     ('/books/<_id>', book.edit_book, ['put']),
-    ('/books/<_id>', book.delete_book, ['delete']),
     ('/books', book.books, ['get']),
     ('/books/<_id>/playbook', book.get_playbook, ['GET']),
     ('/books/<_id>/download', book.download_book, ['GET']),
@@ -67,12 +67,7 @@ routes = [
     ('/books/<_id>/roles', book.get_roles_by_book, ['GET']),
     ('/search/users', user.search_user, ['get']),
     ('/cmdb/inventory', cmdb.explore, ['post']),
-    ('/cmdb/inventory', cmdb.get_inventory, ['get']),
     ('/cmdb/inventory/<_id>', cmdb.edit_inventory, ['put']),
-    ('/cmdb/inventory/<_id>', cmdb.delete_inventory, ['delete']),
-    ('/cmdb/devices', cmdb.get_devices, ['GET']),
-    ('/cmdb/devices/<_id>', cmdb.get_device_info, ['GET']),
-    ('/cmdb/devices/<_id>', cmdb.delete_inventory, ['delete']),
     ('/cmdb/regions', cmdb.regions, ['get']),
     ('/cmdb/regions', cmdb.add_region, ['post']),
     ('/cmdb/regions/<_id>', cmdb.update_region, ['put']),
@@ -80,12 +75,14 @@ routes = [
     ('/cmdb/groups', cmdb.add_group, ['post']),
     ('/cmdb/groups/<_id>', cmdb.update_group, ['put']),
     ('/cmdb/groups/<_id>', cmdb.get_group_info, ['get']),
-    ('/cmdb/groups/<_id>', cmdb.delete_group, ['delete']),
     ('/cmdb/groups/<_id>/hosts', cmdb.get_group_hosts, ['get']),
+    ('/cmdb/inventory', cmdb.get_inventory, ['get']),
     ('/cmdb/hosts/<_id>', cmdb.get_node_info, ['get']),
     ('/cmdb/hosts', cmdb.get_inventory, ['get']),
     ('/cmdb/<user_id>/groups', cmdb.get_host_groups, ['get']),
-
+    ('/devices/add', add_deviece, ['POST']),
+    ('/devices', cmdb.get_devices, ['GET']),
+    ('/devices/<_id>', get_device_info, ['GET']),
     ('/jobs/preview/inventory', cmdb.preview_inventory, ['post']),
     ('/jobs', job.get_jobs, ['get']),
     ('/jobs', job.add_jobs, ['post']),
@@ -105,20 +102,14 @@ routes = [
     ('/configurations/<playbook_id>/register', configuration.get_register_config, ['get']),
     ('/configurations/<_id>', configuration.update_configuration, ['put']),
     ('/configurations/<_id>', configuration.get_config_info, ['get']),
-    ('/configurations/<_id>', configuration.delete, ['delete']),
     ('/configurations', configuration.add_configuration, ['post']),
     ('/configurations/list/ids', configuration.get_configs_by_ids, ['get']),
     ('/execute', run_task, ['post']),
     ('/teams', team.add_team, ['post']),
     ('/teams', team.get_team_tree, ['get']),
     ('/teams/<_id>', team.get_team_info, ['get']),
-    ('/teams/<_id>', team.update_team, ['put']),
-    ('/teams/<_id>', team.delete_team, ['delete']),
     ('/teams/members', team.add_user_to_team, ['post']),
     ('/users', user.add_user, ['post']),
-    ('/users/<_id>', user.get_user_info, ['get']),
-    ('/users/<_id>', user.update_user, ['put']),
-    ('/users/<_id>', user.delete_user, ['delete']),
     ('/users/<_id>', user.get_user_info, ['get']),
     ('/users/<_id>/profile', user.get_profile, ['get']),
     ('/users/<_id>/profile', user.save_profile, ['put']),
@@ -131,10 +122,9 @@ routes = [
     ('/users/password/reset', user.reset_pwd, ['put']),
     ('/sshkeys/public', keys.get_keys, ['get']),
     ('/sshkeys/public', keys.add_key, ['POST']),
-    ('/roles', role.add_role, ['post']),
-    ('/roles', role.get_roles, ['get']),
-    ('/roles/<_id>', role.update_role, ['put']),
-    ('/roles/<_id>/menus', role.get_role_menus, ['get']),
+    ('/roles', add_role, ['post']),
+    ('/roles', get_roles, ['get']),
+    ('/roles/<_id>', update_role, ['put']),
     ('/notifications', notification.get_notify, ['get']),
     ('/notifications/read', notification.mark_read, ['put']),
     # ('/docker', docker.test_docker, ['get']),

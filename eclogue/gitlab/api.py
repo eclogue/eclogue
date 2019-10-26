@@ -72,6 +72,7 @@ class GitlabApi(object):
                     if not file_id:
                         continue
 
+                    print(save_dir, record['filename'])
                     filename = os.path.join(save_dir, record['filename'])
                     with open(filename, 'wb') as stream:
                         db.fs_bucket().download_to_stream(file_id, stream)
@@ -96,7 +97,7 @@ class GitlabApi(object):
                 file_id = db.save_file(filename=name, fileobj=fd)
                 store_info = {
                     'app_type': 'jenkins',
-                    'file_id': str(file_id),
+                    'file_id': file_id,
                     'project_id': project_id,
                     'job_id': job_id,
                     'filename': name,

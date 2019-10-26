@@ -36,6 +36,7 @@ def get_inventory():
     else:
         hosts = get_inventory_from_cmdb()
 
+    print('123123', hosts)
     return jsonify({
         'message': 'ok',
         'code': 0,
@@ -73,37 +74,6 @@ def edit_inventory(_id):
         # 'data': diff
     })
 
-
-@jwt_required
-def delete_inventory(_id):
-    host = Host()
-    record = host.find_by_id(_id)
-    if not record:
-        return jsonify({
-            'message': 'record not found',
-            'code': 104040
-        }), 404
-
-    update = {
-        '$set': {
-            'status': -1,
-            'delete_at': time.time(),
-            'delete_by': login_user.get('username')
-        }
-    }
-
-    host.collection.update_one({'_id': record['_id']}, update=update)
-    msg = 'delete inventory:, hostname: {}'.format(record.get('hostname'))
-    extra = {
-        'record': record,
-    }
-
-    logger.info(msg, extra=extra)
-
-    return jsonify({
-        'message': 'ok',
-        'code': 0,
-    })
 
 @jwt_required
 def explore():
@@ -155,6 +125,13 @@ def explore():
                 'code': 144001,
             }), 400
 
+        existed = db.collection('machines').find_one({'ansible_ssh_host': ssh_host})
+        # if existed:
+        #     return jsonify({
+        #         'message': 'record existed',
+        #         'code': 104001
+        #     }), 400
+
         region_record = db.collection('regions').find_one({'_id': ObjectId(region)})
         if not region_record:
             return jsonify({
@@ -177,7 +154,6 @@ def explore():
         runner = setup(body[credential['type']], hosts, options)
         result = runner.get_result()
         data = process_ansible_setup(result)
-        records = []
         if not data:
             return jsonify({
                 'code': 144009,
@@ -185,39 +161,24 @@ def explore():
                 'data': result
             }), 406
 
-        for item in data:
+        def func(item):
             item['ansible_ssh_host'] = ssh_host
             item['ansible_ssh_user'] = ssh_user
             item['ansible_ssh_port'] = ssh_port
-            item['maintainer'] = maintainer
+            item['maitainer'] = maintainer
             item['group'] = list(map(lambda i: str(i['_id']), group_record))
             item['add_by'] = login_user.get('username')
             item['state'] = 'active'
-            where = {'ansible_ssh_host': item['ansible_ssh_host']}
-            update = {'$set': item}
-            result = db.collection('machines').update_one(where, update, upsert=True)
-            extra = item.copy()
-            extra['_id'] = result.upserted_id
-            logger.info('add machines hostname: '.format({item['hostname']}), extra={'record': data})
-            records.append(item)
-        # def func(item):
-        #     item['ansible_ssh_host'] = ssh_host
-        #     item['ansible_ssh_user'] = ssh_user
-        #     item['ansible_ssh_port'] = ssh_port
-        #     item['maintainer'] = maintainer
-        #     item['group'] = list(map(lambda i: str(i['_id']), group_record))
-        #     item['add_by'] = login_user.get('username')
-        #     item['state'] = 'active'
-        #
-        #     return item
-        #
-        # data = list(map(func, data))
-        # db.collection('machines').insert_many(data)
+
+            return item
+
+        data = list(map(func, data))
+        db.collection('machines').insert_many(data)
 
         return jsonify({
             'message': 'ok',
             'code': 0,
-            'data': records,
+            'data': result,
             'records': data
         })
 
@@ -256,34 +217,22 @@ def explore():
         manager = runner.inventory
         hosts = parser_inventory(manager)
         records = []
-        default_region = db.collection('regions').find_one({'name': 'default'})
-        if not default_region:
-            result = db.collection('regions').insert_one({
-                'name': 'default',
-                'add_by': None,
-                'description': 'auto generate',
-                'created_at': time.time(),
-            })
-            region_id = str(result.inserted_id)
-        else:
-            region_id = str(default_region.get('_id'))
-
         for node in data:
             hostname = node.get('ansible_hostname')
             for group, host in hosts.items():
                 where = {'name': group}
+                insert_data = {
+                    'name': group,
+                    'region': 'default',
+                    'description': 'auto generator',
+                    'state': 'active',
+                    'add_by': login_user.get('username'),
+                    'maintainer': maintainer,
+                    'created_at': int(time.time())
+                }
                 # insert_data = {'$set': insert_data}
                 existed = db.collection('groups').find_one(where)
                 if not existed:
-                    insert_data = {
-                        'name': group,
-                        'region': region_id,
-                        'description': 'auto generator',
-                        'state': 'active',
-                        'add_by': login_user.get('username'),
-                        'maintainer': None,
-                        'created_at': int(time.time())
-                    }
                     insert_result = db.collection('groups').insert_one(insert_data)
                     group = insert_result.inserted_id
                 else:
@@ -295,9 +244,6 @@ def explore():
                     node['ansible_ssh_user'] = vars.get('ansible_ssh_user', 'root')
                     node['ansible_ssh_port'] = vars.get('ansible_ssh_port', '22')
                     node['group'] = [group]
-                    node['add_by'] = login_user.get('username')
-                    node['state'] = 'active'
-
                     break
 
             records.append(node)
@@ -308,12 +254,12 @@ def explore():
             result = db.collection('machines').update_one(where, update, upsert=True)
             extra = record.copy()
             extra['_id'] = result.upserted_id
-            logger.info('add machines hostname: '.format({record['hostname']}), extra={'record': data})
+            logger.info('add machines', extra={'record': data})
 
         return jsonify({
             'message': 'ok',
             'code': 0,
-            'data': data,
+            'data': result,
             'records': records,
         })
 
@@ -434,11 +380,7 @@ def groups():
     page = int(query.get('page', 1))
     limit = int(query.get('pageSize', 50))
     region = query.get('region')
-    where = {
-        'status': {
-            '$ne': -1
-        }
-    }
+    where = dict()
     if region:
         where['region'] = query.get('region')
 
@@ -580,7 +522,6 @@ def preview_inventory():
     if inventory_type == 'file':
         result = parse_file_inventory(inventory)
     else:
-        print('oooorigin', inventory)
         result = parse_cmdb_inventory(inventory)
 
     if not result:
@@ -589,6 +530,7 @@ def preview_inventory():
             'code': 104003,
         }), 400
 
+    print('----?', result)
     return jsonify({
         'message': 'ok',
         'code': 0,
@@ -656,11 +598,7 @@ def get_devices():
     page = int(query.get('page', 1))
     limit = int(query.get('pageSize', 50))
     skip = (page - 1) * limit
-    where = {
-        'status': {
-            '$ne': -1
-        }
-    }
+    where = {}
     hostname = query.get('hostname')
     group = query.get('group')
     region = query.get('region')
@@ -713,6 +651,7 @@ def get_devices():
             '$in': [group],
         }
 
+    print(where)
     result = db.collection('machines').find(where).skip(skip=skip).limit(limit)
     total = result.count()
     result = list(result)
@@ -779,109 +718,20 @@ def get_node_info(_id):
 
 @jwt_required
 def get_group_info(_id):
-    if _id == 'ungrouped':
-        record = {
-            '_id': _id,
-            'name': _id,
-            'description': _id,
-            'region': {
-                'name': 'ungrouped'
-            }
-        }
-    else:
-        record = db.collection('groups').find_one({'_id': ObjectId(_id)})
-        if not record:
-            return jsonify({
-                'message': 'record not found',
-                'code': 104040
-            }), 404
+    record = db.collection('groups').find_one({'_id': ObjectId(_id)})
+    if not record:
+        return jsonify({
+            'message': 'record not found',
+            'code': 104040
+        }), 404
 
-        dc = db.collection('regions').find_one({
-            '_id': ObjectId(record.get('region'))
-        })
-        record['region'] = dc or {}
+    dc = db.collection('regions').find_one({
+        '_id': record.get('region')
+    })
+    record['region'] = dc or {}
 
     return jsonify({
         'message': 'ok',
         'code': 0,
         'data': record
-    })
-
-
-@jwt_required
-def delete_group(_id):
-    record = db.collection('groups').find_one({'_id': ObjectId(_id)})
-    if not record:
-        return jsonify({
-            'message': 'record not found',
-            'code': 104040,
-        }), 404
-
-    if not login_user.get('is_admin'):
-        return jsonify({
-            'message': 'permission deny',
-            'code': 104030,
-        }), 403
-
-    if not record.get('add_by'):
-        return jsonify({
-            'message': 'protected record',
-            'code': 10086
-        }), 400
-
-    update = {
-        '$set': {
-            'status': -1,
-            'delete_at': time.time(),
-            'delete_by': login_user.get('username')
-        }
-    }
-
-    group_id = str(record['_id'])
-    db.collection('groups').update_one({'_id': record['_id']}, update=update)
-    where = {
-        'group': {
-            '$in': [group_id]
-        }
-    }
-    Host().collection.update_many(where, {
-        '$pull': {
-            'group': group_id
-        }
-    })
-    msg = 'delete inventory:, name: {}'.format(record.get('name'))
-    extra = {
-        'record': record,
-    }
-    logger.info(msg, extra=extra)
-
-    return jsonify({
-        'message': 'ok',
-        'code': 0,
-    })
-
-
-@jwt_required
-def get_device_info(_id):
-    record = db.collection('machines').find_one({'_id': ObjectId(_id)})
-    if not record:
-        return jsonify({
-            'message': 'record not found',
-            'code': 104040,
-        }), 404
-
-    where = {
-        'id': {
-            '$in': record.get('group')
-        }
-    }
-    groups = db.collection('groups').find(where)
-    group_names = map(lambda i: i['name'], groups)
-    group_names = list(group_names)
-    record['group_names'] = group_names
-
-    return jsonify({
-        'message': 'ok',
-        'code': 0,
-        'data': record,
     })
