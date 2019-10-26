@@ -10,13 +10,13 @@
 
 <p align="center">
 
-![](https://img.shields.io/github/issues/eclogue/eclogue)
-![](https://img.shields.io/github/search/eclogue/eclogue/devops)
-![GitHub Pipenv locked Python version](https://img.shields.io/github/pipenv/locked/python-version/eclogue/eclogue)
-![GitHub Pipenv locked dependency version](https://img.shields.io/github/pipenv/locked/dependency-version/eclogue/eclogue/flask)
-![GitHub Pipenv locked dependency version](https://img.shields.io/github/pipenv/locked/dependency-version/eclogue/eclogue/ansible)
-![GitHub commit activity](https://img.shields.io/github/commit-activity/m/eclogue/eclogue)
-![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/eclogue/eclogue)
+<img src="https://img.shields.io/github/issues/eclogue/eclogue"/>
+<img src="https://img.shields.io/github/search/eclogue/eclogue/devops"/>
+<img src="https://img.shields.io/github/pipenv/locked/python-version/eclogue/eclogue"/>
+<img src="https://img.shields.io/github/pipenv/locked/dependency-version/eclogue/eclogue/flask"/>
+<img src="https://img.shields.io/github/pipenv/locked/dependency-version/eclogue/eclogue/ansible"/>
+<img src="https://img.shields.io/github/commit-activity/m/eclogue/eclogue"/>
+<img src="https://img.shields.io/github/languages/code-size/eclogue/eclogue"/>
 
 </p>
 
@@ -46,7 +46,7 @@
 
 
 ### Demo
-[https://eclogue.ecloguelabs.org](https://eclogue.ecloguelabs.org)
+[http://demo.ecloguelabs.com](http://demo.ecloguelabs.com)
 
 - `username`: natsume
 - `password`: takashi
@@ -55,10 +55,13 @@
 ![image](https://raw.githubusercontent.com/eclogue/eclogue/master/images/flow.png)
 
 ### Document
-[中文文档](https://doc.ecloguelabs.org)|~~English~~
+[中文文档](http://doc.ecloguelabs.com)|~~English~~
 
 ### Community
 QQ 群：362847712
+
+### Contributing
+[see](http://doc.ecloguelabs.com/#/contributing)
 
 ### Donate
 江山父老能容我，不使人间造孽钱
@@ -67,3 +70,5 @@ QQ 群：362847712
 
 ### License
 GPL-3.0
+
+

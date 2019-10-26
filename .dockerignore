@@ -1,0 +1,12 @@
+.dockerignore
+.git
+.vscode
+.idea
+*.log
+Dockerfile
+run
+.venv
+build
+dist
+.eggs
+.eclogue.egg-info

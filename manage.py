@@ -2,7 +2,6 @@
 # coding=utf-8
 
 import click
-import unittest
 from eclogue import create_app
 from migrate import Migration
 from eclogue.tasks.system import register_schedule, scheduler
@@ -42,15 +41,9 @@ def start():
     print('sssserver')
 
 
-@click.command()
-def test():
-    unittest.main('tests')
-
-
 eclogue.add_command(migrate)
 eclogue.add_command(bootstrap)
 eclogue.add_command(start)
-eclogue.add_command(test)
 
 if __name__ == '__main__':
     eclogue()
