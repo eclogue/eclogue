@@ -125,7 +125,6 @@ def extract(filename, target):
 
     if zipfile.is_zipfile(filename) or filename.endswith('.zip'):
         with zipfile.ZipFile(filename) as zf:
-            print(zf.namelist())
             zf.extractall(target)
 
     elif tarfile.is_tarfile(filename):
@@ -133,7 +132,6 @@ def extract(filename, target):
             tar.extractall(target)
 
     else:
-        print('targetsgagag--???>', os.listdir(target))
         raise Exception('can not extract file: ' + filename)
 
 def mkdir(path, mode=0o700):

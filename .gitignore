@@ -11,3 +11,7 @@ node_modules/
 .idea/
 .venv/
 /config/development.yaml
+eclogue.egg-info/
+.eggs
+build
+dist

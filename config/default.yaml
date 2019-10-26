@@ -1,9 +1,10 @@
-project: linger
+project: eclogue
 author: shisang
-email: adming@admin.com
-repo: https://github.com
+email: mulberry10th@gmail.com
+repo: https://github.com/eclogue/eclogue
 home_path: {{ home_path }}
 dommain: "http://localhost:5001"
+debug: true
 log:
   eclogue: {{ home_path }}/storage/logs
   ansible: {{ home_path }}/storage/logs
@@ -26,7 +27,7 @@ logging:
         - console
   handlers:
     mongo:
-      (): eclogue.lib.logger.MongoHandler
+      (): eclogue.logger.handler.MongoHandler
       level: INFO
       formatter: mongo
       filters:
@@ -36,7 +37,7 @@ logging:
       filename: {{ home_path }}/storage/logs/eclogue.log
       level: DEBUG
     console:
-      (): eclogue.lib.logger.ConsoleHandler
+      (): eclogue.logger.handler.ConsoleHandler
       level: DEBUG
     default:
       class: logging.StreamHandler
@@ -48,7 +49,7 @@ logging:
       formate: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
       datefmt: '%Y-%m-%d %H:%M:%S'
     mongo:
-      (): eclogue.lib.logger.MongoFormatter
+      (): eclogue.logger.formatter.MongoFormatter
   filters:
     requestId:
       (): flask_log_request_id.RequestIDLogFilter
@@ -61,16 +62,8 @@ workspace:
   tmp: {{ home_path }}/storage/tmp
   playbook: {{ home_path }}/storage/tmp
   base_dir: {{ home_path }}/storage/eclogue
-  job: {{ home_path }}/storage/eclogue/job
-  build: {{ home_path }}/storage/eclogue/job
-jenkins:
-  default:
-    base_url: xx
-    username: xx
-    password: xx
-gitlab:
-  token: xx
-  base_url: https://gitlab.com
+  job: {{ home_path }}/storage/eclogue/jobs
+  build: {{ home_path }}/storage/eclogue/builds
 vault:
   secret: xx
 
@@ -90,11 +83,10 @@ redis:
     port: 6379
     decode_responses: !!bool "true"
 
-celery:
-  broker: redis://localhost:6379
-  backend: 'mongodb://root:password@localhost/upward?authSource=admin&authMechanism=SCRAM-SHA-1'
-  mongodb_backend_settings:
-    taskmeta_collection: job_result
-
 task:
-  history: 20
+  history: 50
+  always_eager: false
+
+api:
+  prefix: ''
+  force_check_binding: true

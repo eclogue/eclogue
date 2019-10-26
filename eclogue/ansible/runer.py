@@ -169,7 +169,6 @@ class AdHocRunner(object):
         return tasks
 
     def get_result(self):
-        return self.callback.dumper
         self.results_raw = {'success': {}, 'failed': {}, 'unreachable': {}}
         for host, result in self.callback.host_ok.items():
             self.results_raw['success'][host] = result._result

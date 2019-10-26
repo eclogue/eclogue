@@ -7,6 +7,7 @@ from eclogue.model import db
 from eclogue.middleware import jwt_required, login_user
 from flask import jsonify, request
 from eclogue.models.user import User
+from eclogue.models.menu import Menu
 from eclogue.lib.logger import logger
 from eclogue.utils import md5
 
@@ -19,18 +20,40 @@ class Menus(Resource):
         query = request.args
         user_id = login_user.get('user_id')
         is_admin = login_user.get('is_admin')
+        name = query.get('name')
+        route = query.get('route')
+        status = query.get('status')
+        where = {
+            'status': {
+                '$ne': -1
+            }
+        }
+        if name:
+            where['name'] = name
+
+        if route:
+            where['route'] = route
+
+        if status is not None and int(status) >= 0:
+            where['status'] = int(status)
+
         # is_admin = False
         if not is_admin:
             user = User()
-            permissions = user.get_permissions(user_id)
+            permissions = user.get_permissions(user_id, filter=where)
             menus = permissions[0]
         else:
             def add_actions(item):
                 item['actions'] = ['get', 'post', 'delete', 'put', 'patch']
+
                 return item
-            where = {'status': 1}
-            if query and query.get('all'):
-                where = {}
+
+            if query and int(query.get('all')):
+                where = {
+                    'status': {
+                        '$ne': -1
+                    }
+                }
 
             menus = db.collection('menus').find(where).sort('id', 1)
             menus = map(add_actions, menus)
@@ -51,7 +74,6 @@ class Menus(Resource):
                 'code': 4000
             }), 400
 
-        print(params)
         checked = True
         if 'name' not in params:
             checked = False
@@ -74,6 +96,7 @@ class Menus(Resource):
             'name': params['name'],
             'route': params['route'],
             'id': id,
+            'apis': params.get('apis') or [],
             'icon': params.get('icon', ''),
             'bpid': params.get('bpid') or '0',
             'mpid': params.get('mpid') or '0',
@@ -120,7 +143,10 @@ class Menus(Resource):
         mpid = params.get('mpid')
         bpid = params.get('bpid')
         status = params.get('status', 1)
-        update = {}
+        apis = params.get('apis') or []
+        update = {
+            'apis': apis
+        }
         if name:
             update['name'] = name
 
@@ -200,4 +226,3 @@ class Menus(Resource):
             'message': 'ok',
             'code': 0,
         })
-

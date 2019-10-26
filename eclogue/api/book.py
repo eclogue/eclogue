@@ -30,7 +30,11 @@ def books():
     start = query.get('start')
     end = query.get('end')
     maintainer = query.get('maintainer')
-    where = {}
+    where = {
+        'status': {
+            '$ne': -1
+        }
+    }
     if keyword:
         where['name'] = {
             '$regex': keyword
@@ -68,14 +72,30 @@ def books():
     records = list(cursor)
     data = []
     for item in records:
+
+        item['job'] = None
         where = {
-            'role': 'entry',
-            'book_id': item['_id'],
+            'type': 'playbook',
+            'template.entry': {
+                '$in': [str(item['_id'])]
+            }
         }
+        job = db.collection('jobs').find_one(where)
+        if job:
+            item['job'] = {
+                '_id': job.get('_id'),
+                'name': job.get('name'),
+                'type': job.get('type'),
+            }
+
         if item.get('status'):
             data.append(item)
             continue
 
+        where = {
+            'role': 'entry',
+            'book_id': item['_id'],
+        }
         entry = playbook.collection.find_one(where)
         if not entry:
             book.collection.update_one({'_id': item['_id']}, {'$set': {'status': 0}})
@@ -169,6 +189,7 @@ def edit_book(_id):
             'message': 'invalid params',
             'code': 154000,
         }), 400
+
     name = params.get('name')
     description = params.get('description')
     status = params.get('status', 1)
@@ -226,6 +247,44 @@ def book_detail(_id):
         'message': 'ok',
         'code': 0,
         'data': record,
+    })
+
+
+@jwt_required
+def delete_book(_id):
+    is_admin = login_user.get('is_admin')
+    record = book.find_by_id(_id)
+    if not record:
+        return jsonify({
+            'message': 'record not found',
+            'code': 154041
+        }), 400
+
+    if not is_admin and record.get('add_by') != login_user.get('username'):
+        return jsonify({
+            'message': 'permission deny',
+            'code': 104030
+        }), 403
+
+    # @todo 封装到 model 中
+    update = {
+        '$set': {
+            'status': -1,
+            'delete_at': time.time(),
+            'delete_by': login_user.get('username')
+        }
+    }
+    db.collection('books').update_one({'_id': record['_id']}, update=update)
+    msg = 'delete book:, name: {}'.format(record.get('name'))
+    extra = {
+        'record': record,
+    }
+    logger.info(msg, extra=extra)
+    db.collection('playbook').update_many({'book_id': str(record['_id'])}, update=update)
+
+    return jsonify({
+        'message': 'ok',
+        'code': 0,
     })
 
 
