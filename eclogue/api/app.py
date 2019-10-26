@@ -52,23 +52,12 @@ def get_apps():
 
     cursor = db.collection('apps').find(where, skip=offset, limit=size)
     total = cursor.count()
-    records = []
-    for app in cursor:
-        job = db.collection('jobs').find_one({'template.app': str(app['_id'])})
-        app['job'] = None
-        if job:
-            app['job'] = {
-                '_id': job['_id'],
-                'type': job.get('type'),
-                'name': job.get('name'),
-            }
-        records.append(app)
 
     return jsonify({
         'message': 'ok',
         'code': 0,
         'data': {
-            'list': records,
+            'list': list(cursor),
             'total': total,
             'page': page,
             'pageSize': size

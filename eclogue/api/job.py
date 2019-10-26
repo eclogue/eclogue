@@ -22,7 +22,6 @@ from eclogue.tasks.dispatch import run_job, get_tasks_by_job
 from eclogue.ansible.doc import AnsibleDoc
 from eclogue.ansible.playbook import check_playbook
 from eclogue.models.job import Job
-from eclogue.models.playbook import Playbook
 from eclogue.lib.logger import logger
 from flask_log_request_id import current_request_id
 from eclogue.utils import extract
@@ -403,13 +402,7 @@ def job_detail(_id):
                 inventory_content = parse_file_inventory(inventory)
             else:
                 inventory_content = parse_cmdb_inventory(inventory)
-
             template['inventory_content'] = inventory_content
-            role_ids = template.get('roles')
-            if role_ids:
-                roles = Playbook.find_by_ids(role_ids)
-                template['roles'] = list(map(lambda i: i.get('name'), roles))
-
     page = int(query.get('page', 1))
     size = int(query.get('pageSize', 20))
     offset = (page - 1) * size
@@ -514,7 +507,7 @@ def add_adhoc():
     maintainer.append(login_user.get('username'))
     if not job_id:
         existed = db.collection('jobs').find_one({'name': name})
-        if existed and existed.get('status') != -1:
+        if existed:
             return jsonify({
                 'message': 'name exist',
                 'code': 104007

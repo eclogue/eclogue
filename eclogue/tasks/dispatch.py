@@ -10,7 +10,6 @@ from tempfile import NamedTemporaryFile, TemporaryDirectory
 from tasktiger import TaskTiger, Task, periodic
 from tasktiger._internal import ERROR, QUEUED
 from flask_log_request_id import current_request_id
-from eclogue.config import config
 
 from eclogue.model import Mongo
 from eclogue.redis import redis_client
@@ -27,11 +26,10 @@ from eclogue.utils import make_zip
 from eclogue.config import config
 from eclogue.notification.notify import Notify
 
-task_cfg = config.task
 
 tiger = TaskTiger(connection=redis_client, config={
     'REDIS_PREFIX': 'ece',
-    'ALWAYS_EAGER': task_cfg.get('always_eager'),
+    'ALWAYS_EAGER': True,
 }, setup_structlog=True)
 
 logger = get_logger('console')
@@ -64,7 +62,7 @@ def run_job(_id, history_id=None, **kwargs):
     else:
         func = run_playbook_task if ansible_type != 'adhoc' else run_adhoc_task
         task = Task(tiger, func=func, args=params, kwargs=kwargs, queue=queue_name,
-                    unique=True, lock=True, lock_key=_id)
+                    unique=False, lock=True, lock_key=_id)
 
         task_record = {
             'job_id': _id,
@@ -93,6 +91,7 @@ def run_adhoc_task(_id, request_id, username, history_id, **kwargs):
     db = Mongo()
     task_record = db.collection('tasks').find_one({'request_id': request_id})
     record = db.collection('jobs').find_one({'_id': ObjectId(_id)})
+    print(record, task_record)
     if not task_record:
         return False
 
@@ -153,6 +152,7 @@ def run_adhoc_task(_id, request_id, username, history_id, **kwargs):
         content = temp_stdout.getvalue()
         sys.stdout = old_stdout
         sys.stderr = old_stderr
+        print('xxxxxxvvccccccccccccc', content)
         finish_at = time()
         update = {
             '$set': {

@@ -121,11 +121,10 @@ def test():
     # except Exception:
     #     print(traceback.format_exc())
 
-    # slack = Slack()
-    # slack.send('fuck world')
+    slack = Slack()
+    slack.send('fuck world')
 
     return jsonify({
         'message': 'ok',
-        'code': 0,
     })
 

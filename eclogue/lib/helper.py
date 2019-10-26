@@ -12,6 +12,8 @@ from eclogue.ansible.host import parser_inventory
 from eclogue.ansible.vault import Vault
 from eclogue.config import config
 from eclogue.lib.integration import Integration
+from eclogue.lib.logger import get_logger
+from eclogue.ansible.runer import get_default_options
 from eclogue.lib.credential import get_credential_content_by_id
 
 
@@ -347,7 +349,6 @@ def load_ansible_adhoc(payload):
         }
     }
 
-
 def _load_extra_vars(data):
     extra_vars = []
     for key, value in data.items():
@@ -385,19 +386,19 @@ def process_ansible_setup(result):
     success = result.get('success')
     if not success:
         return False
-
     records = []
     for host, info in success.items():
         facts = info['ansible_facts']
-        processor = {
-            'architecture': facts.get('ansible_processor'),
-            'cores': facts.get('ansible_processor_cores'),
-            'vscups': facts.get('ansible_processor_vcpus'),
-        }
+        processor = facts.get('ansible_processor')
+        processors = []
+        if processor:
+            for item in processor:
+                if item.isdigit():
+                    processors.append(item)
         record = {
             'ansible_hostname': host,
             'memory': facts['ansible_memtotal_mb'],
-            'processor': processor,
+            'processor': processors,
             'ipv6': facts.get('ansible_default_ipv6'),
             'ipv4': facts.get('ansible_default_ipv4'),
             'kernel': facts.get('ansible_kernel'),
@@ -405,10 +406,7 @@ def process_ansible_setup(result):
             'swap': facts.get('ansible_swaptotal_mb'),
             'bios_version': facts.get('ansible_bios_version'),
             'all_ipv4_addresses': facts.get('ansible_all_ipv4_addresses'),
-            'all_ipv6_addresses': facts.get('ansible_all_ipv6_addresses'),
-            'apparmor': facts.get('ansible_apparmor'),
             'architecture': facts.get('ansible_architecture'),
-            'domain': facts.get('ansible_domain'),
             'disk': facts.get('ansible_mounts'),
             'system': facts.get('ansible_system'),
             'dns': facts.get('ansible_dns'),
@@ -416,11 +414,9 @@ def process_ansible_setup(result):
             'hostname': facts.get('ansible_hostname'),
             'lsb': facts.get('ansible_lsb'),
             'interfaces': facts.get('ansible_interfaces'),
-            'os_family': facts.get('ansible_os_family'),
             'created_at': int(time.time()),
         }
         records.append(record)
-
     return records
 
 
@@ -461,18 +457,13 @@ def parse_cmdb_inventory(inventory):
 
         collection, _id, group_name = inventory_list
         if collection == 'group':
-            if _id == 'ungrouped':
-                group = {
-                    '_id': _id,
-                }
-            else:
-                group = db.collection('groups').find_one({'_id': ObjectId(_id)})
-                if not group:
-                    continue
+            group = db.collection('groups').find_one({'_id': ObjectId(_id)})
+            if not group:
+                continue
 
             records = db.collection('machines').find({'group': {'$in': [str(group['_id'])]}})
             for record in records:
-                hosts[record['hostname']] = {
+                hosts[record['node_name']] = {
                     'ansible_ssh_host': record.get('ansible_ssh_host'),
                     'ansible_ssh_user': record.get('ansible_ssh_user', 'root'),
                     'ansible_ssh_port': record.get('ansible_ssh_port', '22'),

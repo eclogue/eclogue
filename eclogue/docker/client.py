@@ -44,6 +44,7 @@ class Docker(object):
         self.container = self.client.containers.create(image, command=command, detach=True, working_dir=working_dir, **kwargs)
 
     def run(self, command, stdout=True, **kwargs):
+        print(self.image, kwargs)
         return self.client.containers.run(image=self.image, command=command, stdout=stdout, **kwargs)
 
     def get_archive(self, path, chunk_size=2097152):

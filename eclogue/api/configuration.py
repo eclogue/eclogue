@@ -1,5 +1,4 @@
 import time
-import datetime
 from bson import ObjectId
 from flask import request, jsonify
 from eclogue.middleware import jwt_required, login_user
@@ -21,11 +20,7 @@ def list_config():
     start = query.get('start')
     end = query.get('end')
     maintainer = query.get('maintainer')
-    where = {
-        'status': {
-            '$ne': -1
-        }
-    }
+    where = {}
     if keyword:
         where['name'] = {
             '$regex': keyword
@@ -57,6 +52,8 @@ def list_config():
 
     if date:
         where['$and'] = date
+
+    print(where)
 
     cursor = db.collection('configurations').find(where, skip=offset, limit=size)
     total = cursor.count()
@@ -94,7 +91,6 @@ def list_config():
     })
 
 
-@jwt_required
 def add_configuration():
     payload = request.get_json()
     if not payload:
@@ -119,20 +115,17 @@ def add_configuration():
     description = payload.get('description')
     maintainer = payload.get('maintainer') or []
     variables = payload.get('variables')
-    status = payload.get('status', 0) or 0
     data = {
         'name': name,
         'description': description,
         'maintainer': maintainer,
         'variables': variables,
-        'status': status,
-        'add_by': login_user.get('username'),
         'created_at': int(time.time())
     }
 
     result = db.collection('configurations').insert_one(data)
     data['_id'] = result.inserted_id
-    logger.info('add configuration, name: {}'.format(name), extra={'record': data})
+    logger.info('add configuration', extra={'record': data})
 
     return jsonify({
         'message': 'ok',
@@ -199,7 +192,6 @@ def get_config_info(_id):
     })
 
 
-@jwt_required
 def update_configuration(_id):
     payload = request.get_json()
     if not payload:
@@ -219,7 +211,6 @@ def update_configuration(_id):
     description = payload.get('description')
     maintainer = payload.get('maintainer') or []
     variables = payload.get('variables')
-    status = payload.get('status')
     data = {}
     if name:
         data['name'] = name
@@ -233,44 +224,14 @@ def update_configuration(_id):
     if maintainer:
         data['maintainer'] = maintainer
 
-    if status is not None:
-        data['status'] = int(status)
-
     if len(data.keys()):
         update = {
             '$set': data,
         }
         db.collection('configurations').update_one({'_id': record['_id']}, update=update)
-        msg = 'update configuration, name: {}'.format(record.get('name'))
-        logger.info(msg, extra={'record': record, 'changed': data})
+        logger.info('update configuration', extra={'record': record, 'changed': data})
 
     return jsonify({
         'message': 'ok',
         'code': 0,
     })
-
-
-@jwt_required
-def delete(_id):
-    record = db.collection('configurations').find_one({'_id': ObjectId(_id)})
-    if not record:
-        return jsonify({
-            'message': 'record not found',
-            'code': 104040,
-        }), 404
-
-    update = {
-        '$set': {
-            'status': -1,
-            'updated_at': datetime.datetime.now()
-        },
-    }
-    db.collection('configurations').update_one({'_id': record['_id']}, update=update)
-    msg = 'update configuration, name: {}'.format(record.get('name'))
-    logger.info(msg, extra={'record': record, 'force': False})
-
-    return jsonify({
-        'message': 'ok',
-        'code': 0,
-    })
-
