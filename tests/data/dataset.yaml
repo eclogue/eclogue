@@ -1,0 +1,15 @@
+user:
+  username: tester
+  password: 123123
+  is_admin: 0
+  email: tester@ecloguelabs.com
+  phone: 123123123123
+  address: here
+
+admin:
+  username: admin
+  password: 123123
+  is_admin: 1
+  email: tester@ecloguelabs.com
+  phone: 123123123123
+  address: here

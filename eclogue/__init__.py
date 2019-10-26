@@ -55,7 +55,8 @@ def create_app(schedule=True):
     def not_found(error):
         return jsonify({
             'message': 'not found',
-            'code': 404
+            'code': 404,
+            'error': str(error)
         }), 404
 
     @instance.errorhandler(500)
@@ -63,8 +64,17 @@ def create_app(schedule=True):
 
         return jsonify({
             'message': 'server error',
-            'code': 500
+            'code': 500,
+            'error': str(error)
         }), 500
+
+    @instance.errorhandler(405)
+    def metho_not_allow(error):
+        return jsonify({
+            'message': 'method not allow',
+            'code': 405,
+            'error': str(error)
+        }), 405
 
     return instance
 

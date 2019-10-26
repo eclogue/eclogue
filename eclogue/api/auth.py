@@ -1,5 +1,5 @@
-from ..jwt import jws
-from ..model import db
+from eclogue.jwt import jws
+from eclogue.model import db
 from werkzeug.security import check_password_hash, generate_password_hash
 from flask import request, jsonify
 
@@ -30,6 +30,7 @@ class Auth(object):
                 'code': 104002,
             }), 400
 
+        password = str(password)
         verify = check_password_hash(user['password'], password)
         if not verify:
             return jsonify({
@@ -46,10 +47,11 @@ class Auth(object):
         token = jws.encode(user_info)
         # auth_user = user_info.copy()
         # auth_user.update({'token': token})
-        user_info['token'] =  token.decode('utf-8')
+        user_info['token'] = token.decode('utf-8')
 
         return jsonify({
             'message': 'ok',
+            'code': 0,
             'data': user_info,
         })
 

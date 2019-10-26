@@ -6,7 +6,7 @@ from eclogue.models.role import Role
 from eclogue.models.menu import Menu
 from eclogue.models.group import Group
 from eclogue.models.host import Host
-
+from werkzeug.security import generate_password_hash
 
 class User(Model):
     name = 'users'
@@ -106,4 +106,37 @@ class User(Model):
 
         return inserted
 
-user_model = User()
+    def add_user(self, user):
+        username = user.get('username')
+        password = user.get('password')
+        email = user.get('email')
+        phone = user.get('phone')
+        if not username or not password or not email:
+            return False, None
+
+        where = {
+            '$or': [
+                {
+                    'username': username,
+
+                },
+                {
+                    'email': email,
+                },
+                {
+                    'phone': phone
+                }
+            ]
+        }
+
+        existed = self.collection.find_one(where)
+        if existed:
+            return False, existed['_id']
+
+        password = generate_password_hash(str(password))
+        print('????', password)
+        user['password'] = password
+        user['created_at'] = time.time()
+        result = self.collection.insert_one(user)
+
+        return True, result.inserted_id
