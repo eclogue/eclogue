@@ -6,7 +6,7 @@ services:
       - "5000:5000"
   redis:
     image: "redis:alpine"
-  mongodb:
+  mongo:
     image: "mongo:3.4-xenial"
     restart: always
     environment:
