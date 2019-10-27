@@ -1,0 +1,27 @@
+TESTING: True
+mongodb:
+  uri: 'mongodb://root:sfeeawgeshr6u5w12z@mongo:27017/?authSource=admin&authMechanism=SCRAM-SHA-1'
+  db: 'upward'
+jwt:
+  key: 'docker-compose-key'
+  iss: 'http://devops.ecloguelabs.com'
+  aud: 'http://ecloguelabs.com'
+  header:
+    alg: 'HS256'
+  exp: 604800
+redis:
+  conn:
+    host: redis
+    port: 6379
+    decode_responses: !!bool "true"
+
+jenkins:
+  default:
+    base_url: http://jks.sangsay.com/
+    username: eclogue
+    password: wei123.01
+gitlab:
+  token: R7T1-ar5SWiu7ysRLzjY
+  base_url: https://gitlab.com
+vault:
+  secret: abcdefg

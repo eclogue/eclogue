@@ -11,5 +11,6 @@ ENV PIPENV_VENV_IN_PROJECT 1
 ENV ENV docker
 RUN git checkout develop
 RUN pipenv update
+COPY config/development.yaml config/
 RUN pipenv run python manage.py migrate bootstrap
 ENTRYPOINT pipenv run python manage.py start
