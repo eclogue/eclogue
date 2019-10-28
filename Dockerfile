@@ -11,6 +11,6 @@ ENV PIPENV_VENV_IN_PROJECT 1
 RUN git checkout develop && git pull origin develop
 RUN pipenv update -v
 COPY config/development.yaml config/
-RUN pipenv run python manage.py migrate bootstrap
+RUN pipenv run python manage.py migrate bootstrap --username=admin --password=eclogue
 EXPOSE 5000
 ENTRYPOINT pipenv run python manage.py start

@@ -113,9 +113,9 @@ def make_zip(source_dir, output, base_dir=None):
     return shutil.make_archive(base_name=output, format='zip', root_dir=source_dir, base_dir=base_dir)
 
 
-def gen_password():
-    rand_str = '1234567890abcdefghijklmnopqrstuvwxyz!@#$%^&*()'
-    return str(random.sample(rand_str, 8))
+def gen_password(length=8):
+    rand_str = '1234567890abcdefghijklmnopqrstuvwxyz!@#$%^&*{([.])}'
+    return str(random.sample(rand_str, length))
 
 
 def extract(filename, target):

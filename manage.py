@@ -28,9 +28,13 @@ def migrate(action):
 
 
 @click.command()
-def bootstrap():
+@click.option('--username', default='', prompt='Please input admin username', help='Admin username')
+@click.option('--password', default='', prompt='Please input admin password', help='Admin password')
+def bootstrap(username=None, password=None):
     migration = Migration()
     migration.setup()
+    if username and password:
+        migration.add_admin(username, password)
 
 
 @click.command()

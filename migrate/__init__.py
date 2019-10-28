@@ -4,10 +4,11 @@ import time
 
 from uuid import uuid4
 from pymongo import IndexModel, DESCENDING, ASCENDING
+from werkzeug.security import generate_password_hash
 from jinja2 import Template
 from eclogue.model import db
 from eclogue.config import config
-from eclogue.utils import file_md5
+from eclogue.utils import file_md5, gen_password
 
 
 class Migration(object):
@@ -48,6 +49,40 @@ class Migration(object):
 
     def compare(self, uuid):
         pass
+
+    def refresh(self):
+        pass
+
+    @staticmethod
+    def add_admin(username, password):
+        has_admin = db.collection('users').find_one({'username': username})
+        if has_admin:
+            return True
+
+        admin = {
+            'email': 'admin@ecloguelabs.com',
+            'username': username,
+            'nickname': 'administrator',
+            'phone': '+8613456789012',
+            'wechat': 'xx',
+            'address': '在那遥远的地方',
+            'email_status': 1,
+            'alerts': {
+                'task': [
+                    'smtp',
+                    'slack',
+                    'web'
+                ],
+                'api': [
+                    'wechat',
+                    'slack'
+                ]
+            }
+        }
+        pwd = generate_password_hash(password)
+        admin['password'] = pwd
+        admin['created_at'] = time.time()
+        db.collection('users').insert_one(admin)
 
     def setup(self):
         # menus = db.collection('menus').find()

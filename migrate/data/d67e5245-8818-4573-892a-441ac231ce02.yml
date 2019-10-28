@@ -20,6 +20,8 @@ setup:
       - name: name
         keys:
           name: -1
+        kwargs:
+          unique: true
       - name: created_at
         keys:
           created_at: -1
@@ -39,6 +41,8 @@ setup:
       - name: name
         keys:
           name: -1
+        kwargs:
+          unique: true
       - name: created_at
         keys:
           created_at: -1
@@ -64,6 +68,8 @@ setup:
       - name: name
         keys:
           name: -1
+        kwargs:
+          unique: true
       - name: created_at
         keys:
           created_at: -1
@@ -117,6 +123,8 @@ setup:
       - name: name
         keys:
           name: -1
+        kwargs:
+          unique: true
       - name: created_at
         keys:
           created_at: -1
@@ -154,6 +162,8 @@ setup:
       - name: ansible_ssh_host
         keys:
           ansible_ssh_host: -1
+        kwargs:
+          unique: true
   - collection: mail_verify
     indexes:
       - name: user_id
@@ -187,6 +197,8 @@ setup:
       - name: uuid
         keys:
           uuid: -1
+        kwargs:
+          unique: true
       - name: created_at
         keys:
           created_at: -1
@@ -317,6 +329,8 @@ setup:
       - name: name
         keys:
           name: -1
+        kwargs:
+          unique: true
       - name: created_at
         keys:
           created_at: -1
@@ -350,6 +364,8 @@ setup:
       - name: username
         keys:
           username: -1
+        kwargs:
+          unique: true
       - name: created_at
         keys:
           created_at: -1
@@ -359,4 +375,6 @@ setup:
       - name: email
         keys:
           email: -1
+        kwargs:
+          unique: true
 rollback: null

@@ -42,7 +42,7 @@ class Auth(object):
             'user_id': str(user['_id']),
             'username': user['username'],
             'status': 1,
-            'is_admin': user.get('is_admin', True),
+            'is_admin': user.get('is_admin', False),
         }
         token = jws.encode(user_info)
         # auth_user = user_info.copy()
