@@ -6,7 +6,7 @@ RUN cat /etc/os-release
 WORKDIR /usr/local
 RUN git clone https://github.com/eclogue/eclogue.git
 WORKDIR /usr/local/eclogue
-RUN pip install pipenv -i http://mirrors.aliyun.com/pypi/simple
+RUN pip install pipenv -i https://pypi.tuna.tsinghua.edu.cn/simple
 ENV PIPENV_VENV_IN_PROJECT 1
 RUN git checkout develop && git pull origin develop
 RUN pipenv update -v
