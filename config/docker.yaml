@@ -1,0 +1,27 @@
+TESTING: True
+mongodb:
+  uri: 'mongodb://root:eclogue@mongo:27017/?authSource=admin'
+  db: 'eclogue'
+jwt:
+  key: 'docker-compose-key'
+  iss: 'http://devops.ecloguelabs.com'
+  aud: 'http://ecloguelabs.com'
+  header:
+    alg: 'HS256'
+  exp: 604800
+redis:
+  conn:
+    host: redis
+    port: 6379
+    decode_responses: !!bool "true"
+
+jenkins:
+  default:
+    base_url: http://jenkins.xxx.com/
+    username: xxx
+    password: xxx
+gitlab:
+  token: xxxx
+  base_url: https://gitlab.com
+vault:
+  secret: xxxxxabcdefgxxxx

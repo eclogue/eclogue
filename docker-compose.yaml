@@ -9,6 +9,7 @@ services:
       MONGO_INITDB_ROOT_USERNAME: root
       MONGO_INITDB_ROOT_PASSWORD: eclogue
       MONGO_INITDB_DATABASE: eclogue
+      MONGO_AUTH_SOURCE: admin
     expose:
       - 27017
   web:
@@ -16,8 +17,7 @@ services:
     environment:
       - ENV=docker
     ports:
-      - "5000:5000"
+      - "127.0.0.1:5000:5000"
     depends_on:
       - mongo
       - redis
-    command: python manage.py bootstrap --username:admin --password=eclogue && python manage.py start

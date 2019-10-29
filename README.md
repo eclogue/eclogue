@@ -42,7 +42,9 @@
 - 更多操作 `python manage.py --help`
 
 ### Docker
-`docker-composer up` visit http://localhost:5000/
+- 编辑 .env 文件设置 `ENV=docker`
+- `docker-composer up` 访问 http://localhost:5000/
+- 创建初始化数据,添加超级管理员 `docker-compose exec web pipenv run python manage.py bootstrap --username=admin --password=eclogue`
 
 
 ### Demo
