@@ -10,7 +10,9 @@ RUN pip install pipenv -i https://pypi.tuna.tsinghua.edu.cn/simple
 ENV PIPENV_VENV_IN_PROJECT 1
 RUN git checkout develop && git pull origin develop
 RUN pipenv update -v
-COPY config/development.yaml config/
-RUN pipenv run python manage.py migrate bootstrap --username=admin --password=eclogue
+COPY .env .env
+COPY config/docker.yaml config/docker.yaml
+ENV ENV docker
 EXPOSE 5000
-ENTRYPOINT pipenv run python manage.py start
+ENTRYPOINT ["pipenv", "run", "python", "manage.py"]
+CMD ["start"]

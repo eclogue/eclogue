@@ -1,9 +1,5 @@
-version: '3'
+version: "3.1"
 services:
-  web:
-    build: .
-    ports:
-      - "5000:5000"
   redis:
     image: "redis:alpine"
   mongo:
@@ -12,3 +8,16 @@ services:
     environment:
       MONGO_INITDB_ROOT_USERNAME: root
       MONGO_INITDB_ROOT_PASSWORD: eclogue
+      MONGO_INITDB_DATABASE: eclogue
+    expose:
+      - 27017
+  web:
+    build: .
+    environment:
+      - ENV=docker
+    ports:
+      - "5000:5000"
+    depends_on:
+      - mongo
+      - redis
+    command: python manage.py bootstrap --username:admin --password=eclogue && python manage.py start
