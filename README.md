@@ -1,7 +1,7 @@
 ### eclogue
 <p align="center">
   <a href="//ecloguelabs.org">
-    <img alt="docsify" src="./images/logo.svg" width="320">
+    <img alt="eclogue" src="https://raw.githubusercontent.com/eclogue/eclogue/master/images/logo.svg" width="320">
   </a>
 </p>
 <p align="center">
@@ -33,7 +33,7 @@
 - 兼容 crontab 格式计划任务
 - RBAC 权限模型
 
-### Install
+### 安装
 - `pipenv shell`
 - `pipenv install`
 - `python manage.py migrate bootstrap  // 仅当第一次安装执行`
@@ -45,18 +45,20 @@
 - `docker-composer up` 访问 http://localhost:5000/
 - 创建初始化数据,添加超级管理员 `docker-compose exec web pipenv run python manage.py bootstrap --username=admin --password=eclogue`
 
+### 文档
+[中文文档](http://doc.ecloguelabs.com)|~~English~~
 
 ### Demo
 [http://demo.ecloguelabs.com](http://demo.ecloguelabs.com)
 
 - `username`: natsume
 - `password`: takashi
-### Job workflow
+
+### 工作流程
 
 ![image](https://raw.githubusercontent.com/eclogue/eclogue/master/images/flow.png)
 
-### Document
-[中文文档](http://doc.ecloguelabs.com)|~~English~~
+
 
 ### Community
 QQ 群：362847712
