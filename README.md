@@ -20,7 +20,8 @@
 
 </p>
 
-> 注意：当前版本仍出测试阶段请无用于正式环境（Notice: current version still in develop, don't use in production env ）
+
+> 注意：当前版本仍处测试阶段请勿用于生产环境
 
 ---
 
