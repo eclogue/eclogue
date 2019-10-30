@@ -21,11 +21,10 @@
 </p>
 
 **~~最初目的~~**：
-- 提供一个 ansible tower(awx)外更多选择 ansible web platform（仅个人认为觉得 awx 太难掌控）
-- 把持续交付/部署从持续集成中分离出来（jenkins,gitlab,drone...)
+- 提供一个 ansible tower(awx) 外更多选择 ansible web 平台（仅个人认为觉得 awx 太难掌控），不要再让 ansible 到处执行
 
 ### Feature
-- 安装简单，除mongodb， redis 外无任务附加依赖
+- 安装简单，除 mongodb， redis 外无任务附加依赖
 - 更简单的 ansible-playbook 管理， 所见即所得， 动态 inventory 加载， 再无需挨个修改 inventory 文件
 - 更好的日志追踪，让 ansible 任务有迹可循
 - 更好配置管理，核心配置从注册中心自动注册至项目，隔离开发者与线上配置，再也不用担心程序员删掉数据库跑路了，不用担心 s3 bucket 有一天没了。
@@ -64,11 +63,6 @@ QQ 群：362847712
 
 ### Contributing
 [see](http://doc.ecloguelabs.com/#/contributing)
-
-### Donate
-江山父老能容我，不使人间造孽钱
-
-![image](https://raw.githubusercontent.com/eclogue/eclogue/master/images/donate.JPG)
 
 ### License
 GPL-3.0
