@@ -96,7 +96,7 @@ def get_claims():
 
         menus, roles = user.get_permissions(user_id)
         if not menus:
-            return False
+            return -1
 
         is_allow = -1
         for menu in menus:

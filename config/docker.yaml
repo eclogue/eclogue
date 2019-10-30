@@ -1,4 +1,4 @@
-TESTING: True
+TESTING: false
 mongodb:
   uri: 'mongodb://root:eclogue@mongo:27017/?authSource=admin'
   db: 'eclogue'

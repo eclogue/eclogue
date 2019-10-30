@@ -105,6 +105,7 @@ def get_setting():
 
 
 def test():
+    raise Exception('test')
     record = db.collection('setting').find_one({})
 
     # wechat = record.get('wechat')

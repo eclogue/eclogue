@@ -22,7 +22,8 @@ def add_jenkins():
         return jsonify({
             'message': 'miss required params',
             'code': 114002
-        })
+        }), 400
+
     vault_pass = config.jenkins.get('vault')
     options = {
         'vault_pss': vault_pass

@@ -1,10 +1,9 @@
-import os
 import json
 import datetime
-import logging.config
 
-from flask import Flask, request, jsonify
 from bson import ObjectId
+from flask import Flask, request, jsonify
+from werkzeug.exceptions import HTTPException
 from flask_log_request_id import RequestID
 from eclogue.config import config
 from eclogue.middleware import Middleware
@@ -12,11 +11,7 @@ from eclogue.middleware import Middleware
 from eclogue.api import router_v1
 from eclogue.api.routes import routes
 from eclogue.scheduler import scheduler
-from eclogue.logger.formatter import MongoFormatter
-
-
-cfg = config.logging
-logging.config.dictConfig(cfg)
+from eclogue.lib.logger import logger
 
 
 class JSONEncoder(json.JSONEncoder):
@@ -75,6 +70,24 @@ def create_app(schedule=True):
             'code': 405,
             'error': str(error)
         }), 405
+
+    @instance.errorhandler(HTTPException)
+    def handle_exception(e):
+        """Return JSON instead of HTML for HTTP errors."""
+        # start with the correct headers and status code from the error
+        # replace the body with JSON
+        log_info = {
+            "code": e.code,
+            "name": e.name,
+            "message": e.description,
+        }
+
+        logger.error('api server error %s' % e.description, extra=log_info)
+
+        return jsonify({
+            'code': 500,
+            'message': 'api server error'
+        })
 
     return instance
 

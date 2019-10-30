@@ -62,6 +62,7 @@ class Migration(object):
         admin = {
             'email': 'admin@ecloguelabs.com',
             'username': username,
+            'is_admin': True,
             'nickname': 'administrator',
             'phone': '+8613456789012',
             'wechat': 'xx',

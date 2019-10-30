@@ -4,6 +4,7 @@ from ansible.parsing.vault import get_file_vault_secret
 from ansible.parsing.dataloader import DataLoader
 from ansible.parsing.vault import VaultEditor, VaultLib, VaultSecret, match_encrypt_secret
 from eclogue.lib.logger import logger
+from eclogue.config import config
 
 OPTION_FLAGS = ['verbosity', 'ask_vault_pass', 'vault_password_files', 'vault_ids', 'new_vault_password_file',
                 'new_vault_id', 'output_file',
@@ -24,7 +25,7 @@ Options = namedtuple('Options', [
 def get_default_options():
     options = Options(
         verbosity=1,
-        vault_pass=False,
+        vault_pass=config.vault.get('secret'),
         vault_password_files=[],
         vault_ids=[],
         new_vault_password_file=None,
@@ -37,7 +38,8 @@ def get_default_options():
 
 class Vault(object):
 
-    def __init__(self, options):
+    def __init__(self, options=None):
+        options = options or {}
         self.options = get_default_options()
         self.get_options(options)
         self.editor = None

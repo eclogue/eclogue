@@ -97,7 +97,7 @@ routes = [
     ('/jobs/runner/modules', job.runner_module, ['get']),
     ('/credentials', credentials, ['get']),
     ('/credentials', add_credential, ['post']),
-    ('/credentials/_id', update_credential, ['put']),
+    ('/credentials/<_id>', update_credential, ['put']),
     ('/apps', application.get_apps, ['get']),
     ('/apps', application.add_apps, ['post']),
     ('/apps/<_id>', application.update_app, ['put']),

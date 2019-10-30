@@ -38,11 +38,12 @@ class Auth(object):
                 'code': 104003,
             }), 401
 
+        print(user)
         user_info = {
             'user_id': str(user['_id']),
             'username': user['username'],
             'status': 1,
-            'is_admin': user.get('is_admin', False),
+            'is_admin': user.get('is_admin'),
         }
         token = jws.encode(user_info)
         # auth_user = user_info.copy()

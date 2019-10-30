@@ -328,7 +328,7 @@ def upload_playbook(_id):
                 'path': dirname,
                 'is_dir': True,
                 'is_edit': False,
-                'book_id': record.get('_id'),
+                'book_id': _id,
                 'parent': parent_path,
                 'name': name,
                 'created_at': int(time.time()),
@@ -342,7 +342,7 @@ def upload_playbook(_id):
         "path": filename,
         'is_dir': False,
         'parent': home_path or None,
-        'book_id': record.get('_id')
+        'book_id': _id
     }
 
     can_edit = is_edit(file)
@@ -370,11 +370,11 @@ def upload_playbook(_id):
     data['updated_at'] = datetime.datetime.now().isoformat()
     playbook.collection.update_one({
         'path': filename,
-        'book_id': str(record['_id']),
+        'book_id': _id,
     }, {
         '$set': data,
     }, upsert=True)
-    data['book_id'] = str(record['_id'])
+    data['book_id'] = _id
     logger.info('upload playbook', extra={'record': record, 'changed': data})
 
     return jsonify({

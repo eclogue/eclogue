@@ -7,6 +7,7 @@ from eclogue.middleware import jwt_required, login_user
 from eclogue.ansible.vault import Vault
 from eclogue.config import config
 from eclogue.lib.logger import logger
+from eclogue.models.credential import Credential
 
 
 @jwt_required
@@ -88,15 +89,13 @@ def add_credential():
         'users': usernames,
         'body': body,
         'scope': scope,
-        'type': type,
+        'type': ctype,
         'status': status,
         'add_by': current_user.get('username'),
-        'created_at': int(time.time())
+        'created_at': time.time()
     }
 
-    result = db.collection('credentials').insert_one(data)
-    data['_id'] = result.inserted_id
-    logger.info('add credential', extra={'record': data})
+    Credential.insert_one(data)
 
     return jsonify({
         'message': 'ok',
@@ -119,47 +118,56 @@ def update_credential(_id):
             'message': 'record not found',
             'code': 134040,
         }), 404
+    data = {}
     description = payload.get('description')
     name = payload.get('name')
-    existed = db.collection('credentials').find_one({'name': name})
-    if existed:
-        return jsonify({
-            'message': 'name already existed',
-            'code': 134002
-        }), 400
+    status = payload.get('status')
+    if name and record.get('name') != name:
+        data['name'] = name
+        existed = db.collection('credentials').find_one({'name': name})
+        if existed:
+            return jsonify({
+                'message': 'name already existed',
+                'code': 134002
+            }), 400
 
-    type = payload.get('type')
-    if not type or type not in allow_types:
-        return jsonify({
-            'message': 'invalid type',
-            'code': 134001
-        }), 400
+    if status is not None:
+        data['status'] = int(status)
+
+    if description:
+        data['description'] = description
+
+    credential_type = payload.get('type')
+    if credential_type:
+        data['type'] = credential_type
+        if credential_type not in allow_types:
+            return jsonify({
+                'message': 'invalid type',
+                'code': 134001
+            }), 400
+
     body = payload.get('body')
-    if not body or not body.get(type):
+    if not body or not body.get(credential_type):
         return jsonify({
             'message': 'illegal credential params',
             'code': 134002
         }), 400
-    body[type] = encrypt_credential(body[type])
+
+    is_encrypt = Vault.is_encrypted(body[credential_type])
+    if not is_encrypt:
+        body[credential_type] = encrypt_credential(body[credential_type])
+        data['body'] = body
+
     scope = payload.get('scope', 'global')
-    users = payload.get('users', [])
+    data['scope'] = scope
+    users = payload.get('users', [login_user.get('username')])
     user_list = db.collection('users').find({'username': {'$in': users}})
     user_list = list(user_list)
-    usernames = []
+    data['maintainer'] = []
     for item in user_list:
-        usernames.append(item.get('username'))
-    data = {
-        'name': name,
-        'description': description,
-        'users': usernames,
-        'body': body,
-        'scope': scope,
-        'type': type,
-        'add_by': current_user.get('username'),
-        'created_at': int(time.time())
-    }
-    db.collection('credentials').insert_one(data)
-    logger.info('update credential', extra={'record': record, 'changed': data})
+        data['maintainer'].append(item.get('username'))
+
+    Credential.update_one({'_id': record['_id']}, {'$set': data})
 
     return jsonify({
         'message': 'ok',

@@ -41,7 +41,7 @@ def get_inventory_from_cmdb():
                 '_id': group_id,
                 'key': group_id,
                 'title': group_id,
-                'value': '@'.join(['group', group_id, group_id]),
+                'value': '@'.join(['group', group_id, group_name]),
                 'count': len(item.get('machines')),
                 'children': [],
             }
@@ -54,12 +54,13 @@ def get_inventory_from_cmdb():
             group_info = Group().find_by_id(group_id)
             if not group_info:
                 continue
+
             group_name = group_info.get('name')
             data = {
                 '_id': group_id,
                 'key': group_id,
                 'title': group_info.get('name'),
-                'value': '@'.join(['group', str(group_info['_id']), group_info.get('name')]),
+                'value': '@'.join(['group', str(group_info['_id']), group_name]),
                 'count': len(item.get('machines')),
                 'children': [],
             }

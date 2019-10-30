@@ -40,59 +40,7 @@ def _jwt_required():
             return 0
 
         _request_ctx_stack.top.login_user = claims
-        if claims.get('is_admin'):
-            return True
-        username = claims.get('username')
-        user_id = claims.get('user_id')
-        # user = User()
-        # if not user_id:
-        #     user_info = user.collection.find_one({'username': username})
-        #     user_id = str(user_info['_id'])
-
-        # user_team = db.collection('team_members').find_one({'user_id': user_id})
-        # team = Team().find_by_id(str(user_team['team_id']))
-        # where = {
-        #     'name': team.get('name'),
-        #     'type': 'team',
-        # }
-        # team_role = db.collection('roles').find_one(where)
-        # relations = db.collection('user_roles').find({
-        #     'user_id': user_id,
-        # })
-        # role_ids = map(lambda i: i['role_id'], relations)
-        # role_ids = set(role_ids)
-        # role_ids.add(team_role['_id'])
-        # where = {
-        #     'role_id': {
-        #         '$in': list(role_ids)
-        #     }
-        # }
-        # menus = db.collection('menus').find(where)
-        # menus = list(menus)
-        # menus, roles = user.get_permissions(user_id)
-        # if not menus:
-        #     return False
-        #
-        # blocks = filter(lambda i: int(i['bpid']) < 1, menus)
-        # url_rule = request.url_rule
-        # method = request.method
-        # is_allow = -1
-        # for block in blocks:
-        #     menu_name = block.get('name')
-        #     actions = block.get('actions', [])
-        #     if menu_name not in routes:
-        #         continue
-        #     rules = routes.get(menu_name)
-        #     for route in rules:
-        #         rule, func, methods = route
-        #         if url_rule == rule and method in actions:
-        #             is_allow = 1
-        #             break
-        #
-        #     if is_allow != -1:
-        #         break
-        #
-        # return is_allow
+        return True
     except JWTError:
         return False
 

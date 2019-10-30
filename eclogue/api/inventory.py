@@ -16,14 +16,14 @@ from eclogue.ansible.host import parser_inventory
 from eclogue.lib.inventory import get_inventory_from_cmdb, get_inventory_by_book
 from eclogue.models.host import host_model, Host
 from eclogue.lib.logger import logger
-from eclogue.models.region import region_model
+from eclogue.models.region import Region
 from eclogue.models.group import Group
 
 
 def get_inventory():
     query = request.args
-    type = query.get('type', 'cmdb')
-    if type == 'file':
+    cmdb_type = query.get('type', 'cmdb')
+    if cmdb_type == 'file':
         booke_id = query.get('book')
         book = db.collection('books').find_one({'_id': ObjectId(booke_id)})
         if not book:
@@ -373,15 +373,42 @@ def regions():
     })
 
 
+@jwt_required
 def add_region():
-    records = db.collection('regions').find()
+    body = request.get_json()
+    if not body:
+        return jsonify({
+            'message': 'invalid params',
+            'code': 104000
+        }), 400
+
+    name = body.get('name')
+    description = body.get('description')
+    bandwidth = body.get('bandwidth')
+    contact = body.get('contact')
+    ip_range = body.get('ip_range')
+    platform = body.get('platform')
+    exists = Region.find_one({'name': name})
+    if exists:
+        return jsonify({
+            'message': 'name existed',
+            'code': 104880
+        }), 400
+
+    record = {
+        'name': name,
+        'description': description,
+        'bandwidth': bandwidth,
+        'contact': contact,
+        'ip_range': ip_range,
+        'platform': platform
+    }
+
+    Region.insert_one(record)
 
     return jsonify({
         'message': 'ok',
         'code': 0,
-        'data': {
-            'list': list(records)
-        }
     })
 
 
@@ -692,7 +719,7 @@ def get_devices():
         where['$and'] = date
 
     if region:
-        record = region_model.find_by_id(region)
+        record = Region.find_by_id(region)
         if not record:
             return jsonify({
                 'message': 'illegal param',
