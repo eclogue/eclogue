@@ -8,7 +8,7 @@ RUN git clone https://github.com/eclogue/eclogue.git
 WORKDIR /usr/local/eclogue
 RUN pip install pipenv -i https://pypi.tuna.tsinghua.edu.cn/simple
 ENV PIPENV_VENV_IN_PROJECT 1
-RUN git checkout develop && git pull origin develop
+RUN git pull origin master
 RUN pipenv update -v
 COPY .env .env
 COPY config/docker.yaml config/docker.yaml
