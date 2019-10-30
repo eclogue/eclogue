@@ -36,7 +36,6 @@ def search_user():
     records = list(records)
     records = map(lambda item: {'username': item.get('username')}, records)
     records = list(records)
-    print(records)
 
     return jsonify({
         'message': 'ok',
@@ -211,7 +210,6 @@ def add_role():
             }), 400
 
     result = role.collection.insert_one(data)
-    print(result)
     role_id = result.inserted_id
     if menus and type(menus) == list:
         data = []
@@ -675,7 +673,6 @@ def save_alert():
         }
     }
 
-    print(where, update)
     user = User()
     record = user.collection.find_one(where)
     user.collection.update_one(where, update=update)
@@ -712,7 +709,6 @@ def update_user(_id):
     role_ids = payload.get('role')
     team_id = payload.get('team_id')
     address = payload.get('address')
-    print(payload)
     # current_team_id = payload.get('currentTeamId')
     # current_role_ids = payload.get('currentRoleIds')
     if not is_admin:
@@ -769,9 +765,7 @@ def update_user(_id):
         db.collection('team_members').update_one(condition, update=change, upsert=True)
 
     if role_ids:
-        print('role_ids', role_ids)
         result = User().bind_roles(_id, role_ids, add_by=login_user.get('username'))
-        print(result)
 
     User.update_one({'_id': record['_id']}, {'$set': update})
 

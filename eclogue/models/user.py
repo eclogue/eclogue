@@ -134,7 +134,6 @@ class User(Model):
             return False, existed['_id']
 
         password = generate_password_hash(str(password))
-        print('????', password)
         user['password'] = password
         user['created_at'] = time.time()
         result = self.collection.insert_one(user)

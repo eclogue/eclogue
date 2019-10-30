@@ -17,7 +17,6 @@ from eclogue.lib.logger import logger
 @jwt_required
 def add_team():
     payload = request.get_json()
-    print(payload)
     if not payload:
         return jsonify({
             'message': 'invalid params',

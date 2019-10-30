@@ -671,7 +671,6 @@ def job_webhook():
     app_params = app_info.get('params')
     income = app_params.get('income')
     income_params = {'cache': True}
-    print(income, payload.get('income'))
     if income and payload.get('income'):
         income = Template(income)
         tpl = income.render(**payload.get('income'))
@@ -679,7 +678,6 @@ def job_webhook():
         if tpl:
             income_params.update(tpl)
 
-    print(income_params)
     task_id = run_job(str(record.get('_id')), **income_params)
 
     # if app_type == 'jenkins':

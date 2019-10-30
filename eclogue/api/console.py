@@ -37,7 +37,6 @@ def run_task():
 
     options = {}
     if extra_options:
-        print(extra_options)
         options.update(extra_options)
 
     if verbosity:

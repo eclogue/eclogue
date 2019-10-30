@@ -607,7 +607,6 @@ def preview_inventory():
     if inventory_type == 'file':
         result = parse_file_inventory(inventory)
     else:
-        print('oooorigin', inventory)
         result = parse_cmdb_inventory(inventory)
 
     if not result:

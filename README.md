@@ -20,6 +20,10 @@
 
 </p>
 
+> 注意：当前版本仍出测试阶段请无用于正式环境（Notice: current version still in develop, don't use in production env ）
+
+---
+
 **~~最初目的~~**：
 - 提供一个 ansible tower(awx) 外更多选择 ansible web 平台（仅个人认为觉得 awx 太难掌控），不要再让 ansible 到处执行
 

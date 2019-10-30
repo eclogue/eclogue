@@ -35,6 +35,5 @@ def parser_inventory(sources):
     groups = manager.groups
     for group in groups:
         hosts = group.get_hosts()
-        print('??????', group.get_hosts(), group.serialize())
         for host in hosts:
             print('~~~~~~~~~~~~~~~~~', host.serialize(), '=======', host.get_vars())

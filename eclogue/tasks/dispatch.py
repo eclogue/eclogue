@@ -52,7 +52,6 @@ def run_job(_id, history_id=None, **kwargs):
     template = record.get('template')
     schedule = extra.get('schedule')
     ansible_type = record.get('type')
-    print(schedule)
     if template.get('run_type') == 'schedule':
         existed = db.collection('scheduler_jobs').find_one({'_id': record['_id']})
         if existed:

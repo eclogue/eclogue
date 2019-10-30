@@ -281,8 +281,6 @@ def retry(_id, state):
 
 @jwt_required
 def cancel(_id, state):
-    print(_id, state)
-
     record = db.collection('tasks').find_one({'_id': ObjectId(_id)})
     if not record:
         return jsonify({
@@ -593,7 +591,6 @@ def rollback(_id):
         }), 404
 
     build_id = str(history.get('_id'))
-    print(job_id, build_id)
     run_job(job_id, build_id)
 
     return jsonify({

@@ -252,7 +252,6 @@ def load_ansible_playbook(payload):
     options['verbosity'] = template.get('verbosity', 0)
     options['diff'] = template.get('diff', False)
     # options['vault'] = template.get('vault')
-    print('eeeeeeeeeeeeeeeeeeee', extra_vars)
     options['extra_vars'] = json.dumps(extra_vars)
     status = int(extra.get('status', 0))
 

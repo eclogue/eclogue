@@ -461,7 +461,6 @@ def get_roles_by_book(_id):
         'is_dir': True
     }
 
-    print(condition)
     parent = db.collection('playbook').find_one(condition)
     if not parent:
         return jsonify({

@@ -38,7 +38,6 @@ class Auth(object):
                 'code': 104003,
             }), 401
 
-        print(user)
         user_info = {
             'user_id': str(user['_id']),
             'username': user['username'],
