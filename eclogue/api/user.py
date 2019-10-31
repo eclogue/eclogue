@@ -428,6 +428,7 @@ def add_user():
     role_ids = payload.get('role_ids')
     team_id = payload.get('team_id')
     address = payload.get('address')
+    password = payload.get('password')
     if not username or not email:
         return jsonify({
             'message': 'miss required params',
@@ -461,7 +462,7 @@ def add_user():
             'code': 104030
         }), 400
 
-    password = gen_password()
+    password = password or gen_password()
     encrypt_pwd = generate_password_hash(password)
     user_info = {
         'username': username,
