@@ -1,12 +1,12 @@
 import time
 from bson import ObjectId
 from eclogue.model import Model, db
-from eclogue.models.team import Team
 from eclogue.models.role import Role
 from eclogue.models.menu import Menu
 from eclogue.models.group import Group
 from eclogue.models.host import Host
 from werkzeug.security import generate_password_hash
+
 
 class User(Model):
     name = 'users'
@@ -21,7 +21,7 @@ class User(Model):
         if not user:
             return []
 
-        team = Team()
+        team = self.build_model('teams')
         relate_team = db.collection('team_users').find({'user_id': user_id})
         team_ids = list(map(lambda i: i['_id'], relate_team))
         role_ids = []
@@ -139,3 +139,7 @@ class User(Model):
         result = self.collection.insert_one(user)
 
         return True, result.inserted_id
+
+    @staticmethod
+    def join_team(self):
+        pass

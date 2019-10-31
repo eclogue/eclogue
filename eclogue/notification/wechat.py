@@ -22,6 +22,9 @@ class Wechat(BaseSender):
         return self.config.get('agent_id')
 
     def send(self, text, user=None):
+        if not self.enable:
+            return False
+
         user = user or '@all'
         params = {
             'agent_id': self.agent_id,

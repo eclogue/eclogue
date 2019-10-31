@@ -116,6 +116,8 @@ class Model(object):
         msg = 'insert new record to {}, _id: {}'.format(model.name, record['_id'])
         logger.info(msg, extra={'record': record})
 
+        return result
+
     @classmethod
     def update_one(cls, where, update, **kwargs):
         model = cls()
@@ -123,7 +125,10 @@ class Model(object):
         if not record and not kwargs.get('upsert'):
             return False
 
-        msg = 'update record from {}, _id: {}'.format(model.name, record['_id'])
+        msg = 'update record from {}'.format(model.name)
+        if record:
+            msg = msg + ', _id: %s' % record.get('_id')
+
         extra = {
             'record': record,
             'change': update,
@@ -173,6 +178,13 @@ class Model(object):
             return result
 
         return None
+
+    @classmethod
+    def build_model(cls, name):
+        model = cls()
+        model.name = name
+
+        return model
 
     def __setitem__(self, key, value):
         self._attr[key] = value

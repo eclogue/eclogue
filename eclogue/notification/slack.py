@@ -14,6 +14,9 @@ class Slack(BaseSender):
         return self.config.get('webhook')
 
     def send(self, text, channel=None):
+        if not self.enable:
+            return False
+
         channel = channel or self.config.get('channel')
         params = {
             'channel': channel,

@@ -8,7 +8,7 @@ from authlib.specs.rfc7519 import JWTError
 # from eclogue.routes import routes
 
 
-login_user = LocalProxy(lambda: getattr(_request_ctx_stack.top, 'login_user', None))
+login_user = LocalProxy(lambda: getattr(_request_ctx_stack.top, 'login_user', {}))
 
 
 class Middleware(object):

@@ -165,7 +165,9 @@ setup:
       - apis:
           - /api/v1/teams
           - /api/v1/teams/<_id>
+          - /api/v1/users
           - /api/v1/users/<_id>
+          - /api/v1/users/<user_id>/hosts
         bpid: '0'
         icon: deployment-unit
         id: '9'

@@ -299,7 +299,6 @@ def get_team_tree():
     teams = db.collection('teams').find(where)
     teams = list(teams)
     tree = []
-    user_collection = User()
     for team in teams:
         item = {
             'title': team['name'],
@@ -314,7 +313,7 @@ def get_team_tree():
 
         user_ids = map(lambda i: i['user_id'], relations)
         user_ids = list(user_ids)
-        users = user_collection.find_by_ids(user_ids)
+        users = User.find_by_ids(user_ids)
         children = []
         for user in users:
             children.append({

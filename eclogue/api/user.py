@@ -418,6 +418,7 @@ def add_user():
             'message': 'invalid params',
             'code': 104000
         }), 400
+
     current_user = login_user.get('username')
     is_admin = login_user.get('is_admin')
     username = payload.get('username')
@@ -427,7 +428,7 @@ def add_user():
     role_ids = payload.get('role_ids')
     team_id = payload.get('team_id')
     address = payload.get('address')
-    if not username or not nickname or not email or not phone:
+    if not username or not email:
         return jsonify({
             'message': 'miss required params',
             'code': 104001,
@@ -459,6 +460,7 @@ def add_user():
             'message': 'username or email existed',
             'code': 104030
         }), 400
+
     password = gen_password()
     encrypt_pwd = generate_password_hash(password)
     user_info = {
@@ -815,3 +817,4 @@ def delete_user(_id):
         'message': 'ok',
         'code': 0,
     })
+

@@ -21,6 +21,9 @@ class Nexmo(BaseSender):
         return self.config.get('from') or 'eclogue'
 
     def send(self, phone, text):
+        if not self.enable:
+            return False
+
         params = {
             'phone': phone,
             'from': self.sender,

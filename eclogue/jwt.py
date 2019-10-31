@@ -4,7 +4,7 @@ from authlib.specs.rfc7519 import jwt, JWTError
 from eclogue.config import config
 from flask import request
 from eclogue.models.user import User
-from eclogue.models.menu import Menu
+from eclogue.model import db
 from eclogue.routes import routes
 
 
@@ -115,7 +115,7 @@ def get_claims():
 
 
 def _force_check_menu_apis(url):
-    menus = Menu.find({})
+    menus = db.collection('menus').find({})
     found = False
     for menu in menus:
         apis = menu.get('apis')
