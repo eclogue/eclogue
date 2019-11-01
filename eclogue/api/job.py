@@ -526,15 +526,15 @@ def add_adhoc():
             'code': 104002,
         }), 400
 
-    check_module = db.collection('ansible_modules').find_one({
-        'name': module
-    })
-
-    if not check_module:
-        return jsonify({
-            'message': 'invalid module',
-            'code': 104003,
-        }), 400
+    # check_module = db.collection('ansible_modules').find_one({
+    #     'name': module
+    # })
+    #
+    # if not check_module:
+    #     return jsonify({
+    #         'message': 'invalid module',
+    #         'code': 104003,
+    #     }), 400
 
     inventory_content = parse_cmdb_inventory(inventory)
     if not inventory:

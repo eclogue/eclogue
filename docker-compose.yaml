@@ -21,3 +21,12 @@ services:
     depends_on:
       - mongo
       - redis
+
+  worker:
+    build: .
+    environment:
+      - ENV=docker
+    command: worker
+    depends_on:
+      - mongo
+      - redis

@@ -294,15 +294,15 @@ def load_ansible_adhoc(payload):
             'code': 104002,
         }
 
-    check_module = db.collection('ansible_modules').find_one({
-        'name': module
-    })
-
-    if not check_module:
-        return {
-            'message': 'invalid module',
-            'code': 104003,
-        }
+    # check_module = db.collection('ansible_modules').find_one({
+    #     'name': module
+    # })
+    #
+    # if not check_module:
+    #     return {
+    #         'message': 'invalid module',
+    #         'code': 104003,
+    #     }
 
     inventory = parse_cmdb_inventory(inventory)
     if not inventory:
