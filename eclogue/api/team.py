@@ -4,6 +4,7 @@ from bson import ObjectId
 from flask import request, jsonify
 from eclogue.model import db
 from eclogue.middleware import jwt_required, login_user
+from eclogue.model import Model
 from eclogue.models.team import Team
 from eclogue.models.user import User
 from eclogue.models.menu import Menu
@@ -11,7 +12,6 @@ from eclogue.models.role import Role
 from eclogue.models.member import TeamMember
 from eclogue.models.teamrole import TeamRole
 from eclogue.lib.logger import logger
-
 
 
 @jwt_required
@@ -75,8 +75,14 @@ def add_team():
         result = Role.insert_one(role)
         role['_id'] = result.inserted_id
         role['team_id'] = data['_id']
-        logger.info('add role by team', extra={'record': role})
-        role_ids = [role['_id']]
+        role_ids = [str(role['_id'])]
+        # team_role = {
+        #     'role_id': result.inserted_id,
+        #     'team_id': role['team_id'],
+        #     'add_by': login_user.get('username'),
+        #     'created_at': time.time(),
+        # }
+        # Model.build_model('team_roles').insert_one(team_role)
 
     for role_id in role_ids:
         team_role = {

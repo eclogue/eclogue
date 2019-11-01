@@ -189,10 +189,11 @@ def get_queue_tasks():
             if job_record:
                 data['job_name'] = job_record.get('name')
 
-            data['state'] = record.get('state')
+            data['state'] = state
             data['result'] = record['result']
         else:
             data['job_name'] = 'default'
+            data['state'] = state
         data['executions'] = task.executions
 
         bucket.append(data)

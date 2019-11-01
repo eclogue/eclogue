@@ -21,26 +21,18 @@ class User(Model):
         if not user:
             return []
 
-        team = self.build_model('teams')
-        relate_team = db.collection('team_users').find({'user_id': user_id})
-        team_ids = list(map(lambda i: i['_id'], relate_team))
+        relate_team = Model.build_model('team_members').find({'user_id': user_id})
+        relate_team = list(relate_team)
+        team_ids = list(map(lambda i: i.get('team_id'), relate_team))
         role_ids = []
         menus = []
         if team_ids:
-            team_records = team.find_by_ids(team_ids)
-            for record in team_records:
-                team_role = db.collection('roles').find_one({
-                    'name': record.get('name'),
-                    'type': 'team',
-                })
-                if not team_role:
-                    continue
-
-                role_ids.append(team_role.get('_id'))
+            team_roles = Model.build_model('team_roles').find({'team_id': {'$in': team_ids}})
+            for item in team_roles:
+                role_ids.append(item.get('role_id'))
 
         roles = db.collection('user_roles').find({'user_id': user_id})
         roles = list(roles)
-
         if roles:
             ids = map(lambda i: i['role_id'], roles)
             role_ids += list(ids)

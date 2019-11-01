@@ -61,9 +61,8 @@ class Model(object):
     def collection(self):
         return self._collection
 
-    @classmethod
-    def get_collection(cls):
-        return db.collection(cls.name)
+    def get_collection(self):
+        return db.collection(self.name)
 
     @classmethod
     def find_by_id(cls, _id):
@@ -181,8 +180,8 @@ class Model(object):
 
     @classmethod
     def build_model(cls, name):
+        cls.name = name
         model = cls()
-        model.name = name
 
         return model
 

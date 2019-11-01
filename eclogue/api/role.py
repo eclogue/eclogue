@@ -114,23 +114,6 @@ def add_role():
             'code': 104001
         }), 400
 
-    if role_type == 'team':
-        team_existed = Team.find_one({'name': name})
-        if team_existed:
-            return jsonify({
-                'message': 'team existed',
-                'code': 104005
-            }), 400
-
-        team = {
-            'name': name,
-            'description': 'team of role {}'.format(name),
-            'add_by': login_user.get('username'),
-            'master': [login_user.get('username')],
-            'created_at': time.time()
-        }
-        Team.insert_one(team)
-
     data = {
         'name': name,
         'alias': alias,
@@ -151,6 +134,30 @@ def add_role():
 
     result = role.collection.insert_one(data)
     role_id = result.inserted_id
+    if role_type == 'team':
+        team_existed = Team.find_one({'name': name})
+        if team_existed:
+            return jsonify({
+                'message': 'team existed',
+                'code': 104005
+            }), 400
+
+        team = {
+            'name': name,
+            'description': 'team of role {}'.format(name),
+            'add_by': login_user.get('username'),
+            'master': [login_user.get('username')],
+            'created_at': time.time()
+        }
+        result = Team.insert_one(team)
+        team_role = {
+            'team_id': str(result.inserted_id),
+            'role_id': str(role_id),
+            'add_by': login_user.get('username'),
+            'created_at': time.time()
+
+        }
+        Team.build_model('team_roles').insert_one(team_role)
     if menus and type(menus) == dict:
         model = Menu()
         data = []
