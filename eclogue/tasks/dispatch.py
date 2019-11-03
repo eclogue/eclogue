@@ -25,6 +25,8 @@ from eclogue.scheduler import scheduler
 from eclogue.utils import make_zip
 from eclogue.config import config
 from eclogue.notification.notify import Notify
+from eclogue.models.task import Task as TaskModel
+from eclogue.models.job import Job
 
 task_cfg = config.task
 
@@ -114,9 +116,15 @@ def run_adhoc_task(_id, request_id, username, history_id, **kwargs):
         args = payload.get('args')
         hosts = options['hosts']
         with NamedTemporaryFile('w+t', delete=True) as fd:
-            fd.write(private_key)
-            fd.seek(0)
-            options['private_key'] = fd.name
+            if private_key:
+                key_text = get_credential_content_by_id(private_key, 'private_key')
+                if not key_text:
+                    raise Exception('invalid private_key')
+
+                fd.write(key_text)
+                fd.seek(0)
+                options['private-key'] = fd.name
+
             tasks = [{
                 'action': {
                     'module': module,
@@ -233,14 +241,17 @@ def run_playbook_task(_id, request_id, username, history_id, **kwargs):
             raise Exception('install playbook failed, book name: {}'.format(data.get('book_name')))
 
         entry = os.path.join(bookspace,  data.get('entry'))
-        with NamedTemporaryFile('w+t', delete=False) as fd:
-            key_text = get_credential_content_by_id(private_key, 'private_key')
-            if not key_text:
-                raise Exception('invalid private_key')
 
-            fd.write(key_text)
-            fd.seek(0)
-            options['private-key'] = fd.name
+        with NamedTemporaryFile('w+t', delete=False) as fd:
+            if private_key:
+                key_text = get_credential_content_by_id(private_key, 'private_key')
+                if not key_text:
+                    raise Exception('invalid private_key')
+
+                fd.write(key_text)
+                fd.seek(0)
+                options['private-key'] = fd.name
+
             options['tags'] = ['uptime']
             options['verbosity'] = 2
             inventory = data.get('inventory')

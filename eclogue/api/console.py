@@ -62,15 +62,17 @@ def run_task():
         }]
 
         with NamedTemporaryFile('w+t', delete=True) as fd:
-            key_text = get_credential_content_by_id(private_key, 'private_key')
-            if not key_text:
-                return jsonify({
-                    'message': 'invalid private_key',
-                    'code': 104033,
-                }), 401
-            fd.write(key_text)
-            fd.seek(0)
-            options['private_key'] = fd.name
+            if private_key:
+                key_text = get_credential_content_by_id(private_key, 'private_key')
+                if not key_text:
+                    return jsonify({
+                        'message': 'invalid private_key',
+                        'code': 104033,
+                    }), 401
+                fd.write(key_text)
+                fd.seek(0)
+                options['private_key'] = fd.name
+
             runner = AdHocRunner(hosts, options=options)
             logger.info('run ansible-adhoc', extra={'hosts': hosts, 'options': options})
             runner.run('all', tasks)
