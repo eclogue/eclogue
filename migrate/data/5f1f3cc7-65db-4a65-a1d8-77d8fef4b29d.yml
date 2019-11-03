@@ -240,6 +240,7 @@ setup:
           - /api/v1/jobs/runner/modules
           - /api/v1/cmdb/inventory
           - /api/v1/jobs/preview/inventory
+          - /api/v1/tasks/<_id>/logs/buffer
         bpid: '5'
         icon: code
         id: '54'

@@ -2,15 +2,14 @@ import sys
 import yaml
 import os
 import shutil
-from io import StringIO
 from time import time
 from bson import ObjectId
 
 from tempfile import NamedTemporaryFile, TemporaryDirectory
-from tasktiger import TaskTiger, Task, periodic
+from tasktiger import TaskTiger, Task
 from tasktiger._internal import ERROR, QUEUED
 from flask_log_request_id import current_request_id
-from eclogue.config import config
+# from traceback import print_exception
 
 from eclogue.model import Mongo
 from eclogue.redis import redis_client
@@ -291,7 +290,6 @@ def run_playbook_task(_id, request_id, username, history_id, **kwargs):
         if notification and type(notification) == list:
             Notify().dispatch(user_id=user_id, msg_type='task', content=message, channel=notification)
 
-        raise e
     finally:
         content = temp_stdout.getvalue()
         temp_stdout.close(True)

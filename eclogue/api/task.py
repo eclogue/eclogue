@@ -13,7 +13,9 @@ from eclogue.middleware import jwt_required, login_user
 from eclogue.models.job import Job
 from eclogue.scheduler import scheduler
 from eclogue.lib.logger import logger
-from eclogue.models.task import task_model
+from eclogue.models.task import Task as TaskModel
+from eclogue.redis import redis_client
+from eclogue.tasks.reporter import Reporter
 
 
 @jwt_required
@@ -88,6 +90,7 @@ def monitor():
         },
     ])
 
+    task_model = TaskModel()
     task_histogram = task_model.histogram()
     task_state_pies = task_model.state_pies()
     task_pies = {
@@ -396,6 +399,38 @@ def task_logs(_id):
             'total': total,
             'page': page,
             'pageSize': limit,
+            'state': record.get('state')
+        }
+    })
+
+
+@jwt_required
+def task_log_buffer(_id):
+    if not ObjectId.is_valid(_id):
+        return jsonify({
+            'message': 'invalid id',
+            'code': 104000
+        }), 400
+
+    query = request.args
+    record = TaskModel.find_by_id(_id)
+    if not record:
+        return jsonify({
+            'message': 'record not found',
+            'code': 104040
+        }), 404
+
+    start = int(query.get('page', 0))
+    end = -1
+    reporter = Reporter(task_id=_id)
+    buffer = reporter.get_buffer(start=start, end=end)
+
+    return jsonify({
+        'message': 'ok',
+        'code': 0,
+        'data': {
+            'list': buffer,
+            'page': start,
             'state': record.get('state')
         }
     })
