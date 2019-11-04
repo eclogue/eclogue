@@ -7,7 +7,7 @@ user:
   address: here
 
 admin:
-  username: admin
+  username: admin-tester
   password: 123123
   is_admin: 1
   email: tester@ecloguelabs.com

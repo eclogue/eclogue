@@ -29,6 +29,7 @@ class BaseTestCase(TestCase):
         data = yaml.load(self.read_file(filename))
         self.dataSet = data
         admin = data['admin']
+        User.delete_one({'username': admin['username']})
         is_inserted, user_id = User().add_user(admin)
         admin['_id'] = user_id
         self.user = admin

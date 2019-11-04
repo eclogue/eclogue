@@ -138,7 +138,7 @@ class Model(object):
         return model.collection.update_one(where, update, **kwargs)
 
     @classmethod
-    def delete_one(cls, where, **kwargs):
+    def delete_one(cls, where, force=False, **kwargs):
         model = cls()
         record = model.collection.find_one(where)
         if not record:
@@ -157,8 +157,10 @@ class Model(object):
         }
 
         logger.info(msg, extra)
+        if not force:
+            return model.collection.update_one(where, update=update, **kwargs)
 
-        return model.collection.update_one(where, update=update, **kwargs)
+        return model.collection.delete_one(where)
 
     @staticmethod
     def check_ids(ids):
