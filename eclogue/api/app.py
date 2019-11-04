@@ -5,7 +5,6 @@ from eclogue.model import db
 from eclogue.middleware import jwt_required, login_user
 from eclogue.lib.integration import Integration
 from eclogue.lib.logger import logger
-from eclogue.docker.client import Docker
 
 
 def get_apps():
@@ -74,7 +73,6 @@ def get_apps():
             'pageSize': size
         }
     })
-    pass
 
 
 @jwt_required

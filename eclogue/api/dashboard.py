@@ -1,9 +1,5 @@
-import datetime
-
-from flask import request, jsonify
+from flask import jsonify
 from eclogue.model import db
-from eclogue.scheduler import scheduler
-from eclogue.tasks.dispatch import tiger
 from eclogue.models.host import Host
 from eclogue.models.task import task_model
 from eclogue.models.book import book

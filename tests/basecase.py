@@ -41,6 +41,10 @@ class BaseTestCase(TestCase):
         }
         token = jws.encode(user_info)
         self.token = token.decode('utf-8')
+        self.jwt_headers = {
+            'Content-Type': 'application/json',
+            'Authorization': ' '.join(['Bearer', self.token])
+        }
 
     def authorization_header(self):
         return {
