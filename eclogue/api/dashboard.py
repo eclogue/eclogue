@@ -12,15 +12,28 @@ from eclogue.middleware import jwt_required
 
 @jwt_required
 def dashboard():
-    hosts = Host().collection.aggregate([{
-        '$group': {
-            '_id': '$state',
-            'count': {
-                '$sum': 1
+    hosts = Host().collection.aggregate([
+        {
+            '$match': {
+                'status': {'$ne': -1}
+            }
+        },
+        {
+
+            '$group': {
+                '_id': '$state',
+                'count': {
+                    '$sum': 1
+                }
             }
         }
-    }])
+    ])
     apps = db.collection('apps').aggregate([
+        {
+            '$match': {
+                'status': {'$ne': -1}
+            }
+        },
         {
             '$group': {
                 '_id': '$type',
@@ -32,6 +45,11 @@ def dashboard():
     ])
     jobs = db.collection('jobs').aggregate([
         {
+            '$match': {
+                'status': {'$ne': -1}
+            }
+        },
+        {
             '$group': {
                 '_id': '$type',
                 'count': {
@@ -42,14 +60,21 @@ def dashboard():
     ])
     state_pies = task_model.state_pies()
     histogram = task_model.histogram()
-    playbooks = book.collection.aggregate([{
-        '$group': {
-            '_id': '$status',
-            'count': {
-                '$sum': 1
+    playbooks = book.collection.aggregate([
+        {
+            '$match': {
+                'status': {'$ne': -1}
+            }
+        },
+        {
+            '$group': {
+                '_id': '$status',
+                'count': {
+                    '$sum': 1
+                }
             }
         }
-    }])
+    ])
     config_count = db.collection('configurations').count()
     duration = task_model.duration()
     run_number_pies = task_model.job_run_pies()

@@ -181,6 +181,34 @@ class AdHocRunner(object):
 
         return self.results_raw
 
+    def format_result(self):
+        success = self.callback.host_ok
+        failed = self.callback.host_failed
+        unreachable = self.callback.host_unreachable
+        data = {
+            'success': {},
+            'failed': {},
+            'unreachable': {},
+        }
+        for host, item in success.items():
+            result = item._result
+            if result.get('changed', False):
+                state = 'CHANGED'
+            else:
+                state = 'SUCCESS'
+
+            data['success'][host] = self.callback.command_generic_msg(host, result=result, caption=state)
+
+        for host, item in failed.items():
+            result = item._result
+            data['failed'][host] = self.callback.command_generic_msg(host, result=result, caption='FAILED')
+
+        for host, item in unreachable.items():
+            result = item._result
+            data['unreachable'][host] = self.callback.command_generic_msg(host, result=result, caption='UNREACHABLE')
+
+        return data
+
 
 class PlayBookRunner(AdHocRunner):
     """

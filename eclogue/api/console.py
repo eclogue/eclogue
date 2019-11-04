@@ -76,7 +76,7 @@ def run_task():
             runner = AdHocRunner(hosts, options=options)
             logger.info('run ansible-adhoc', extra={'hosts': hosts, 'options': options})
             runner.run('all', tasks)
-            result = runner.get_result()
+            result = runner.format_result()
 
             return jsonify({
                 'message': 'ok',
