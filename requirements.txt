@@ -21,7 +21,6 @@ deepdiff==4.0.8
 docker==4.1.0
 docutils==0.15.2
 ecdsa==0.13.3
-eclogue==0.0.1
 Flask==1.0.2
 Flask-Log-Request-ID==0.10.0
 Flask-RESTful==0.3.6
