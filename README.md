@@ -1,9 +1,11 @@
 ### eclogue
+
 <p align="center">
-  <a href="//ecloguelabs.org">
-        <img alt="eclogue" src="https://github.com/eclouge/eclogue/blob/master/images/logo.svg" width="320">
+  <a href="//www.sangsay.com">
+        <img alt="eclogue" src="images/logo.svg" width="320" />
   </a>
 </p>
+
 <p align="center">
   eclogue（牧歌），基于 ansible 的 devops 平台。让 ansible 更简单易用，WYSIWYG，让持续交付更高效。
 </p>
@@ -21,10 +23,11 @@
 
 </p>
 
-
-> 注意：当前版本仍处测试阶段请勿用于生产环境
-
 ---
+
+**注意** 当前版本仍处测试阶段请勿用于生产环境
+
+
 
 **~~最初目的~~**：
 - 提供一个 ansible tower(awx) 外更多选择 ansible web 平台（仅个人认为觉得 awx 太难掌控），不要再让 ansible 到处执行
