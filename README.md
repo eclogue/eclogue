@@ -1,7 +1,7 @@
 ### eclogue
 <p align="center">
   <a href="//ecloguelabs.org">
-    <img alt="eclogue" src="https://raw.githubusercontent.com/eclogue/eclogue/master/images/logo.svg" width="320">
+        <img alt="eclogue" src="https://github.com/eclouge/eclogue/blob/master/images/logo.svg" width="320">
   </a>
 </p>
 <p align="center">
@@ -10,6 +10,7 @@
 
 <p align="center">
 
+<img src="http://jks.sangsay.com/view/all/job/eclogue/badge/icon" />
 <img src="https://img.shields.io/github/issues/eclogue/eclogue"/>
 <img src="https://img.shields.io/github/search/eclogue/eclogue/devops"/>
 <img src="https://img.shields.io/github/pipenv/locked/python-version/eclogue/eclogue"/>
