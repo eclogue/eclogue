@@ -1,5 +1,5 @@
 user:
-  username: tester
+  username: unitest-tester
   password: 123123
   is_admin: 0
   email: tester@ecloguelabs.com
@@ -7,9 +7,27 @@ user:
   address: here
 
 admin:
-  username: admin-tester
+  username: unitest-admin
   password: 123123
   is_admin: 1
   email: tester@ecloguelabs.com
   phone: 123123123123
   address: here
+application:
+  name: unitest-app
+  server: 127.0.0.1
+  document: null
+  type: git
+  params:
+    extract: artifacts
+    repository: "https://github.com/eclogue/ben.git"
+    income: |
+      build_id: "{{ BUILD_ID }}"
+  repo: null
+  protocol: https,http
+  port: 12345
+  description: null
+  maintainer:
+    - player
+  status: 1.0
+

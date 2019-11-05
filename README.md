@@ -1,9 +1,16 @@
 ### eclogue
+
 <p align="center">
+<<<<<<< HEAD
   <a href="//ecloguelabs.org">
         <img alt="eclogue" src="images/logo.svg" width="320">
+=======
+  <a href="//www.sangsay.com">
+        <img alt="eclogue" src="images/logo.svg" width="320" />
+>>>>>>> 8ab4b0e2d665d37aeaa22a7ddb574e2158561abb
   </a>
 </p>
+
 <p align="center">
   eclogue（牧歌），基于 ansible 的 devops 平台。让 ansible 更简单易用，WYSIWYG，让持续交付更高效。
 </p>
@@ -21,10 +28,11 @@
 
 </p>
 
-
-> 注意：当前版本仍处测试阶段请勿用于生产环境
-
 ---
+
+**注意** 当前版本仍处测试阶段请勿用于生产环境
+
+
 
 **~~最初目的~~**：
 - 提供一个 ansible tower(awx) 外更多选择 ansible web 平台（仅个人认为觉得 awx 太难掌控），不要再让 ansible 到处执行
@@ -44,6 +52,7 @@
 - `pipenv install`
 - `python manage.py migrate bootstrap  // 仅当第一次安装执行`
 - `python manage.py start` // dev 运行运行
+- `python run manage.py server` 使用 gevent 作为服务器
 - 更多操作 `python manage.py --help`
 
 ### Docker

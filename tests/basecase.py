@@ -60,6 +60,9 @@ class BaseTestCase(TestCase):
     def body(data):
         return json.dumps(data)
 
+    def get_data(self, key):
+        return self.dataSet.get(key)
+
     def assertResponseDataHasKey(self, response, key):
         assert response.json is not None
         result = response.json

@@ -68,6 +68,7 @@ class Integration(object):
             return False
 
     def check_app_params(self):
+        print('xxxxxxxfffuufufufufufufufufdfasdklfaklsdfjkadjklsfajskldfjkladsjklf=================')
         name = self.app_type
         params = self.app_params
         if name == 'jenkins':

@@ -78,8 +78,8 @@ def create_app(schedule=True):
         # replace the body with JSON
         log_info = {
             "code": e.code,
-            "name": e.name,
-            "message": e.description,
+            "title": e.name,
+            "description": e.description,
         }
 
         logger.error('api server error %s' % e.description, extra=log_info)

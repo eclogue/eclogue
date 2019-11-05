@@ -1,4 +1,9 @@
+from bson import ObjectId
 from tests.basecase import BaseTestCase
+from unittest import mock
+from eclogue.models.application import Application
+from eclogue.lib.integration import Integration
+
 
 
 class AppTest(BaseTestCase):
@@ -32,3 +37,21 @@ class AppTest(BaseTestCase):
         data = result.get('data')
         assert data['page'] == 2
         assert data['pageSize'] == 1
+
+    def test_add_app(self):
+        data = self.get_data('application')
+        url = self.get_api_path('/apps')
+        body = self.body(data)
+        response = self.client.post(url, data=self.body({}), headers=self.jwt_headers)
+        self.assert400(response)
+        self.assertResponseCode(response, 174000)
+        with mock.patch('eclogue.lib.integration.Integration', app_type='test', app_params={}) as mock_instance:
+            mock_ret = mock_instance.return_value
+            mock_ret.check_app_params.return_value = False
+            print(Integration('test', {}) is mock_ret)
+
+            # response = self.client.post(url, data=body, headers=self.jwt_headers)
+            # print('mmmmmmmcok', response.json)
+        # self.assert200(response)
+        Application.delete_one({'name': data['name']})
+
