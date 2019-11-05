@@ -1,13 +1,8 @@
 ### eclogue
 
 <p align="center">
-<<<<<<< HEAD
   <a href="//ecloguelabs.org">
-        <img alt="eclogue" src="images/logo.svg" width="320">
-=======
-  <a href="//www.sangsay.com">
-        <img alt="eclogue" src="images/logo.svg" width="320" />
->>>>>>> 8ab4b0e2d665d37aeaa22a7ddb574e2158561abb
+    <img alt="eclogue" src="images/logo.svg" width="320">
   </a>
 </p>
 
