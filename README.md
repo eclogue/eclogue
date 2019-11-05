@@ -1,7 +1,7 @@
 ### eclogue
 <p align="center">
   <a href="//ecloguelabs.org">
-        <img alt="eclogue" src="https://github.com/eclouge/eclogue/blob/master/images/logo.svg" width="320">
+        <img alt="eclogue" src="images/logo.svg" width="320">
   </a>
 </p>
 <p align="center">
@@ -52,17 +52,17 @@
 - 创建初始化数据,添加超级管理员 `docker-compose exec web pipenv run python manage.py bootstrap --username=admin --password=eclogue`
 
 ### 文档
-[中文文档](http://doc.ecloguelabs.com)|~~English~~
+[中文文档](http://doc.sangsay.com)|~~English~~
 
 ### Demo
-[http://demo.ecloguelabs.com](http://demo.ecloguelabs.com)
+[http://demo.ecloguelabs.com](http://demo.sangsay.com)
 
 - `username`: natsume
 - `password`: takashi
 
 ### 工作流程
 
-![image](https://raw.githubusercontent.com/eclogue/eclogue/master/images/flow.png)
+![image](images/flow.png)
 
 
 
