@@ -1,5 +1,5 @@
 user:
-  username: unitest-tester
+  username: unittest-tester
   password: 123123
   is_admin: 0
   email: tester@ecloguelabs.com
@@ -7,14 +7,14 @@ user:
   address: here
 
 admin:
-  username: unitest-admin
+  username: unittest-admin
   password: 123123
   is_admin: 1
   email: tester@ecloguelabs.com
   phone: 123123123123
   address: here
 application:
-  name: unitest-app
+  name: unittest-app
   server: 127.0.0.1
   document: null
   type: git
@@ -30,4 +30,12 @@ application:
   maintainer:
     - player
   status: 1.0
-
+book:
+  status: 1
+  name: unittest-book
+  importType: galaxy
+  galaxyRepo: test@eclogue
+  description: blog project
+  maintainer:
+    - user1
+    - user2

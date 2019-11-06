@@ -123,6 +123,7 @@ def add_book():
             'message': 'invalid params',
             'code': 154000,
         }), 400
+
     name = params.get('name')
     if not name:
         return jsonify({
@@ -139,12 +140,12 @@ def add_book():
 
     description = params.get('description')
     status = params.get('status', 1)
-    pbid = params.get('_id')
+    bid = params.get('_id')
     import_type = params.get('importType')
     galaxy_repo = params.get('galaxyRepo')
     maintainer = params.get('maintainer', [])
-    if pbid:
-        record = db.collection('playbook').find_one({'_id': ObjectId(pbid)})
+    if bid:
+        record = db.collection('books').find_one({'_id': ObjectId(bid)})
         if not record:
             return jsonify({
                 'message': 'record not found',
@@ -167,11 +168,7 @@ def add_book():
         'created_at': int(time.time())
     }
 
-    result = db.collection('books').update_one({
-        '_id': ObjectId(pbid)
-    }, {
-        '$set': data,
-    }, upsert=True)
+    result = db.collection('books').update_one({'_id': ObjectId(bid)}, {'$set': data}, upsert=True)
     data['_id'] = result.upserted_id
 
     return jsonify({
@@ -482,4 +479,3 @@ def get_roles_by_book(_id):
         'code': 0,
         'data': records,
     })
-
