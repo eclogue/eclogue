@@ -2,7 +2,6 @@ from eclogue.api.menus import Menus
 from eclogue.api.catheter import Catheter
 from eclogue.api.auth import Auth
 from eclogue.api.host import dump_inventory
-from eclogue.api.bookshelf import get_entry
 import eclogue.api.inventory as cmdb
 from eclogue.api.credential import credentials, add_credential, update_credential
 from eclogue.api.console import run_task
@@ -63,7 +62,7 @@ routes = [
     ('/books/<_id>/playbook', book.get_playbook, ['GET']),
     ('/books/<_id>/download', book.download_book, ['GET']),
     ('/books/<_id>/playbook', book.upload_playbook, ['post']),
-    ('/books/<_id>/entries', get_entry, ['GET']),
+    ('/books/<_id>/entries', book.get_entry, ['GET']),
     ('/books/<name>/inventory', cmdb.get_inventory_by_book, ['GET']),
     ('/books/<_id>/roles', book.get_roles_by_book, ['GET']),
     ('/search/users', user.search_user, ['get']),

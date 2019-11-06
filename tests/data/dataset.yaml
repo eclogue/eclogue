@@ -33,9 +33,19 @@ application:
 book:
   status: 1
   name: unittest-book
-  importType: galaxy
+  importType: manual
   galaxyRepo: test@eclogue
   description: blog project
   maintainer:
     - user1
     - user2
+playbook:
+  name: handlers
+  is_edit: false
+  path: /roles/test/handlers
+  project: test
+  role: handlers
+  parent: /roles/test
+  created_at: 1559741558
+  is_dir: true
+  book_id:

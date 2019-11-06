@@ -12,8 +12,8 @@ from eclogue.utils import is_edit, md5, make_zip
 from eclogue.ansible.vault import Vault
 from eclogue.lib.helper import get_meta
 from eclogue.lib.workspace import Workspace
-from eclogue.models.book import book
-from eclogue.models.playbook import playbook
+from eclogue.models.book import Book
+from eclogue.models.playbook import Playbook
 from eclogue.ansible.remote import AnsibleGalaxy
 from eclogue.lib.logger import logger
 from eclogue.ansible.playbook import check_playbook
@@ -96,9 +96,9 @@ def books():
             'role': 'entry',
             'book_id': item['_id'],
         }
-        entry = playbook.collection.find_one(where)
+        entry = Playbook.find_one(where)
         if not entry:
-            book.collection.update_one({'_id': item['_id']}, {'$set': {'status': 0}})
+            Book.update_one({'_id': item['_id']}, {'$set': {'status': 0}})
             item['status'] = 0
 
         data.append(item)
@@ -109,7 +109,7 @@ def books():
         'data': {
             'list': records,
             'page': page,
-            'pagesize': size,
+            'pageSize': size,
             'total': total,
         }
     })
@@ -217,11 +217,7 @@ def edit_book(_id):
         galaxy = AnsibleGalaxy([galaxy_repo], {'force': True})
         galaxy.install(record.get('_id'))
 
-    db.collection('books').update_one({
-        '_id': ObjectId(_id)
-    }, {
-        '$set': data,
-    }, upsert=True)
+    Book.update_one({'_id': ObjectId(_id)}, {'$set': data}, upsert=True)
     logger.info('book update', extra={'record': record, 'changed': data})
 
     return jsonify({
@@ -233,7 +229,7 @@ def edit_book(_id):
 
 @jwt_required
 def book_detail(_id):
-    record = book.find_by_id(_id)
+    record = Book.find_by_id(_id)
     if not record:
         return jsonify({
             'message': 'record not found',
@@ -249,34 +245,22 @@ def book_detail(_id):
 
 @jwt_required
 def delete_book(_id):
-    is_admin = login_user.get('is_admin')
-    record = book.find_by_id(_id)
+    record = Book.find_by_id(_id)
     if not record:
         return jsonify({
             'message': 'record not found',
             'code': 154041
-        }), 400
+        }), 404
 
-    if not is_admin and record.get('add_by') != login_user.get('username'):
-        return jsonify({
-            'message': 'permission deny',
-            'code': 104030
-        }), 403
-
-    # @todo 封装到 model 中
     update = {
         '$set': {
             'status': -1,
             'delete_at': time.time(),
-            'delete_by': login_user.get('username')
+            'delete_by': login_user.get('username'),
+            'version': str(ObjectId()),
         }
     }
-    db.collection('books').update_one({'_id': record['_id']}, update=update)
-    msg = 'delete book:, name: {}'.format(record.get('name'))
-    extra = {
-        'record': record,
-    }
-    logger.info(msg, extra=extra)
+    Book.update_one({'_id': record['_id']}, update=update)
     db.collection('playbook').update_many({'book_id': str(record['_id'])}, update=update)
 
     return jsonify({
@@ -287,7 +271,7 @@ def delete_book(_id):
 
 @jwt_required
 def all_books():
-    cursor = book.collection.find({})
+    cursor = Book.find({})
 
     return jsonify({
         'message': 'ok',
@@ -299,7 +283,7 @@ def all_books():
 @jwt_required
 def upload_playbook(_id):
     files = request.files
-    record = book.find_by_id(_id)
+    record = Book.find_by_id(_id)
     if not record:
         return jsonify({
             "message": "parent path not found",
@@ -314,7 +298,7 @@ def upload_playbook(_id):
     home_path, basename = os.path.split(filename)
     file_list = set(_make_path(filename))
     for dirname in file_list:
-        check = playbook.collection.find_one({
+        check = Playbook.find_one({
             'book_id': _id,
             'path': dirname,
         })
@@ -333,7 +317,7 @@ def upload_playbook(_id):
             meta = get_meta(dirname)
             parent.update(meta)
             parent['additions'] = meta
-            playbook.insert_one(parent)
+            Playbook.insert_one(parent)
 
     data = {
         "path": filename,
@@ -365,7 +349,7 @@ def upload_playbook(_id):
     data['is_edit'] = can_edit
     data['created_at'] = int(time.time())
     data['updated_at'] = datetime.datetime.now().isoformat()
-    playbook.collection.update_one({
+    Playbook.update_one({
         'path': filename,
         'book_id': _id,
     }, {
@@ -395,7 +379,7 @@ def _make_path(path):
 
 
 def download_book(_id):
-    record = book.find_by_id(_id)
+    record = Book.find_by_id(_id)
     if not record:
         return jsonify({
             'message': 'record not found',
@@ -479,3 +463,29 @@ def get_roles_by_book(_id):
         'code': 0,
         'data': records,
     })
+
+
+@jwt_required
+def get_entry(_id):
+    book = Book.find_one(({'_id': ObjectId(_id)}))
+
+    if not book:
+        return jsonify({
+            'message': 'book not found',
+            'code': 164000
+        }), 400
+
+    where = {
+        'book_id': str(book.get('_id')),
+        'is_dir': False,
+        'role': 'entry',
+    }
+    cursor = Playbook.find(where)
+
+    return jsonify({
+        'message': 'ok',
+        'code': 0,
+        'data': list(cursor),
+    })
+
+

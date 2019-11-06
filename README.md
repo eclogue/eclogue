@@ -74,7 +74,7 @@
 QQ 群：362847712
 
 ### Contributing
-[see](http://doc.ecloguelabs.com/#/contributing)
+give me your star or [see](http://doc.ecloguelabs.com/#/contributing)
 
 ### License
 GPL-3.0
