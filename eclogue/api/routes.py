@@ -31,7 +31,6 @@ routes = [
     ('/playbook/rename/<_id>', playbook.rename, ['PATCH']),
     ('/playbook/upload', playbook.upload, ['POST']),
     ('/playbook/folder', playbook.add_folder, ['POST']),
-    # ('/playbook/setup', Catheter.setup, ['POST']),
     ('/playbook/galaxy', playbook.import_galaxy, ['get']),
     ('/playbook/tags', playbook.get_tags, ['post']),
     ('/playbook/<_id>/file', playbook.edit_file, ['put']),

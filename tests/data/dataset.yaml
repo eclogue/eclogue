@@ -48,4 +48,13 @@ playbook:
   parent: /roles/test
   created_at: 1559741558
   is_dir: true
-  book_id:
+  book_id: null
+configuration:
+  name: test1
+  description: test
+  maintainer:
+    - unittest-tester
+  variables:
+    a: 1
+  status: 1
+  add_by: player

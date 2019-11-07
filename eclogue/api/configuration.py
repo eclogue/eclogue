@@ -6,8 +6,8 @@ from eclogue.middleware import jwt_required, login_user
 from eclogue.model import db
 from eclogue.models.configuration import Configuration
 from eclogue.lib.logger import logger
-from eclogue.models.playbook import Playbook
 from eclogue.models.book import Book
+from eclogue.models.playbook import Playbook
 
 
 @jwt_required
@@ -58,7 +58,7 @@ def list_config():
     if date:
         where['$and'] = date
 
-    cursor = db.collection('configurations').find(where, skip=offset, limit=size)
+    cursor = Configuration.find(where, skip=offset, limit=size)
     total = cursor.count()
     bucket = []
 
@@ -109,7 +109,7 @@ def add_configuration():
             'code': 184001,
         }), 400
 
-    existed = db.collection('configurations').find_one({'name': name})
+    existed = Configuration.find_one({'name': name})
     if existed:
         return jsonify({
             'message': 'name existed',
@@ -130,9 +130,8 @@ def add_configuration():
         'created_at': int(time.time())
     }
 
-    result = db.collection('configurations').insert_one(data)
+    result = Configuration.insert_one(data)
     data['_id'] = result.inserted_id
-    logger.info('add configuration, name: {}'.format(name), extra={'record': data})
 
     return jsonify({
         'message': 'ok',
@@ -140,6 +139,7 @@ def add_configuration():
     })
 
 
+@jwt_required
 def get_configs_by_ids():
     query = request.args
     ids = query.get('ids')
@@ -155,7 +155,7 @@ def get_configs_by_ids():
             '$in': list(ids)
         }
     }
-    records = db.collection('configurations').find(where)
+    records = Configuration.find(where)
 
     return jsonify({
         'message': 'ok',
@@ -165,15 +165,12 @@ def get_configs_by_ids():
 
 
 def get_register_config(playbook_id):
-    where = {
-        '_id': ObjectId(playbook_id)
-    }
-
-    record = db.collection('playbook').find_one(where)
+    record = Playbook.find_by_id(playbook_id)
     if not record:
         return jsonify({
-            'message': 'record not found'
-        }), 104040
+            'message': 'record not found',
+            'code': 104040,
+        }), 404
 
     records = Configuration().find_by_ids(record.get('register'))
 
@@ -189,7 +186,7 @@ def get_config_info(_id):
     if not record:
         return jsonify({
             'message': 'record not found',
-            'code': 0,
+            'code': 104040,
         }), 400
 
     return jsonify({
@@ -259,13 +256,14 @@ def delete(_id):
             'code': 104040,
         }), 404
 
-    update = {
-        '$set': {
-            'status': -1,
-            'updated_at': datetime.datetime.now()
-        },
-    }
-    db.collection('configurations').update_one({'_id': record['_id']}, update=update)
+    is_regster = Playbook.find_one({'register': {'$in': [str(_id)]}})
+    if is_regster:
+        return jsonify({
+            'message': 'target record is bind to playbook: %s' % is_regster.get('name'),
+            'code': 104038
+        }), 403
+
+    Configuration.delete_one({'_id': record['_id']})
     msg = 'update configuration, name: {}'.format(record.get('name'))
     logger.info(msg, extra={'record': record, 'force': False})
 

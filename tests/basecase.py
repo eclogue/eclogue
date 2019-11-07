@@ -63,6 +63,20 @@ class BaseTestCase(TestCase):
     def get_data(self, key):
         return self.dataSet.get(key)
 
+    def get_user_token(self):
+        user = self.get_data('user')
+        User().collection.delete_one({'username': user['username']})
+        User().add_user(user)
+        user_info = {
+            'user_id': str(user['_id']),
+            'username': user['username'],
+            'status': 1,
+            'is_admin': False,
+        }
+        token = jws.encode(user_info)
+
+        return token.decode('utf-8')
+
     def assertResponseDataHasKey(self, response, key):
         assert response.json is not None
         result = response.json

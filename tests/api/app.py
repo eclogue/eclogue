@@ -7,7 +7,7 @@ from eclogue.models.application import Application
 
 class AppTest(BaseTestCase):
 
-    def test_dashboard(self):
+    def test_get_apps(self):
         url = self.get_api_path('/apps')
         response = self.client.get(url, headers=self.jwt_headers)
         self.assert200(response)
