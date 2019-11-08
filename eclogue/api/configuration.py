@@ -256,10 +256,10 @@ def delete(_id):
             'code': 104040,
         }), 404
 
-    is_regster = Playbook.find_one({'register': {'$in': [str(_id)]}})
-    if is_regster:
+    is_register = Playbook.find_one({'register': {'$in': [str(_id)]}})
+    if is_register:
         return jsonify({
-            'message': 'target record is bind to playbook: %s' % is_regster.get('name'),
+            'message': 'target record is bind to playbook: %s' % is_register.get('name'),
             'code': 104038
         }), 403
 

@@ -14,7 +14,7 @@
 importScripts("https://storage.googleapis.com/workbox-cdn/releases/3.6.3/workbox-sw.js");
 
 importScripts(
-  "/precache-manifest.91e0905345bdf3c33c8e70ec062b14ba.js"
+  "/precache-manifest.f2a95afa46c4eb546a55f8a628111f1c.js"
 );
 
 workbox.core.setCacheNameDetails({prefix: "cottage"});
