@@ -58,3 +58,43 @@ configuration:
     a: 1
   status: 1
   add_by: player
+console_adhoc:
+  module: command
+  args: ls
+  inventory:
+    - group@5dc51e52e3f7e033bf35c284@local
+  private_key: null
+  become_method: sudo
+  become_user: root
+  verbosity: 1
+  type: adhoc
+  extraOptions:
+    a: 1
+console_playbook:
+  inventory:
+    - group@5dc51e52e3f7e033bf35c284@local
+  private_key: 5cf2b8a4c3666e0afe5ad846
+  become_method: null
+  become_user: null
+  verbosity: 1
+  type: playbook
+  extraOptions: null
+  entry: |+
+    ---
+    - hosts: local
+      tasks:
+         - name: "helloworld"
+           shell: echo "Hello World"
+private_key:
+  body:
+    ssh_port: '22'
+    private_key: Test
+    ssh_user: sang
+  status: 1
+  created_at: 1559410852
+  name: sang
+  users: []
+  scope: global
+  description: sang say
+  type: private_key
+  add_by: player

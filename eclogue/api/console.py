@@ -1,9 +1,7 @@
 from tempfile import NamedTemporaryFile
 from flask import request, jsonify
 from eclogue.middleware import jwt_required, login_user
-from eclogue.model import db
 from eclogue.ansible.runer import AdHocRunner, PlayBookRunner
-from eclogue.config import config
 from eclogue.lib.helper import parse_cmdb_inventory
 from eclogue.lib.credential import get_credential_content_by_id
 from eclogue.lib.logger import logger
@@ -54,6 +52,7 @@ def run_task():
                 'message': 'invalid module',
                 'code': 114002,
             }), 400
+
         tasks = [{
             'action': {
                 'module': module,
@@ -69,13 +68,14 @@ def run_task():
                         'message': 'invalid private_key',
                         'code': 104033,
                     }), 401
+
                 fd.write(key_text)
                 fd.seek(0)
                 options['private_key'] = fd.name
 
             runner = AdHocRunner(hosts, options=options)
             logger.info('run ansible-adhoc', extra={'hosts': hosts, 'options': options})
-            runner.run('all', tasks)
+            res = runner.run('all', tasks)
             result = runner.format_result()
 
             return jsonify({
@@ -91,22 +91,25 @@ def run_task():
             }), 400
 
         with NamedTemporaryFile('w+t', delete=True) as fd:
-            key_text = get_credential_content_by_id(private_key, 'private_key')
-            if not key_text:
-                return jsonify({
-                    'message': 'invalid private_key',
-                    'code': 104033,
-                }), 401
-            fd.write(key_text)
-            fd.seek(0)
-            options['private_key'] = fd.name
+            if private_key:
+                key_text = get_credential_content_by_id(private_key, 'private_key')
+                if not key_text:
+                    return jsonify({
+                        'message': 'invalid private_key',
+                        'code': 104033,
+                    }), 401
+
+                fd.write(key_text)
+                fd.seek(0)
+                options['private_key'] = fd.name
+
             with NamedTemporaryFile('w+t', delete=True) as fh:
                 fh.write(entry)
                 fh.seek(0)
                 runner = PlayBookRunner(hosts, options)
                 logger.info('run ansible-playbook', extra={'hosts': hosts, 'options': options})
                 runner.run(fh.name)
-                result = runner.get_result()
+                result = runner.format_result()
 
                 return jsonify({
                     'message': 'ok',
