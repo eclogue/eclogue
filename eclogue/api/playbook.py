@@ -15,6 +15,8 @@ from eclogue.lib.inventory import get_inventory_from_cmdb, get_inventory_by_book
 from eclogue.ansible.remote import AnsibleGalaxy
 from eclogue.lib.logger import logger
 from eclogue.models.configuration import configuration
+from eclogue.models.playbook import Playbook
+from eclogue.models.book import Book
 
 
 @jwt_required
@@ -126,7 +128,7 @@ def edit_file(_id):
     project = params.get('project')
     register = params.get('register')
     content = params.get('content')
-    record = db.collection('playbook').find_one({'_id': ObjectId(_id)})
+    record = Playbook.find_by_id(_id)
     if not record:
         return jsonify({
             'message': 'record not found',
@@ -168,14 +170,9 @@ def edit_file(_id):
 
         data['register'] = register
 
-    result = db.collection('playbook').update_one({
-        '_id': ObjectId(_id)
-    }, {
-        '$set': data,
-    }, upsert=True)
+    result = Playbook.update_one({'_id': ObjectId(_id)}, {'$set': data}, upsert=True)
     data['_id'] = result.upserted_id
-    logger.info('update playbook file', extra={'record': record, 'changed': data})
-    book = db.collection('books').find_one({'_id': ObjectId(record['book_id'])})
+    book = Book.find_one({'_id': ObjectId(record['book_id'])})
     wk = Workspace()
     wk.write_book_file(book.get('name'), record)
 
@@ -275,35 +272,39 @@ def rename(_id):
             'code': 104001,
         }), 400
 
-    upset = {
-        '$set': {
-            'path': file_path
-        }
-    }
-    record = db.collection('playbook').find_one({'_id': oid})
+    record = Playbook.find_by_id(oid)
     if not record:
         return jsonify({
             'message': 'record not found',
             'code': 104040,
         }), 400
 
-    if record.get('is_dir') is True:
-        records = db.collection('playbook').find({'parent': record.get('path')})
-        for doc in records:
-            new_path = doc['path'].replace(record['path'], file_path)
-            db.collection('playbook').update_one({'_id': doc['_id']}, {
-                '$set': {
-                    'path': new_path
-                }
-            })
+    if record.get('path') == file_path:
+        return jsonify({
+            'message': 'ok',
+            'code': 0,
+            'data': record
+        })
 
-    db.collection('playbook').update_one({'_id': oid}, upset)
+    # if record.get('is_dir') is True:
+    #     records = Playbook.find({'parent': record.get('path')})
+    #     for doc in records:
+    #         new_path = doc['path'].replace(record['path'], file_path)
+    #         print('update path:-------', file_path)
+    #         Playbook.update_one({'_id': doc['_id']}, {
+    #             '$set': {
+    #                 'path': new_path
+    #             }
+    #         })
+    #
+    # Playbook.update_one({'_id': oid}, upset)
+    Playbook().rename(_id, file_path)
 
     return jsonify({
         'message': 'ok',
         'code': 0,
         'data': record
-})
+    })
 
 
 @jwt_required
@@ -370,11 +371,11 @@ def upload():
     #         "code": 104005,
     #     }), 400
     db.collection('playbook').update_one({
-            'path': path,
-            'book_id': ObjectId(parent['book_id']),
-        }, {
-            '$set': record,
-        }, upsert=True)
+        'path': path,
+        'book_id': ObjectId(parent['book_id']),
+    }, {
+        '$set': record,
+    }, upsert=True)
 
     return jsonify({
         "message": "ok",
@@ -435,6 +436,7 @@ def add_folder():
         'message': 'ok',
         'code': 0,
     })
+
 
 @jwt_required
 def get_file(_id):

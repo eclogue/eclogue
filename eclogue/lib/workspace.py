@@ -2,15 +2,16 @@ import os
 import time
 import re
 import pymongo
-import uuid
 import yaml
-import shutil
 from tempfile import TemporaryDirectory, NamedTemporaryFile
 from bson import ObjectId
 from eclogue.config import config
 from eclogue.model import db
 from eclogue.utils import is_edit, file_md5, md5, extract
 from eclogue.ansible.vault import Vault
+from eclogue.models.book import Book
+from eclogue.models.configuration import Configuration
+from eclogue.model import Model
 
 
 class Workspace(object):
@@ -105,7 +106,7 @@ class Workspace(object):
         if not index:
             index = '/'
         if os.path.isfile(filename):
-            record = db.collection('playbook').find_one({'path': index})
+            record = Model.build_model('playbooks').find_one({'path': index})
             if not record:
                 os.remove(filename)
             return True
@@ -118,7 +119,7 @@ class Workspace(object):
         bucket = []
         cursor = 0
         parent = home_path
-        book_record = db.collection('books').find_one({'_id': ObjectId(book_id)})
+        book_record = Book.find_one({'_id': ObjectId(book_id)})
         pattern = '|'.join(exclude).replace('*', '.*?')
         for current, dirs, files in os.walk(home_path, topdown=True, followlinks=links):
             pathname = current.replace(home_path, '') or '/'
@@ -215,15 +216,12 @@ class Workspace(object):
                 fd.write(content)
 
     def load_book_from_db(self, name, roles=None, build_id=False):
-        book = db.collection('books').find_one({
-            'name': name
-        })
+        book = Book.find_one({'name': name})
         if not book:
             return False
 
-        files = db.collection('playbook').find({
-            'book_id': str(book['_id'])
-        }).sort([('is_edit', pymongo.ASCENDING), ('path', pymongo.ASCENDING)])
+        files = Model.build_model('playbooks').find({'book_id': str(book['_id'])})\
+            .sort([('is_edit', pymongo.ASCENDING), ('path', pymongo.ASCENDING)])
         books = list(files)
         if not books:
             return False
@@ -238,7 +236,7 @@ class Workspace(object):
                 return record
 
             c_ids = map(lambda i: ObjectId(i), register)
-            cfg_records = db.collection('configurations').find({'_id': {'$in': list(c_ids)}})
+            cfg_records = Configuration.find({'_id': {'$in': list(c_ids)}})
             if not cfg_records:
                 return record
 
@@ -294,7 +292,7 @@ class Workspace(object):
                 if not os.path.exists(dirname):
                     os.makedirs(dirname)
                 if item['is_edit']:
-                    db.collection('playbook').update_one({'_id': item['_id']}, {
+                    Model.build_model('playbooks').update_one({'_id': item['_id']}, {
                         '$set': {
                             'md5': md5(item['content'])
                         }
@@ -370,7 +368,7 @@ class Workspace(object):
         task_id = history.get('task_id')
         file_id = history.get('file_id')
         job_info = history.get('job_info')
-        book = db.collection('books').find_one({'_id': ObjectId(job_info.get('book_id'))})
+        book = Book.find_one({'_id': ObjectId(job_info.get('book_id'))})
         bookspace = self.get_book_space(book.get('name'))
         bookspace = os.path.join(bookspace, md5(str(task_id)))
         self.mkdir(bookspace)
