@@ -133,5 +133,62 @@ class BookTest(BaseTestCase):
         Playbook().collection.delete_one({'_id': playbook['_id']})
         Book().collection.delete_one({'_id': book_id})
 
+    def test_get_playbook(self):
+        data = self.get_data('book')
+        playbook = self.get_data('playbook')
+        data['name'] = str(uuid.uuid4())
+        result = Book.insert_one(data.copy())
+        book_id = result.inserted_id
+        playbook['book_id'] = str(book_id)
+        Playbook.insert_one(playbook)
+        url = self.get_api_path('/books/%s/playbook' % str(ObjectId()))
+        query = {
+            'current': str(playbook['_id'])
+        }
+        response = self.client.get(url, query_string=query, headers=self.jwt_headers)
+        self.assert400(response)
+        self.assertResponseCode(response, 154001)
+        url = self.get_api_path('/books/%s/playbook' % playbook['book_id'])
+        Book.update_one({'_id': book_id}, {'$set': {'status': -1}})
+        response = self.client.get(url, query_string=query, headers=self.jwt_headers)
+        self.assert400(response)
+        self.assertResponseCode(response, 154001)
+        Book.update_one({'_id': book_id}, {'$set': {'status': 1}})
+        url = self.get_api_path('/books/%s/playbook' % playbook['book_id'])
+        response = self.client.get(url, query_string=query, headers=self.jwt_headers)
+        self.assert200(response)
+        result = response.json
+        data = result.get('data')
+        check = map(lambda i: str(i['_id']), data)
+        check = list(check)
+        assert str(playbook['_id']) in check
+        Playbook().collection.delete_one({'_id': playbook['_id']})
+        Book().collection.delete_one({'_id': book_id})
 
+    def test_download(self):
+        url = self.get_api_path('/books/%s/download' % str(ObjectId()))
+        response = self.client.get(url, headers=self.jwt_headers)
+        self.assert404(response)
+        self.assertResponseCode(response, 104040)
+        data = self.get_data('book')
+        playbook = self.get_data('playbook')
+        data['name'] = str(uuid.uuid4())
+        result = Book.insert_one(data.copy())
+        book_id = result.inserted_id
+        playbook['book_id'] = str(book_id)
+        Playbook.insert_one(playbook)
+        url = self.get_api_path('/books/%s/download' % str(book_id))
+        response = self.client.get(url, headers=self.jwt_headers)
+        Playbook().collection.delete_one({'_id': playbook['_id']})
+        Book().collection.delete_one({'_id': book_id})
+        self.assert200(response)
+        headers = response.headers
+        self.assertEqual(headers['Content-Type'], 'application/zip')
+        response.close()
+
+    def test_upload(self):
+        pass
+
+    def test_get_entries(self):
+        pass
 

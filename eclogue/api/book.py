@@ -391,31 +391,24 @@ def download_book(_id):
     wk.load_book_from_db(name)
     dirname = wk.get_book_space(name)
     filename = name + '.zip'
-    with NamedTemporaryFile('w+t', delete=True) as fd:
+    with NamedTemporaryFile('w+t', delete=False) as fd:
         make_zip(dirname, fd.name)
 
-        return send_file(fd.name, attachment_filename=filename)
+        return send_file(fd.name, attachment_filename=filename, as_attachment=True)
 
 
 @jwt_required
 def get_playbook(_id):
-    if not _id:
-        return jsonify({
-            'message': 'invalid id',
-            'code': 154000
-        }), 400
-
-    book = db.collection('books').find_one({'_id': ObjectId(_id)})
+    book = Book.find_one({'_id': ObjectId(_id)})
     if not book or not int(book.get('status')):
         return jsonify({
             'message': 'invalid id',
             'code': 154001,
         }), 400
 
-    cursor = db.collection('playbook').find({'book_id': str(book.get('_id'))})
+    cursor = Playbook.find({'book_id': str(book.get('_id'))})
     cursor = cursor.sort([('is_edit', pymongo.ASCENDING), ('path', pymongo.ASCENDING)])
-    # for item in cursor:
-    #     db.collection('playbook').update_one({'_id': item['_id']}, {'$set': {'book_id': str(item.get('book_id'))}})
+
     return jsonify({
         'message': 'ok',
         'code': 0,
