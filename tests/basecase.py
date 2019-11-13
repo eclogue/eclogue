@@ -11,6 +11,7 @@ class BaseTestCase(TestCase):
     user = {}
     dataSet = {}
     token = ''
+    trash = []
 
     def create_app(self):
         app = create_app(schedule=False)
@@ -89,3 +90,10 @@ class BaseTestCase(TestCase):
         result = response.json
         assert 'code' in result
         self.assertEqual(result['code'], code)
+
+    def tearDown(self):
+        super().tearDown()
+        while len(self.trash):
+            item = self.trash.pop()
+            model, pk = item
+            model().collection.delete_one({'_id': pk})

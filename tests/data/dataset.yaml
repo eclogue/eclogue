@@ -49,6 +49,16 @@ playbook:
   created_at: 1559741558
   is_dir: true
   book_id: null
+playbook_file:
+  name: hosts
+  is_edit: true
+  path: /hosts
+  project: test
+  role: hosts
+  parent: ''
+  is_dir: false
+  book_id: null
+  content: test content
 configuration:
   name: test1
   description: test

@@ -220,10 +220,10 @@ class Workspace(object):
         if not book:
             return False
 
-        files = Model.build_model('playbooks').find({'book_id': str(book['_id'])})\
+        files = Model.build_model('playbook').find({'book_id': str(book['_id'])})\
             .sort([('is_edit', pymongo.ASCENDING), ('path', pymongo.ASCENDING)])
-        books = list(files)
-        if not books:
+        files = list(files)
+        if not files:
             return False
 
         bookspace = self.get_book_space(name)
@@ -270,7 +270,7 @@ class Workspace(object):
             return record
 
         self.check_workspace(path=self._check_make(bookspace))
-        for item in books:
+        for item in files:
             item = parse_register(item)
             if roles and item.get('project'):
                 project = item.get('project')

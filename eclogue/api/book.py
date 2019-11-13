@@ -1,5 +1,4 @@
 import time
-import datetime
 import os
 import pymongo
 
@@ -286,8 +285,14 @@ def upload_playbook(_id):
     record = Book.find_by_id(_id)
     if not record:
         return jsonify({
-            "message": "parent path not found",
+            "message": "book not found",
             "code": 104004,
+        }), 400
+
+    if not files:
+        return jsonify({
+            'message': 'invalid files params',
+            'code': 104001
         }), 400
 
     file = files['file']
@@ -312,7 +317,7 @@ def upload_playbook(_id):
                 'book_id': _id,
                 'parent': parent_path,
                 'name': name,
-                'created_at': int(time.time()),
+                'created_at': time.time(),
             }
             meta = get_meta(dirname)
             parent.update(meta)
@@ -320,7 +325,7 @@ def upload_playbook(_id):
             Playbook.insert_one(parent)
 
     data = {
-        "path": filename,
+        'path': filename,
         'is_dir': False,
         'parent': home_path or None,
         'book_id': _id
@@ -335,8 +340,8 @@ def upload_playbook(_id):
         content = content.decode('utf-8')
         data['is_encrypt'] = Vault.is_encrypted(content)
         if data['is_encrypt']:
-            # @todo
-            vault = Vault({'vault_pass': ''})
+            # @todo vault password
+            vault = Vault()
             data['content'] = vault.encrypt_string(content)
             data['md5'] = md5(content)
         else:
@@ -347,16 +352,9 @@ def upload_playbook(_id):
     data.update(meta)
     data['additions'] = meta
     data['is_edit'] = can_edit
-    data['created_at'] = int(time.time())
-    data['updated_at'] = datetime.datetime.now().isoformat()
-    Playbook.update_one({
-        'path': filename,
-        'book_id': _id,
-    }, {
-        '$set': data,
-    }, upsert=True)
-    data['book_id'] = _id
-    logger.info('upload playbook', extra={'record': record, 'changed': data})
+    data['created_at'] = time.time()
+    data['updated_at'] = time.time()
+    Playbook.update_one({'path': filename, 'book_id': _id}, {'$set': data}, upsert=True)
 
     return jsonify({
         "message": "ok",

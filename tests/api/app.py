@@ -70,6 +70,7 @@ class AppTest(BaseTestCase):
         data['name'] = str(uuid.uuid4())
         result = Application.insert_one(data.copy())
         app_id = result.inserted_id
+        self.trash += [[Application, app_id]]
         with patch('eclogue.api.app.Integration') as mockClass:
             instance = mockClass.return_value
             instance.check_app_params.return_value = False
@@ -88,5 +89,4 @@ class AppTest(BaseTestCase):
             response = self.client.put(url, data=self.body(data), headers=self.jwt_headers)
             self.assert200(response)
 
-        Application().collection.delete_one({'_id': app_id})
 
