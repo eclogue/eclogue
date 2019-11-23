@@ -192,7 +192,7 @@ setup:
           - /api/v1/books/<_id>/download
           - /api/v1/playbook/upload
           - /api/v1/playbook/folder
-          - /api/v1/playbook/rename/<_id>
+          - /api/v1/playbook/<_id>/rename
           - /api/v1/configurations/<playbook_id>/register
           - /api/v1/configurations/list/ids
         bpid: '2'

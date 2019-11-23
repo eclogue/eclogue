@@ -47,3 +47,6 @@ flask-testing = "*"
 
 [requires]
 python_version = "3.6"
+
+[scripts]
+test = "python -m unittest discover -s tests -p '*.py'"

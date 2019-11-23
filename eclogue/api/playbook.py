@@ -281,7 +281,7 @@ def rename(_id):
         return jsonify({
             'message': 'record not found',
             'code': 104040,
-        }), 400
+        }), 404
 
     if record.get('path') == file_path:
         return jsonify({
@@ -290,18 +290,6 @@ def rename(_id):
             'data': record
         })
 
-    # if record.get('is_dir') is True:
-    #     records = Playbook.find({'parent': record.get('path')})
-    #     for doc in records:
-    #         new_path = doc['path'].replace(record['path'], file_path)
-    #         print('update path:-------', file_path)
-    #         Playbook.update_one({'_id': doc['_id']}, {
-    #             '$set': {
-    #                 'path': new_path
-    #             }
-    #         })
-    #
-    # Playbook.update_one({'_id': oid}, upset)
     Playbook().rename(_id, file_path)
 
     return jsonify({
@@ -321,10 +309,16 @@ def upload():
             'code': 104000,
         }), 400
 
+    if not files.get('files'):
+        return jsonify({
+            'message': 'illegal param',
+            'code': 104001,
+        }), 400
+
     parent_id = form.get('parent')
     book_id = form.get('bookId')
     if parent_id == '/' and book_id:
-        book = db.collection('books').find_one({'_id': ObjectId(book_id)})
+        book = Book.find_one({'_id': ObjectId(book_id)})
         if not book:
             return jsonify({
                 "message": "record not found",
@@ -332,11 +326,11 @@ def upload():
             }), 404
 
         parent = {
-            'path': '',
+            'path': '/',
             'book_id': book_id
         }
     else:
-        parent = db.collection('playbook').find_one({'_id': ObjectId(parent_id)})
+        parent = Playbook.find_one({'_id': ObjectId(parent_id)})
 
     if not parent:
         return jsonify({
@@ -346,7 +340,7 @@ def upload():
 
     file = files['files']
     filename = file.filename
-    path = parent['path'] + '/' + filename
+    path = os.path.join(parent['path'], filename)
     record = {
         'book_id': parent.get('book_id'),
         'path': path,
@@ -364,26 +358,22 @@ def upload():
         content = file.read()
         content = content.decode('utf-8')
         record['content'] = content
+
     record['is_edit'] = can_edit
     record['created_at'] = int(time.time())
     record['updated_at'] = datetime.datetime.now().isoformat()
-    # exist = db.collection('playbook').find_one({'path': path})
-    # if exist:
-    #     db.collection('playbook').update_one({})
-    #     return jsonify({
-    #         "message": "ok",
-    #         "code": 104005,
-    #     }), 400
-    db.collection('playbook').update_one({
+    where = {
         'path': path,
-        'book_id': ObjectId(parent['book_id']),
-    }, {
+        'book_id': ObjectId(parent['book_id'])
+    }
+    update = {
         '$set': record,
-    }, upsert=True)
+    }
+    Playbook.update_one(where, update=update, upsert=True)
 
     return jsonify({
-        "message": "ok",
-        "code": 0,
+        'message': 'ok',
+        'code': 0,
     })
 
 

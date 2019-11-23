@@ -1,6 +1,5 @@
 import uuid
-import os
-from io import BytesIO, StringIO
+from io import BytesIO
 from bson import ObjectId
 from tests.basecase import BaseTestCase
 from unittest.mock import patch

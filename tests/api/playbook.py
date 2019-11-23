@@ -1,10 +1,12 @@
 import uuid
-import json
+import os
+from io import BytesIO
 from bson import ObjectId
 from tests.basecase import BaseTestCase
 from unittest.mock import patch
 from eclogue.models.book import Book
 from eclogue.models.playbook import Playbook
+from eclogue.model import db
 
 
 class PlaybookTest(BaseTestCase):
@@ -121,11 +123,8 @@ class PlaybookTest(BaseTestCase):
         self.assert404(response)
         url = self.get_api_path(path % str(playbook['_id']))
         with patch('eclogue.api.playbook.Configuration') as config_mock:
-            # instance = build_mock.return_value
             config_mock.find.return_value = None
-            # instance.find.return_value = {'_id': ObjectId()}
             response = self.client.put(url, data=self.body(params), headers=self.jwt_headers)
-            print(response.json)
             self.assert404(response)
             self.assertResponseCode(response, 154042)
             config_mock.find.return_value = {'_id': register_id}
@@ -134,4 +133,93 @@ class PlaybookTest(BaseTestCase):
                 self.assert200(response)
                 wk_mock.assert_called()
                 wk_mock.return_value.write_book_file.assert_called()
+
+    def test_rename(self):
+        data = self.get_data('book')
+        playbook = self.get_data('playbook')
+        data['name'] = str(uuid.uuid4())
+        result = Book.insert_one(data.copy())
+        book_id = result.inserted_id
+        playbook['book_id'] = str(book_id)
+        Playbook.insert_one(playbook)
+        self.trash += [
+            [Book, book_id],
+            [Playbook, playbook['_id']],
+        ]
+
+        path = '/playbook/%s/rename'
+        url = self.get_api_path(path % str(ObjectId()))
+        response = self.client.patch(url, data=self.body({'path': ''}), headers=self.jwt_headers)
+        self.assert400(response)
+        self.assertResponseCode(response, 104001)
+        file_path = os.path.join('newpath', playbook.get('path'))
+
+        response = self.client.patch(url, data=self.body({'path': file_path}), headers=self.jwt_headers)
+        self.assert404(response)
+        self.assertResponseCode(response, 104040)
+        url = self.get_api_path(path % str(playbook['_id']))
+        response = self.client.patch(url, data=self.body({'path': file_path}), headers=self.jwt_headers)
+        self.assert200(response)
+
+    def test_upload(self):
+        data = self.get_data('book')
+        playbook = self.get_data('playbook')
+        data['name'] = str(uuid.uuid4())
+        result = Book.insert_one(data.copy())
+        book_id = result.inserted_id
+        playbook['book_id'] = str(book_id)
+        Playbook.insert_one(playbook)
+        self.trash += [
+            [Book, book_id],
+            [Playbook, playbook['_id']],
+        ]
+        headers = self.jwt_headers.copy()
+        headers.update({'Content-Type': 'multipart/form-data'})
+
+        url = self.get_api_path('/playbook/upload')
+        response = self.client.post(url, headers=headers)
+        self.assert400(response)
+        self.assertResponseCode(response, 104000)
+
+        url = self.get_api_path('/playbook/upload')
+        form = {
+            'parent': '/',
+            'bookId': str(ObjectId())
+        }
+
+        response = self.client.post(url, data=form, headers=headers)
+        self.assert400(response)
+        self.assertResponseCode(response, 104001)
+        stream = BytesIO(bytes('mock test', 'utf-8'))
+        form['files'] = (stream, 'test.yaml')
+        response = self.client.post(url, data=form, headers=headers)
+        self.assert404(response)
+        self.assertResponseCode(response, 104040)
+        params = form.copy()
+        stream = BytesIO(bytes('mock test', 'utf-8'))
+        params['files'] = (stream, 'test.yaml')
+        params['parent'] = ObjectId()
+        response = self.client.post(url, data=params, headers=headers, content_type='multipart/form-data')
+        self.assert400(response)
+        self.assertResponseCode(response, 104004)
+
+        stream = BytesIO(bytes('mock test', 'utf-8'))
+        form['files'] = (stream, 'test.yaml')
+        form['bookId'] = book_id
+        response = self.client.post(url, data=form, headers=headers, content_type='multipart/form-data')
+        self.assert200(response)
+        record = Playbook.find_one({'book_id': str(book_id), '_id': {'$ne': playbook['_id']}})
+        assert record is not None
+        db.fs().delete(record.get('file_id'))
+        with patch('eclogue.api.playbook.is_edit') as build_mock:
+            build_mock.return_value = False
+            stream = BytesIO(bytes('mock test', 'utf-8'))
+            form['files'] = (stream, 'binary.mock')
+            response = self.client.post(url, data=form, headers=headers, content_type='multipart/form-data')
+            self.assert200(response)
+            record = Playbook.find_one({'book_id': str(book_id), 'file_id': {'$exists': True}})
+            assert record is not None
+            db.fs().delete(record.get('file_id'))
+
+        Playbook().collection.delete_many({'book_id': str(book_id)})
 

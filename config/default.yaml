@@ -88,4 +88,4 @@ task:
 
 api:
   prefix: ''
-  force_check_binding: true
+  force_check_binding: false

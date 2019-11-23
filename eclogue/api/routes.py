@@ -28,7 +28,7 @@ routes = [
     ('/menus/<_id>', Menus.delete_menu, ['delete']),
     ('/playbook/dumper', Catheter.get, ['GET']),
     ('/playbook/dumper', Catheter.drop, ['DELETE']),
-    ('/playbook/rename/<_id>', playbook.rename, ['PATCH']),
+    ('/playbook/<_id>/rename', playbook.rename, ['PATCH']),
     ('/playbook/upload', playbook.upload, ['POST']),
     ('/playbook/folder', playbook.add_folder, ['POST']),
     ('/playbook/galaxy', playbook.import_galaxy, ['get']),
