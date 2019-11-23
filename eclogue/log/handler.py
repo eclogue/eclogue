@@ -3,7 +3,7 @@ import logging
 import logging.config
 
 from eclogue.model import db
-from eclogue.logger.formatter import MongoFormatter
+from eclogue.log.formatter import MongoFormatter
 
 
 class MongoHandler(logging.Handler):

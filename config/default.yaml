@@ -16,7 +16,7 @@ logging:
       handlers:
         - file
     eclogue:
-      level: DEBUG
+      level: INFO
       handlers:
         - file
         - mongo
@@ -27,7 +27,7 @@ logging:
         - console
   handlers:
     mongo:
-      (): eclogue.logger.handler.MongoHandler
+      (): eclogue.log.handler.MongoHandler
       level: INFO
       formatter: mongo
       filters:
@@ -37,7 +37,7 @@ logging:
       filename: {{ home_path }}/storage/logs/eclogue.log
       level: DEBUG
     console:
-      (): eclogue.logger.handler.ConsoleHandler
+      (): eclogue.log.handler.ConsoleHandler
       level: DEBUG
     default:
       class: logging.StreamHandler
@@ -49,14 +49,13 @@ logging:
       formate: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
       datefmt: '%Y-%m-%d %H:%M:%S'
     mongo:
-      (): eclogue.logger.formatter.MongoFormatter
+      (): eclogue.log.formatter.MongoFormatter
   filters:
     requestId:
       (): flask_log_request_id.RequestIDLogFilter
   root:
-    level: DEBUG
+    level: INFO
     handlers:
-      - default
       - file
 workspace:
   tmp: {{ home_path }}/storage/tmp
@@ -68,7 +67,7 @@ vault:
   secret: xx
 
 mongodb:
-  uri: 'mongodb://root:password@localhost/?authSource=admin&authMechanism=SCRAM-SHA-1'
+  uri: 'mongodb://localhost:27017'
   db: 'eclogue'
 jwt:
   key: '2:sha256:50000$testset'

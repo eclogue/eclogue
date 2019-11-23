@@ -17,24 +17,19 @@ from eclogue.lib.logger import logger
 from eclogue.models.configuration import configuration
 from eclogue.models.playbook import Playbook
 from eclogue.models.book import Book
+from eclogue.models.configuration import Configuration
 
 
 @jwt_required
 def get_playbook(_id):
-    if not _id:
-        return jsonify({
-            'message': 'invalid id',
-            'code': 154000
-        }), 400
-
-    book = db.collection('books').find_one({'_id': ObjectId(_id)})
-    if not book or not int(book.get('status')):
+    book = Book.find_by_id(_id)
+    if not book or int(book.get('status') == -1):
         return jsonify({
             'message': 'invalid id',
             'code': 154001,
         }), 400
 
-    cursor = db.collection('playbook').find({'book_id': str(book.get('_id'))})
+    cursor = Playbook.find({'book_id': str(book.get('_id'))})
     cursor = cursor.sort([('is_edit', pymongo.ASCENDING), ('path', pymongo.ASCENDING)])
     # for item in cursor:
     #     db.collection('playbook').update_one({'_id': item['_id']}, {'$set': {'book_id': str(item.get('book_id'))}})
@@ -53,6 +48,7 @@ def get_tags():
             'message': 'miss required params',
             'code': 104000,
         }), 400
+
     template = body.get('template')
     listtags = template.get('listtags')
     listtasks = template.get('listtasks')
@@ -61,6 +57,7 @@ def get_tags():
             'message': 'invalid params',
             'code': 104001,
         }), 400
+
     payload = load_ansible_playbook(body)
     if payload.get('message') is not 'ok':
         return jsonify(payload), 400
@@ -74,6 +71,7 @@ def get_tags():
             'message': 'book not found',
             'code': 104000,
         }), 400
+
     entry = wk.get_book_entry(data.get('book_name'), data.get('entry'))
     play = PlayBookRunner([data['inventory']], options)
     play.run(entry)
@@ -107,12 +105,19 @@ def get_inventory():
 
 @jwt_required
 def edit_file(_id):
+    """
+    edit playbook file
+    @todo add lock
+    :param _id: ObjectId string
+    :return: json
+    """
     params = request.get_json() or request.form
     if not params:
         return jsonify({
             'message': 'invalid params',
             'code': 154000,
         }), 400
+
     edit_type = params.get('type')
     if edit_type == 'upload':
         return upload_file(_id)
@@ -122,7 +127,7 @@ def edit_file(_id):
     description = params.get('description')
     status = params.get('status', 1)
     maintainer = params.get('maintainer', [])
-    is_edit = params.get('is_edit')
+    can_edit = params.get('is_edit')
     is_dir = params.get('is_dir')
     is_encrypt = params.get('is_encrypt')
     project = params.get('project')
@@ -152,16 +157,15 @@ def edit_file(_id):
         data['description'] = description
     if maintainer:
         data['maintainer'] = maintainer
-    if is_edit is not None:
+    if can_edit is not None:
         data['is_edit'] = bool(is_edit)
-    if is_edit is not None:
-        data['is_dir'] = bool(is_dir)
-    if is_edit is not None:
         data['is_encrypt'] = bool(is_encrypt)
+    if is_dir is not None:
+        data['is_dir'] = bool(is_dir)
     if register:
         c_ids = map(lambda i: ObjectId(i), register)
         where = {'_id': {'$in': c_ids}}
-        register_config = db.collection('configurations').find(where)
+        register_config = Configuration.find(where)
         if not register_config:
             return jsonify({
                 'message': 'invalid register config',

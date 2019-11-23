@@ -1,17 +1,17 @@
 import json
 import datetime
 
+from logging.config import dictConfig
 from bson import ObjectId
 from flask import Flask, request, jsonify
 from werkzeug.exceptions import HTTPException
 from flask_log_request_id import RequestID
 from eclogue.config import config
 from eclogue.middleware import Middleware
-# sys.modules['ansible.utils.display'] = importlib.import_module('eclogue.ansible.display')
 from eclogue.api import router_v1
 from eclogue.api.routes import routes
 from eclogue.scheduler import scheduler
-from eclogue.lib.logger import logger
+from eclogue.lib.logger import get_logger
 
 
 class JSONEncoder(json.JSONEncoder):
@@ -25,7 +25,7 @@ class JSONEncoder(json.JSONEncoder):
 
 
 def create_app(schedule=True):
-    # dictConfig(config.logging)
+    dictConfig(config.logging)
     # root_path = os.path.join(config.home_path, 'public')
     root_path = config.home_path
 
@@ -81,8 +81,7 @@ def create_app(schedule=True):
             "title": e.name,
             "description": e.description,
         }
-
-        logger.error('api server error %s' % e.description, extra=log_info)
+        get_logger().error('api server error %s' % e.description, extra=log_info)
 
         return jsonify({
             'code': 500,

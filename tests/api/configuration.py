@@ -12,6 +12,9 @@ class ConfigurationTest(BaseTestCase):
         admin = self.user
         record = self.get_data('configuration')
         Configuration.insert_one(record)
+        self.trash += [
+            [Configuration, record['_id']]
+        ]
         url = self.get_api_path('/configurations')
         response = self.client.get(url, headers=self.jwt_headers)
         self.assert200(response)
@@ -56,7 +59,6 @@ class ConfigurationTest(BaseTestCase):
             result = response.json
             data = result.get('data')
             self.assertEqual(data['list'], [])
-        Configuration().collection.delete_one({'_id': record['_id']})
 
     def test_add_configuration(self):
         data = self.get_data('configuration')
@@ -84,6 +86,9 @@ class ConfigurationTest(BaseTestCase):
         record = self.get_data('configuration')
         record['name'] = str(uuid.uuid4())
         Configuration.insert_one(record)
+        self.trash += [
+            [Configuration, record['_id']]
+        ]
         response = self.client.get(url, headers=self.jwt_headers)
         self.assert400(response)
         self.assertResponseCode(response, 184000)
@@ -102,8 +107,13 @@ class ConfigurationTest(BaseTestCase):
         configuration = self.get_data('configuration')
         configuration['name'] = str(uuid.uuid4())
         Configuration.insert_one(configuration)
+
         playbook['register'] = [str(configuration['_id'])]
         Playbook.insert_one(playbook)
+        self.trash += [
+            [Configuration, configuration['_id']],
+            [Playbook, playbook['_id']],
+        ]
         path = '/configurations/%s/register' % str(ObjectId())
         url = self.get_api_path(path)
         response = self.client.get(url, headers=self.jwt_headers)
@@ -113,8 +123,6 @@ class ConfigurationTest(BaseTestCase):
         url = self.get_api_path(path)
         response = self.client.get(url, headers=self.jwt_headers)
         self.assert200(response)
-        Playbook().collection.delete_one({'_id': playbook['_id']})
-        Configuration().collection.delete_one({'_id': configuration['_id']})
 
     def test_delete_configuration(self):
         configuration = self.get_data('configuration')
@@ -123,6 +131,10 @@ class ConfigurationTest(BaseTestCase):
         Configuration.insert_one(configuration)
         playbook['register'] = [str(configuration['_id'])]
         Playbook.insert_one(playbook)
+        self.trash += [
+            [Configuration, configuration['_id']],
+            [Playbook, playbook['_id']],
+        ]
         path = '/configurations/%s' % str(ObjectId())
         url = self.get_api_path(path)
         response = self.client.delete(url, headers=self.jwt_headers)
@@ -139,30 +151,3 @@ class ConfigurationTest(BaseTestCase):
         response = self.client.delete(url, headers=self.jwt_headers)
         self.assert200(response)
         Configuration().collection.delete_one({'_id': configuration['_id']})
-
-    #
-    # def test_update_app(self):
-    #     data = self.get_data('application')
-    #     data['name'] = str(uuid.uuid4())
-    #     result = Application.insert_one(data.copy())
-    #     app_id = result.inserted_id
-    #     with patch('eclogue.api.app.Integration') as mockClass:
-    #         instance = mockClass.return_value
-    #         instance.check_app_params.return_value = False
-    #         url = self.get_api_path('/apps/' + str(app_id))
-    #         response = self.client.put(url, data=self.body(data), headers=self.jwt_headers)
-    #         self.assert400(response)
-    #         self.assertResponseCode(response, 174003)
-    #         instance.check_app_params.return_value = True
-    #         response = self.client.put(url, data=self.body({}), headers=self.jwt_headers)
-    #         self.assert400(response)
-    #         self.assertResponseCode(response, 174000)
-    #         invalid_url = self.get_api_path('/apps/' + str(ObjectId()))
-    #         response = self.client.put(invalid_url, data=self.body(data), headers=self.jwt_headers)
-    #         self.assert404(response)
-    #         self.assertResponseCode(response, 104040)
-    #         response = self.client.put(url, data=self.body(data), headers=self.jwt_headers)
-    #         self.assert200(response)
-    #
-    #     Application().collection.delete_one({'_id': app_id})
-
