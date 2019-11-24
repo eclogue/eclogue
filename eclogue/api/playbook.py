@@ -393,7 +393,7 @@ def add_folder():
     parent = parent if parent != '.' else '/'
     parent_path = None
     if parent != '/':
-        parent_record = db.collection('playbook').find_one({'_id': ObjectId(record_id), 'is_dir': True})
+        parent_record = Playbook.find_one({'_id': ObjectId(record_id), 'is_dir': True})
         if not parent_record:
             return jsonify({
                 'message': 'invalid params',
@@ -417,14 +417,14 @@ def add_folder():
     meta = get_meta(file_path)
     record.update(meta)
     record['additions'] = meta
-    check = db.collection('playbook').find_one({'book_id': book_id, 'path': record['path']})
+    check = Playbook.find_one({'book_id': book_id, 'path': record['path']})
     if check:
-        additions = check.get('additions')
+        additions = check.get('additions') or {}
         additions.update(meta)
-        parent['additions'] = additions
-        db.collection('playbook').update_one({'_id': check['_id']}, {'$set': record})
+        record['additions'] = additions
+        Playbook.update_one({'_id': check['_id']}, {'$set': record})
     else:
-        db.collection('playbook').insert_one(record)
+        Playbook.insert_one(record)
 
     return jsonify({
         'message': 'ok',

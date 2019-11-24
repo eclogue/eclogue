@@ -223,3 +223,35 @@ class PlaybookTest(BaseTestCase):
 
         Playbook().collection.delete_many({'book_id': str(book_id)})
 
+    def test_add_folder(self):
+        data = self.get_data('book')
+        playbook = self.get_data('playbook')
+        playbook['is_dir'] = True
+        data['name'] = str(uuid.uuid4())
+        result = Book.insert_one(data.copy())
+        book_id = result.inserted_id
+        playbook['book_id'] = str(book_id)
+        Playbook.insert_one(playbook)
+        self.trash += [
+            [Book, book_id],
+            [Playbook, playbook['_id']],
+        ]
+
+        path = '/playbook/folder'
+        url = self.get_api_path(path)
+        response = self.client.post(url, data=self.body({'id': '', 'folder': ''}), headers=self.jwt_headers)
+        self.assert400(response)
+        self.assertResponseCode(response, 104000)
+        params = {
+            'id': str(ObjectId()),
+            'folder': 'test',
+            'parent': playbook['path'],
+            'book_id': str(book_id),
+        }
+        response = self.client.post(url, data=self.body(params), headers=self.jwt_headers)
+        self.assert400(response)
+        params['id'] = str(playbook['_id'])
+        response = self.client.post(url, data=self.body(params), headers=self.jwt_headers)
+        self.assert200(response)
+        response = self.client.post(url, data=self.body(params), headers=self.jwt_headers)
+        self.assert200(response)
