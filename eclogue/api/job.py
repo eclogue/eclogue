@@ -26,6 +26,8 @@ from eclogue.models.playbook import Playbook
 from eclogue.lib.logger import logger
 from flask_log_request_id import current_request_id
 from eclogue.utils import extract
+from eclogue.models.book import Book
+from eclogue.models.task import Task
 
 
 @jwt_required
@@ -71,7 +73,7 @@ def get_job(_id):
 
     check_playbook(job['book_id'])
     if inventory_type == 'file':
-        book = db.collection('books').find_one({'_id': ObjectId(job['book_id'])})
+        book = Book.find_one({'_id': ObjectId(job['book_id'])})
         if not book:
             hosts = []
         else:
@@ -85,18 +87,18 @@ def get_job(_id):
         'role': 'roles',
         'is_dir': True
     }
-    parent = db.collection('playbook').find_one(condition)
+    parent = Playbook.find_one(condition)
     if parent:
         where = {
             'book_id': job['book_id'],
             'is_dir': True,
             'parent': parent.get('path')
         }
-        cursor = db.collection('playbook').find(where)
+        cursor = Playbook.find(where)
         roles = list(cursor)
 
     logs = None
-    task = db.collection('tasks').find_one({'job_id': _id})
+    task = Task.find_one({'job_id': _id})
     if task:
         log = db.collection('logs').find_one({'task_id': str(task['_id'])})
         if log:

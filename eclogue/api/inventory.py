@@ -18,6 +18,7 @@ from eclogue.models.host import host_model, Host
 from eclogue.lib.logger import logger
 from eclogue.models.region import Region
 from eclogue.models.group import Group
+from eclogue.models.credential import Credential
 
 
 def get_inventory():
@@ -118,25 +119,28 @@ def explore():
 
     explore_type = payload.get('type')
     credential = payload.get('credential')
-    if not credential:
-        return jsonify({
-            'message': 'param credential required',
-            'code': 144000,
-        }), 400
+    # if not credential:
+    #     return jsonify({
+    #         'message': 'param credential required',
+    #         'code': 144000,
+    #     }), 400
 
-    credential = db.collection('credentials').find_one({'_id': ObjectId(credential)})
-    if not credential or not credential.get('status'):
-        return jsonify({
-            'message': 'invalid credential',
-            'code': 144040,
-        }), 404
+    private_key = ''
+    if credential:
+        credential = Credential.find_by_id(credential)
+        if not credential or not credential.get('status'):
+            return jsonify({
+                'message': 'invalid credential',
+                'code': 144040,
+            }), 404
 
-    vault = Vault({
-        'vault_pass': config.vault.get('secret')
-    })
+        vault = Vault({
+            'vault_pass': config.vault.get('secret')
+        })
 
-    body = credential['body']
-    body[credential['type']] = vault.decrypt_string(body[credential['type']])
+        body = credential['body']
+        private_key = vault.decrypt_string(body[credential['type']])
+
     maintainer = payload.get('maintainer')
     if not maintainer or type(maintainer) != list:
         maintainer = [login_user.get('username')]
@@ -155,14 +159,14 @@ def explore():
                 'code': 144001,
             }), 400
 
-        region_record = db.collection('regions').find_one({'_id': ObjectId(region)})
+        region_record = Region.find_one({'_id': ObjectId(region)})
         if not region_record:
             return jsonify({
                 'message': 'invalid region',
                 'code': 144002,
             }), 400
 
-        group_record = Group().find_by_ids(group)
+        group_record = Group.find_by_ids(group)
         if not group_record:
             return jsonify({
                 'message': 'invalid group',
@@ -174,7 +178,7 @@ def explore():
             'verbosity': 3,
         }
         hosts = ssh_host + ':' + str(ssh_port) + ','
-        runner = setup(body[credential['type']], hosts, options)
+        runner = setup(hosts, options, private_key)
         result = runner.get_result()
         data = process_ansible_setup(result)
         records = []
@@ -243,7 +247,7 @@ def explore():
         options = {
             'verbosity': 0,
         }
-        runner = setup(body[credential['type']], fd.name, options)
+        runner = setup(fd.name, options, private_key)
         result = runner.get_result()
         data = process_ansible_setup(result)
         if not data:

@@ -14,7 +14,7 @@ from eclogue.config import config
 from eclogue.ansible.runer import AdHocRunner
 
 
-def setup(credential, hosts, options):
+def setup(hosts, options, credential=None):
     """
     ansible adhoc setup
 
@@ -22,17 +22,21 @@ def setup(credential, hosts, options):
     :param options:
     :return: AdHocRunner
     """
-    with NamedTemporaryFile('w+t', delete=True) as fd:
+    if credential:
+        fd = NamedTemporaryFile('w+t', delete=True)
         fd.write(credential)
         fd.seek(0)
         options['private_key_file'] = fd.name
-        runner = AdHocRunner(hosts, options=options)
-        tasks = [
-            {
-                'action': {
-                    'module': 'setup'
-                }
+        fd.close()
+
+    runner = AdHocRunner(hosts, options=options)
+    tasks = [
+        {
+            'action': {
+                'module': 'setup'
             }
-        ]
-        runner.run('all', tasks=tasks)
-        return runner
+        }
+    ]
+    runner.run('all', tasks=tasks)
+
+    return runner
