@@ -108,6 +108,8 @@ class Model(object):
     @classmethod
     def insert_one(cls, data, *args, **kwargs):
         model = cls()
+        if data.get('status') is None:
+            data['status'] = 1
 
         result = model.collection.insert_one(data, *args, **kwargs)
         record = data.copy()

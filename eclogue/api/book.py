@@ -66,7 +66,7 @@ def books():
     if date:
         where['$and'] = date
 
-    cursor = db.collection('books').find(where, skip=offset, limit=size)
+    cursor = Book.find(where, skip=offset, limit=size)
     total = cursor.count()
     records = list(cursor)
     data = []
@@ -130,7 +130,7 @@ def add_book():
             'code': 154001,
         }), 400
 
-    existed = db.collection('books').find_one({'name': name})
+    existed = Book.find_one({'name': name})
     if existed:
         return jsonify({
             'message': 'book exist',
@@ -144,7 +144,7 @@ def add_book():
     galaxy_repo = params.get('galaxyRepo')
     maintainer = params.get('maintainer', [])
     if bid:
-        record = db.collection('books').find_one({'_id': ObjectId(bid)})
+        record = Book.find_one({'_id': ObjectId(bid)})
         if not record:
             return jsonify({
                 'message': 'record not found',
@@ -167,7 +167,7 @@ def add_book():
         'created_at': int(time.time())
     }
 
-    result = db.collection('books').update_one({'_id': ObjectId(bid)}, {'$set': data}, upsert=True)
+    result = Book.update_one({'_id': ObjectId(bid)}, {'$set': data}, upsert=True)
     data['_id'] = result.upserted_id
 
     return jsonify({
@@ -192,7 +192,7 @@ def edit_book(_id):
     maintainer = params.get('maintainer', [])
     import_type = params.get('importType')
     galaxy_repo = params.get('galaxyRepo')
-    record = db.collection('books').find_one({'_id': ObjectId(_id)})
+    record = Book.find_one({'_id': ObjectId(_id)})
     if not record:
         return jsonify({
             'message': 'record not found',
@@ -270,12 +270,27 @@ def delete_book(_id):
 
 @jwt_required
 def all_books():
+    query = request.args
+    job_id = query.get('id')
+    where = {}
     cursor = Book.find({})
+    records = list(cursor)
+    for book in records:
+        def get_children(item):
+            return {
+                'value': item['_id'],
+                'label': item.get('name'),
+                'isLeaf': True,
+            }
+
+        entries = Playbook.find({'book_id': str(book['_id']), 'role': 'entry'})
+        children = map(get_children, entries)
+        book['children'] = list(children)
 
     return jsonify({
         'message': 'ok',
         'code': 0,
-        'data': list(cursor),
+        'data': list(records),
     })
 
 
@@ -416,7 +431,7 @@ def get_playbook(_id):
 
 @jwt_required
 def get_roles_by_book(_id):
-    record = db.collection('books').find_one(({
+    record = Book.find_one(({
         '_id': ObjectId(_id)
     }))
     if not record:

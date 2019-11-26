@@ -5,8 +5,9 @@ from eclogue.ansible.loader import YamlLoader
 from eclogue.ansible.inventory import HostsManager
 from eclogue.model import db
 from eclogue.middleware import jwt_required, login_user
-from eclogue.models.host import host_model
+from eclogue.models.host import Host as HostModel
 from eclogue.models.group import Group
+from eclogue.models.playbook import Playbook
 
 
 @jwt_required
@@ -15,7 +16,7 @@ def get_inventory_from_cmdb():
     user_id = login_user.get('user_id')
     tree = []
     if not is_admin:
-        tree = host_model.get_host_tree(user_id)
+        tree = HostModel().get_host_tree(user_id)
 
         return tree
 
@@ -45,7 +46,7 @@ def get_inventory_from_cmdb():
                 'count': len(item.get('machines')),
                 'children': [],
             }
-            hosts = host_model.collection.find({
+            hosts = HostModel.find({
                 'group': {
                     '$in': [group_id]
                 }
@@ -65,7 +66,7 @@ def get_inventory_from_cmdb():
                 'children': [],
             }
             host_ids = item.get('machines')
-            hosts = host_model.find_by_ids(host_ids)
+            hosts = HostModel.find_by_ids(host_ids)
 
         children = []
         for host in hosts:
@@ -139,7 +140,7 @@ def get_inventory_by_book(book_id, keyword=None, book_name='default'):
         'role': 'hosts',
         'is_edit': True
     }
-    cursor = db.collection('playbook').find(condition)
+    cursor = Playbook.find(condition)
     records = list(cursor)
     hosts = []
     for item in records:

@@ -3,7 +3,7 @@ import time
 import datetime
 import base64
 import yaml
-import shutil
+import json
 
 from bson import ObjectId
 from tempfile import NamedTemporaryFile, TemporaryDirectory
@@ -28,6 +28,7 @@ from flask_log_request_id import current_request_id
 from eclogue.utils import extract
 from eclogue.models.book import Book
 from eclogue.models.task import Task
+from eclogue.models.application import Application
 
 
 @jwt_required
@@ -39,9 +40,8 @@ def get_job(_id):
             'code': 154000
         }), 400
 
-    job = db.collection('jobs').find_one({
+    job = Job.find_one({
         '_id': ObjectId(_id),
-        'status': {'$gte': 0},
         'maintainer': {'$in': [username]}
     })
 
@@ -206,7 +206,7 @@ def add_jobs():
     current_id = body.get('currentId')
     record = None
     if current_id:
-        record = db.collection('jobs').find_one({'_id': ObjectId(current_id)})
+        record = Job.find_by_id(current_id)
         if not record:
             return jsonify({
                 'message': 'job not found',
@@ -281,10 +281,10 @@ def add_jobs():
     }
 
     if record:
-        db.collection('jobs').update_one({'_id': record['_id']}, update={'$set': new_record})
+        Job.update_one({'_id': record['_id']}, update={'$set': new_record})
         logger.info('update job', {'record': record, 'changed': new_record})
     else:
-        result = db.collection('jobs').insert_one(new_record)
+        result = Job.insert_one(new_record)
         new_record['_id'] = result.inserted_id
         logger.info('add job', extra={'record': new_record})
 
@@ -296,7 +296,7 @@ def add_jobs():
 
 @jwt_required
 def delete_job(_id):
-    record = db.collection('jobs').find_one({'_id': ObjectId(_id)})
+    record = Job.find_by_id(ObjectId(_id))
     if not record:
         return jsonify({
             'message': 'record not found',
@@ -309,7 +309,7 @@ def delete_job(_id):
         }
     }
 
-    db.collection('jobs').update_one({'_id': record['_id']}, update=update)
+    Job.update_one({'_id': record['_id']}, update=update)
     extra = {
         'record': record
     }
@@ -323,7 +323,7 @@ def delete_job(_id):
 
 @jwt_required
 def check_job(_id):
-    record = db.collection('jobs').find_one({'_id': ObjectId(_id)})
+    record = Job.find_one({'_id': ObjectId(_id)})
     if not record:
         return jsonify({
             'message': 'job not found',
@@ -416,20 +416,25 @@ def job_detail(_id):
     size = int(query.get('pageSize', 20))
     offset = (page - 1) * size
     tasks = get_tasks_by_job(_id, offset=offset, limit=size)
+    tasks = list(tasks)
     logs = []
     sort = [('_id', -1)]
     task = db.collection('tasks').find_one({'job_id': _id}, sort=sort)
     if task:
-        logs = db.collection('task_logs').find({'task_id': str(task['_id'])})
-        logs = list(logs)
+        records = db.collection('task_logs').find({'task_id': str(task['_id'])})
+        for item in records:
+            logs.append({
+                'content': str(item.get('content')),
+                'created_at': item.get('created_at')
+            })
 
     return jsonify({
         'message': 'ok',
         'code': 0,
         'data': {
             'job': record,
-            'tasks': list(tasks),
             'logs': logs,
+            'tasks': tasks,
         }
     })
 
@@ -661,26 +666,32 @@ def job_webhook():
             'data': task_id
         })
 
-    tempate = record.get('template')
-    app_id = tempate.get('app')
-    app_info = db.collection('apps').find_one({'_id': ObjectId(app_id)})
-    if not app_info:
-        return jsonify({
-            'message': 'app not found, please check your app',
-            'code': 104001
-        }), 400
-
-    app_params = app_info.get('params')
-    income = app_params.get('income')
+    template = record.get('template')
+    app_id = template.get('app')
     income_params = {'cache': True}
-    if income and payload.get('income'):
-        income = Template(income)
-        tpl = income.render(**payload.get('income'))
-        tpl = yaml.safe_load(tpl)
-        if tpl:
-            income_params.update(tpl)
+    if app_id:
+        app_info = Application.find_by_id(app_id)
+        if not app_info:
+            return jsonify({
+                'message': 'app not found, please check your app',
+                'code': 104001
+            }), 400
+
+        app_params = app_info.get('params')
+        income = app_params.get('income')
+        if income and payload.get('income'):
+            income = Template(income)
+            tpl = income.render(**payload.get('income'))
+            tpl = yaml.safe_load(tpl)
+            if tpl:
+                income_params.update(tpl)
 
     task_id = run_job(str(record.get('_id')), **income_params)
+    if not task_id:
+        return jsonify({
+            'message': 'put job enqueue failed',
+            'code': 104002
+        }), 400
 
     # if app_type == 'jenkins':
     #     build_id = '19'

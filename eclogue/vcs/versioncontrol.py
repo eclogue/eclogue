@@ -64,7 +64,7 @@ class GitDownload(object):
     def install(self):
         url = self.repository
         dest = self.cwd
-        cache_dir = self.cache_dir + '/' + self.project
+        cache_dir = os.path.join(self.cache_dir, self.project)
         self.sync_mirror()
         if not os.path.exists(dest):
             command = [
@@ -72,7 +72,7 @@ class GitDownload(object):
                 'clone',
                 url,
                 dest,
-                '--dissociate', '--reference',
+                '--reference',
                 cache_dir
             ]
 
@@ -189,6 +189,7 @@ class GitDownload(object):
     def sync_mirror(self):
         dirname = self.cache_dir + '/' + self.project
         if not self.is_cached():
+            Workspace.mkdir(dirname)
             git = Git(dirname)
             git.execute(['git', 'clone', '--mirror', self.repository, dirname])
             command = ['git', 'remote', 'add', 'eclogue', self.repository]

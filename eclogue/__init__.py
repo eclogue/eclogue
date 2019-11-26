@@ -21,6 +21,9 @@ class JSONEncoder(json.JSONEncoder):
             return str(o)
         if isinstance(o, datetime.datetime):
             return str(o)
+        if isinstance(o, bytes):
+            return o.decode('utf8')
+
         return json.JSONEncoder.default(self, o)
 
 

@@ -21,13 +21,15 @@ class HostsManager(InventoryManager):
         return plugins
 
     def parse_sources(self, cache=False):
-        ''' iterate over inventory sources and parse each one to populate it'''
+        """ iterate over inventory sources and parse each one to populate it"""
         parsed = False
         # allow for multiple inventory parsing
         for source in self._sources:
             if source:
                 if type(source) == str and ',' not in source and not yaml.safe_load(source):
                     source = unfrackpath(source, follow=False)
+
+                print('source:::::??', source)
                 parse = self.parse_source(source, cache=cache)
                 if parse and not parsed:
                     parsed = True

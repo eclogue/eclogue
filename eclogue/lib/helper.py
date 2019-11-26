@@ -13,6 +13,7 @@ from eclogue.ansible.vault import Vault
 from eclogue.config import config
 from eclogue.lib.integration import Integration
 from eclogue.lib.credential import get_credential_content_by_id
+from eclogue.models.application import Application
 
 
 def ini_yaml(text):
@@ -180,8 +181,8 @@ def load_ansible_playbook(payload):
     app = template.get('app')
     if app:
         # @todo status=1
-        app_record = db.collection('apps').find_one({'_id': ObjectId(app)})
-        if not app_record or not app_record.get('status'):
+        app_record = Application.find_by_id(app)
+        if not app_record:
             return {
                 'message': 'invalid app',
                 'code': 104043
