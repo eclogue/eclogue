@@ -108,3 +108,32 @@ private_key:
   description: sang say
   type: private_key
   add_by: player
+job:
+  name: demo
+  type: playbook
+  token: OTlmMDA2M2MtYTA1OC00ZDJmLTkyZmQtZmY3MjI5MzNkZWVj
+  description: test
+  book_id: 5ddb7edae3f7e005e72fe730
+  template:
+    name: demo
+    description: test
+    run_type: run
+    entry: [5ddb7edae3f7e005e72fe730, 5ddb7eda8b90849a2576d3a4]
+    inventory_type: file
+    inventory: [group@5ddb7edb8b90849a2576d3a9@develop]
+    roles: [5ddb7edbe3f7e005e72fe733]
+    app: 5ddb8075e3f7e005e72fe756
+    tags: []
+    stkip_tags: []
+    forks: 5
+    inventoryType: file
+  extra:
+    code_check: []
+    notification: web
+    schedule: {}
+    extraVars: {citrus-git_home: '{{ ECLOGUE_JOB_SPACE }}'}
+  entry: entry.yml
+  status: 0
+  maintainer: [admin]
+  created_at: 1574672560
+  updated_at: '2019-11-25T17:02:40.875933'
