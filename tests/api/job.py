@@ -4,8 +4,7 @@ from bson import ObjectId
 import unittest
 from tests.basecase import BaseTestCase
 from unittest.mock import patch
-from eclogue.models.book import Book
-from eclogue.models.playbook import Playbook
+from eclogue.models.job import Job
 from eclogue.model import db
 
 
@@ -76,7 +75,83 @@ class JobTest(BaseTestCase):
         response = self.client.post(url, data=payload, headers=self.jwt_headers)
         self.assert400(response)
         self.assertResponseCode(response, 104001)
-        Playbook().collection.delete_one({'name': data['name']})
+        Job().collection.delete_one({'name': data['name']})
+
+    @patch('eclogue.api.job.AdHocRunner')
+    @patch('eclogue.api.job.get_credential_content_by_id')
+    @patch('eclogue.api.job.parse_cmdb_inventory')
+    def test_add_adhoc_job(self, parse_cmdb_inventory, get_credential_content_by_id,
+                           adhoc_runner):
+        data = self.get_data('adhoc_job')
+        data['name'] = str(uuid.uuid4())
+        url = self.get_api_path('/jobs')
+        response = self.client.post(url, data='{}', headers=self.jwt_headers)
+        self.assert400(response)
+        self.assertResponseCode(response, 104000)
+        params = data.copy()
+        # None module params should response 400
+        params['module'] = None
+        params['type'] = 'adhoc'
+        current_user = self.user
+        params['maintainer'] = [current_user.get('username')]
+        payload = self.body(params)
+        response = self.client.post(url, data=payload, headers=self.jwt_headers)
+        self.assert400(response)
+        self.assertResponseCode(response, 104002)
+        # test parse_cmdb_inventory return None
+        parse_cmdb_inventory.return_value = None
+        params['module'] = 'ls'
+        payload = self.body(params)
+        response = self.client.post(url, data=payload, headers=self.jwt_headers)
+        self.assert400(response)
+        self.assertResponseCode(response, 104004)
+
+        # test with check and no private_key condition
+        params['check'] = True
+        params['private_key'] = None
+        parse_cmdb_inventory.return_value = 'localhost'
+        runner_instance = adhoc_runner.return_value
+        runner_instance.get_result.return_value = data['name']
+        payload = self.body(params)
+        response = self.client.post(url, data=payload, headers=self.jwt_headers)
+        self.assert200(response)
+        runner_instance.run.assert_called()
+        # test run with private_key
+        params['private_key'] = True
+        get_credential_content_by_id.return_value = None
+        payload = self.body(params)
+        response = self.client.post(url, data=payload, headers=self.jwt_headers)
+        self.assert400(response)
+        self.assertResponseCode(response, 104004)
+        # assume get private_key return correct
+        get_credential_content_by_id.return_value = 'test-private'
+        response = self.client.post(url, data=payload, headers=self.jwt_headers)
+        self.assert200(response)
+        runner_instance.run.assert_called()
+        params['check'] = False
+        payload = self.body(params)
+        response = self.client.post(url, data=payload, headers=self.jwt_headers)
+        self.assert200(response)
+        runner_instance.run.assert_called()
+        response = self.client.post(url, data=payload, headers=self.jwt_headers)
+        self.assert400(response)
+        record = Job.find_one({'name': data['name']})
+        assert record
+        assert record.get('name') == data.get('name')
+        params['job_id'] = str(ObjectId())
+        payload = self.body(params)
+        response = self.client.post(url, data=payload, headers=self.jwt_headers)
+        self.assert404(response)
+        self.assertResponseCode(response, 104040)
+        params['job_id'] = str(record.get('_id'))
+        payload = self.body(params)
+        response = self.client.post(url, data=payload, headers=self.jwt_headers)
+        self.assert200(response)
+        Job().collection.delete_one({'name': data['name']})
+
+
+
+
 
 
 

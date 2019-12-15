@@ -111,7 +111,6 @@ private_key:
 playbook_job:
   name: demo
   type: playbook
-  token: xxx
   description: test
   book_id: book_id
   template:
@@ -134,4 +133,19 @@ playbook_job:
     extraVars: {citrus-git_home: '{{ ECLOGUE_JOB_SPACE }}'}
   entry: entry.yml
   status: 0
+  maintainer: [admin]
+adhoc_job:
+  name: adhoc-demo
+  type: adhoc
+  description: test
+  module: command
+  args: ls
+  inventory: inventory
+  verbosity: 2
+  schedule:
+  check: false
+  job_id: null
+  extraOptions: {}
+  notification: []
+  status: 1
   maintainer: [admin]

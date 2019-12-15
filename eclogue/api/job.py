@@ -1,9 +1,7 @@
-import os
 import time
 import datetime
 import base64
 import yaml
-import json
 
 from bson import ObjectId
 from tempfile import NamedTemporaryFile, TemporaryDirectory
@@ -22,6 +20,7 @@ from eclogue.tasks.dispatch import run_job, get_tasks_by_job
 from eclogue.ansible.doc import AnsibleDoc
 from eclogue.ansible.playbook import check_playbook
 from eclogue.models.job import Job
+from eclogue.models.user import User
 from eclogue.models.playbook import Playbook
 from eclogue.lib.logger import logger
 from flask_log_request_id import current_request_id
@@ -513,13 +512,15 @@ def add_adhoc():
     notification = payload.get('notification')
     maintainer = payload.get('maintainer') or []
     if maintainer and isinstance(maintainer, list):
-        users = db.collection('users').find({'username': {'$in': maintainer}})
+        users = User.find({'username': {'$in': maintainer}})
         names = list(map(lambda i: i['username'], users))
         maintainer.extend(names)
 
-    maintainer.append(login_user.get('username'))
+    if login_user.get('username'):
+        maintainer.append(login_user.get('username'))
+
     if not job_id:
-        existed = db.collection('jobs').find_one({'name': name})
+        existed = Job.find_one({'name': name})
         if existed and existed.get('status') != -1:
             return jsonify({
                 'message': 'name exist',
@@ -543,16 +544,9 @@ def add_adhoc():
     #     }), 400
 
     inventory_content = parse_cmdb_inventory(inventory)
-    if not inventory:
+    if not inventory_content:
         return jsonify({
             'message': 'invalid inventory',
-            'code': 104004,
-        }), 400
-
-    key_text = get_credential_content_by_id(private_key, 'private_key')
-    if not key_text:
-        return jsonify({
-            'message': 'invalid private key',
             'code': 104004,
         }), 400
 
@@ -565,9 +559,18 @@ def add_adhoc():
 
     if check:
         with NamedTemporaryFile('w+t', delete=True) as fd:
-            fd.write(key_text)
-            fd.seek(0)
-            options['private_key'] = fd.name
+            if private_key:
+                key_text = get_credential_content_by_id(private_key, 'private_key')
+                if not key_text:
+                    return jsonify({
+                        'message': 'invalid private key',
+                        'code': 104004,
+                    }), 400
+
+                fd.write(key_text)
+                fd.seek(0)
+                options['private_key'] = fd.name
+
             tasks = [{
                 'action': {
                     'module': module,
@@ -610,7 +613,7 @@ def add_adhoc():
         }
 
         if job_id:
-            record = db.collection('jobs').find_one({'_id': ObjectId(job_id)})
+            record = Job.find_one({'_id': ObjectId(job_id)})
             if not record:
                 return jsonify({
                     'message': 'record not found',
@@ -620,12 +623,9 @@ def add_adhoc():
             update = {
                 '$set': data,
             }
-            db.collection('jobs').update_one({'_id': ObjectId(job_id)}, update=update)
-            logger.info('update job', extra={'record': record, 'changed': data})
+            Job.update_one({'_id': ObjectId(job_id)}, update=update)
         else:
-            result = db.collection('jobs').insert_one(data)
-            data['_id'] = result.inserted_id
-            logger.info('add job', extra={'record': data})
+            Job.insert_one(data)
 
     return jsonify({
         'message': 'ok',
