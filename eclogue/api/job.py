@@ -219,7 +219,7 @@ def add_jobs():
 
     data = payload.get('data')
     options = data.get('options')
-    is_check = body.get('check', False)
+    is_check = body.get('check')
     private_key = data.get('private_key')
     wk = Workspace()
     res = wk.load_book_from_db(name=data.get('book_name'), roles=data.get('roles'))
@@ -234,16 +234,18 @@ def add_jobs():
     options['check'] = dry_run
     if dry_run:
         with NamedTemporaryFile('w+t', delete=True) as fd:
-            key_text = get_credential_content_by_id(private_key, 'private_key')
-            if not key_text:
-                return jsonify({
-                    'message': 'invalid private_key',
-                    'code': 104033,
-                }), 401
+            if private_key:
+                key_text = get_credential_content_by_id(private_key, 'private_key')
+                if not key_text:
+                    return jsonify({
+                        'message': 'invalid private_key',
+                        'code': 104033,
+                    }), 401
 
-            fd.write(key_text)
-            fd.seek(0)
-            options['private_key'] = fd.name
+                fd.write(key_text)
+                fd.seek(0)
+                options['private_key'] = fd.name
+
             play = PlayBookRunner(data['inventory'], options, callback=CallbackModule())
             play.run(entry)
 
@@ -257,7 +259,7 @@ def add_jobs():
             })
 
     name = data.get('name')
-    existed = db.collection('jobs').find_one({'name': name})
+    existed = Job.find_one({'name': name})
     if existed and not current_id:
         return jsonify({
             'message': 'name existed',
@@ -282,11 +284,8 @@ def add_jobs():
 
     if record:
         Job.update_one({'_id': record['_id']}, update={'$set': new_record})
-        logger.info('update job', {'record': record, 'changed': new_record})
     else:
-        result = Job.insert_one(new_record)
-        new_record['_id'] = result.inserted_id
-        logger.info('add job', extra={'record': new_record})
+        Job.insert_one(new_record)
 
     return jsonify({
         'message': 'ok',

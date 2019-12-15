@@ -108,21 +108,21 @@ private_key:
   description: sang say
   type: private_key
   add_by: player
-job:
+playbook_job:
   name: demo
   type: playbook
-  token: OTlmMDA2M2MtYTA1OC00ZDJmLTkyZmQtZmY3MjI5MzNkZWVj
+  token: xxx
   description: test
-  book_id: 5ddb7edae3f7e005e72fe730
+  book_id: book_id
   template:
     name: demo
     description: test
     run_type: run
-    entry: [5ddb7edae3f7e005e72fe730, 5ddb7eda8b90849a2576d3a4]
+    entry: [book_id, play_id]
     inventory_type: file
-    inventory: [group@5ddb7edb8b90849a2576d3a9@develop]
-    roles: [5ddb7edbe3f7e005e72fe733]
-    app: 5ddb8075e3f7e005e72fe756
+    inventory: [group@host_id@develop]
+    roles: [playfile_id]
+    app: app_id
     tags: []
     stkip_tags: []
     forks: 5
@@ -135,5 +135,3 @@ job:
   entry: entry.yml
   status: 0
   maintainer: [admin]
-  created_at: 1574672560
-  updated_at: '2019-11-25T17:02:40.875933'

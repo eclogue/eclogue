@@ -23,6 +23,12 @@ class BaseTestCase(TestCase):
         with open(filename, 'r') as f:
             return f.read()
 
+    def add_test_data(self, model, data):
+        result = model.insert_one(data)
+        self.trash += [
+            (model, result.inserted_id)
+        ]
+
     def setUp(self):
         super().setUp()
         base_dir = os.path.dirname(__file__)
