@@ -10,7 +10,6 @@ def test_docker():
     for chunk in bits:
         f.write(chunk)
     f.close()
-    print('rrrrrrrrrr-----esult', stat)
 
     return jsonify({
         'message': 'ok',

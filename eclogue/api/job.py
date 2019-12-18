@@ -1,9 +1,7 @@
-import os
 import time
 import datetime
 import base64
 import yaml
-import shutil
 
 from bson import ObjectId
 from tempfile import NamedTemporaryFile, TemporaryDirectory
@@ -22,10 +20,14 @@ from eclogue.tasks.dispatch import run_job, get_tasks_by_job
 from eclogue.ansible.doc import AnsibleDoc
 from eclogue.ansible.playbook import check_playbook
 from eclogue.models.job import Job
+from eclogue.models.user import User
 from eclogue.models.playbook import Playbook
 from eclogue.lib.logger import logger
 from flask_log_request_id import current_request_id
 from eclogue.utils import extract
+from eclogue.models.book import Book
+from eclogue.models.task import Task
+from eclogue.models.application import Application
 
 
 @jwt_required
@@ -37,9 +39,8 @@ def get_job(_id):
             'code': 154000
         }), 400
 
-    job = db.collection('jobs').find_one({
+    job = Job.find_one({
         '_id': ObjectId(_id),
-        'status': {'$gte': 0},
         'maintainer': {'$in': [username]}
     })
 
@@ -71,7 +72,7 @@ def get_job(_id):
 
     check_playbook(job['book_id'])
     if inventory_type == 'file':
-        book = db.collection('books').find_one({'_id': ObjectId(job['book_id'])})
+        book = Book.find_one({'_id': ObjectId(job['book_id'])})
         if not book:
             hosts = []
         else:
@@ -85,18 +86,18 @@ def get_job(_id):
         'role': 'roles',
         'is_dir': True
     }
-    parent = db.collection('playbook').find_one(condition)
+    parent = Playbook.find_one(condition)
     if parent:
         where = {
             'book_id': job['book_id'],
             'is_dir': True,
             'parent': parent.get('path')
         }
-        cursor = db.collection('playbook').find(where)
+        cursor = Playbook.find(where)
         roles = list(cursor)
 
     logs = None
-    task = db.collection('tasks').find_one({'job_id': _id})
+    task = Task.find_one({'job_id': _id})
     if task:
         log = db.collection('logs').find_one({'task_id': str(task['_id'])})
         if log:
@@ -204,7 +205,7 @@ def add_jobs():
     current_id = body.get('currentId')
     record = None
     if current_id:
-        record = db.collection('jobs').find_one({'_id': ObjectId(current_id)})
+        record = Job.find_by_id(current_id)
         if not record:
             return jsonify({
                 'message': 'job not found',
@@ -217,7 +218,7 @@ def add_jobs():
 
     data = payload.get('data')
     options = data.get('options')
-    is_check = body.get('check', False)
+    is_check = body.get('check')
     private_key = data.get('private_key')
     wk = Workspace()
     res = wk.load_book_from_db(name=data.get('book_name'), roles=data.get('roles'))
@@ -232,16 +233,18 @@ def add_jobs():
     options['check'] = dry_run
     if dry_run:
         with NamedTemporaryFile('w+t', delete=True) as fd:
-            key_text = get_credential_content_by_id(private_key, 'private_key')
-            if not key_text:
-                return jsonify({
-                    'message': 'invalid private_key',
-                    'code': 104033,
-                }), 401
+            if private_key:
+                key_text = get_credential_content_by_id(private_key, 'private_key')
+                if not key_text:
+                    return jsonify({
+                        'message': 'invalid private_key',
+                        'code': 104033,
+                    }), 401
 
-            fd.write(key_text)
-            fd.seek(0)
-            options['private_key'] = fd.name
+                fd.write(key_text)
+                fd.seek(0)
+                options['private_key'] = fd.name
+
             play = PlayBookRunner(data['inventory'], options, callback=CallbackModule())
             play.run(entry)
 
@@ -255,7 +258,7 @@ def add_jobs():
             })
 
     name = data.get('name')
-    existed = db.collection('jobs').find_one({'name': name})
+    existed = Job.find_one({'name': name})
     if existed and not current_id:
         return jsonify({
             'message': 'name existed',
@@ -279,12 +282,9 @@ def add_jobs():
     }
 
     if record:
-        db.collection('jobs').update_one({'_id': record['_id']}, update={'$set': new_record})
-        logger.info('update job', {'record': record, 'changed': new_record})
+        Job.update_one({'_id': record['_id']}, update={'$set': new_record})
     else:
-        result = db.collection('jobs').insert_one(new_record)
-        new_record['_id'] = result.inserted_id
-        logger.info('add job', extra={'record': new_record})
+        Job.insert_one(new_record)
 
     return jsonify({
         'message': 'ok',
@@ -294,7 +294,7 @@ def add_jobs():
 
 @jwt_required
 def delete_job(_id):
-    record = db.collection('jobs').find_one({'_id': ObjectId(_id)})
+    record = Job.find_by_id(ObjectId(_id))
     if not record:
         return jsonify({
             'message': 'record not found',
@@ -307,7 +307,7 @@ def delete_job(_id):
         }
     }
 
-    db.collection('jobs').update_one({'_id': record['_id']}, update=update)
+    Job.update_one({'_id': record['_id']}, update=update)
     extra = {
         'record': record
     }
@@ -321,7 +321,7 @@ def delete_job(_id):
 
 @jwt_required
 def check_job(_id):
-    record = db.collection('jobs').find_one({'_id': ObjectId(_id)})
+    record = Job.find_one({'_id': ObjectId(_id)})
     if not record:
         return jsonify({
             'message': 'job not found',
@@ -414,20 +414,25 @@ def job_detail(_id):
     size = int(query.get('pageSize', 20))
     offset = (page - 1) * size
     tasks = get_tasks_by_job(_id, offset=offset, limit=size)
+    tasks = list(tasks)
     logs = []
     sort = [('_id', -1)]
     task = db.collection('tasks').find_one({'job_id': _id}, sort=sort)
     if task:
-        logs = db.collection('task_logs').find({'task_id': str(task['_id'])})
-        logs = list(logs)
+        records = db.collection('task_logs').find({'task_id': str(task['_id'])})
+        for item in records:
+            logs.append({
+                'content': str(item.get('content')),
+                'created_at': item.get('created_at')
+            })
 
     return jsonify({
         'message': 'ok',
         'code': 0,
         'data': {
             'job': record,
-            'tasks': list(tasks),
             'logs': logs,
+            'tasks': tasks,
         }
     })
 
@@ -507,13 +512,15 @@ def add_adhoc():
     notification = payload.get('notification')
     maintainer = payload.get('maintainer') or []
     if maintainer and isinstance(maintainer, list):
-        users = db.collection('users').find({'username': {'$in': maintainer}})
+        users = User.find({'username': {'$in': maintainer}})
         names = list(map(lambda i: i['username'], users))
         maintainer.extend(names)
 
-    maintainer.append(login_user.get('username'))
+    if login_user.get('username'):
+        maintainer.append(login_user.get('username'))
+
     if not job_id:
-        existed = db.collection('jobs').find_one({'name': name})
+        existed = Job.find_one({'name': name})
         if existed and existed.get('status') != -1:
             return jsonify({
                 'message': 'name exist',
@@ -526,27 +533,20 @@ def add_adhoc():
             'code': 104002,
         }), 400
 
-    check_module = db.collection('ansible_modules').find_one({
-        'name': module
-    })
-
-    if not check_module:
-        return jsonify({
-            'message': 'invalid module',
-            'code': 104003,
-        }), 400
+    # check_module = db.collection('ansible_modules').find_one({
+    #     'name': module
+    # })
+    #
+    # if not check_module:
+    #     return jsonify({
+    #         'message': 'invalid module',
+    #         'code': 104003,
+    #     }), 400
 
     inventory_content = parse_cmdb_inventory(inventory)
-    if not inventory:
+    if not inventory_content:
         return jsonify({
             'message': 'invalid inventory',
-            'code': 104004,
-        }), 400
-
-    key_text = get_credential_content_by_id(private_key, 'private_key')
-    if not key_text:
-        return jsonify({
-            'message': 'invalid private key',
             'code': 104004,
         }), 400
 
@@ -559,9 +559,18 @@ def add_adhoc():
 
     if check:
         with NamedTemporaryFile('w+t', delete=True) as fd:
-            fd.write(key_text)
-            fd.seek(0)
-            options['private_key'] = fd.name
+            if private_key:
+                key_text = get_credential_content_by_id(private_key, 'private_key')
+                if not key_text:
+                    return jsonify({
+                        'message': 'invalid private key',
+                        'code': 104004,
+                    }), 400
+
+                fd.write(key_text)
+                fd.seek(0)
+                options['private_key'] = fd.name
+
             tasks = [{
                 'action': {
                     'module': module,
@@ -604,7 +613,7 @@ def add_adhoc():
         }
 
         if job_id:
-            record = db.collection('jobs').find_one({'_id': ObjectId(job_id)})
+            record = Job.find_one({'_id': ObjectId(job_id)})
             if not record:
                 return jsonify({
                     'message': 'record not found',
@@ -614,12 +623,9 @@ def add_adhoc():
             update = {
                 '$set': data,
             }
-            db.collection('jobs').update_one({'_id': ObjectId(job_id)}, update=update)
-            logger.info('update job', extra={'record': record, 'changed': data})
+            Job.update_one({'_id': ObjectId(job_id)}, update=update)
         else:
-            result = db.collection('jobs').insert_one(data)
-            data['_id'] = result.inserted_id
-            logger.info('add job', extra={'record': data})
+            Job.insert_one(data)
 
     return jsonify({
         'message': 'ok',
@@ -659,28 +665,32 @@ def job_webhook():
             'data': task_id
         })
 
-    tempate = record.get('template')
-    app_id = tempate.get('app')
-    app_info = db.collection('apps').find_one({'_id': ObjectId(app_id)})
-    if not app_info:
-        return jsonify({
-            'message': 'app not found, please check your app',
-            'code': 104001
-        }), 400
-
-    app_params = app_info.get('params')
-    income = app_params.get('income')
+    template = record.get('template')
+    app_id = template.get('app')
     income_params = {'cache': True}
-    print(income, payload.get('income'))
-    if income and payload.get('income'):
-        income = Template(income)
-        tpl = income.render(**payload.get('income'))
-        tpl = yaml.safe_load(tpl)
-        if tpl:
-            income_params.update(tpl)
+    if app_id:
+        app_info = Application.find_by_id(app_id)
+        if not app_info:
+            return jsonify({
+                'message': 'app not found, please check your app',
+                'code': 104001
+            }), 400
 
-    print(income_params)
+        app_params = app_info.get('params')
+        income = app_params.get('income')
+        if income and payload.get('income'):
+            income = Template(income)
+            tpl = income.render(**payload.get('income'))
+            tpl = yaml.safe_load(tpl)
+            if tpl:
+                income_params.update(tpl)
+
     task_id = run_job(str(record.get('_id')), **income_params)
+    if not task_id:
+        return jsonify({
+            'message': 'put job enqueue failed',
+            'code': 104002
+        }), 400
 
     # if app_type == 'jenkins':
     #     build_id = '19'

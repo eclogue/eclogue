@@ -15,24 +15,21 @@ from eclogue.lib.inventory import get_inventory_from_cmdb, get_inventory_by_book
 from eclogue.ansible.remote import AnsibleGalaxy
 from eclogue.lib.logger import logger
 from eclogue.models.configuration import configuration
+from eclogue.models.playbook import Playbook
+from eclogue.models.book import Book
+from eclogue.models.configuration import Configuration
 
 
 @jwt_required
 def get_playbook(_id):
-    if not _id:
-        return jsonify({
-            'message': 'invalid id',
-            'code': 154000
-        }), 400
-
-    book = db.collection('books').find_one({'_id': ObjectId(_id)})
-    if not book or not int(book.get('status')):
+    book = Book.find_by_id(_id)
+    if not book or int(book.get('status') == -1):
         return jsonify({
             'message': 'invalid id',
             'code': 154001,
         }), 400
 
-    cursor = db.collection('playbook').find({'book_id': str(book.get('_id'))})
+    cursor = Playbook.find({'book_id': str(book.get('_id'))})
     cursor = cursor.sort([('is_edit', pymongo.ASCENDING), ('path', pymongo.ASCENDING)])
     # for item in cursor:
     #     db.collection('playbook').update_one({'_id': item['_id']}, {'$set': {'book_id': str(item.get('book_id'))}})
@@ -51,6 +48,7 @@ def get_tags():
             'message': 'miss required params',
             'code': 104000,
         }), 400
+
     template = body.get('template')
     listtags = template.get('listtags')
     listtasks = template.get('listtasks')
@@ -59,6 +57,7 @@ def get_tags():
             'message': 'invalid params',
             'code': 104001,
         }), 400
+
     payload = load_ansible_playbook(body)
     if payload.get('message') is not 'ok':
         return jsonify(payload), 400
@@ -72,6 +71,7 @@ def get_tags():
             'message': 'book not found',
             'code': 104000,
         }), 400
+
     entry = wk.get_book_entry(data.get('book_name'), data.get('entry'))
     play = PlayBookRunner([data['inventory']], options)
     play.run(entry)
@@ -105,12 +105,19 @@ def get_inventory():
 
 @jwt_required
 def edit_file(_id):
+    """
+    edit playbook file
+    @todo add lock
+    :param _id: ObjectId string
+    :return: json
+    """
     params = request.get_json() or request.form
     if not params:
         return jsonify({
             'message': 'invalid params',
             'code': 154000,
         }), 400
+
     edit_type = params.get('type')
     if edit_type == 'upload':
         return upload_file(_id)
@@ -120,13 +127,13 @@ def edit_file(_id):
     description = params.get('description')
     status = params.get('status', 1)
     maintainer = params.get('maintainer', [])
-    is_edit = params.get('is_edit')
+    can_edit = params.get('is_edit')
     is_dir = params.get('is_dir')
     is_encrypt = params.get('is_encrypt')
     project = params.get('project')
     register = params.get('register')
     content = params.get('content')
-    record = db.collection('playbook').find_one({'_id': ObjectId(_id)})
+    record = Playbook.find_by_id(_id)
     if not record:
         return jsonify({
             'message': 'record not found',
@@ -150,16 +157,15 @@ def edit_file(_id):
         data['description'] = description
     if maintainer:
         data['maintainer'] = maintainer
-    if is_edit is not None:
+    if can_edit is not None:
         data['is_edit'] = bool(is_edit)
-    if is_edit is not None:
-        data['is_dir'] = bool(is_dir)
-    if is_edit is not None:
         data['is_encrypt'] = bool(is_encrypt)
+    if is_dir is not None:
+        data['is_dir'] = bool(is_dir)
     if register:
         c_ids = map(lambda i: ObjectId(i), register)
         where = {'_id': {'$in': c_ids}}
-        register_config = db.collection('configurations').find(where)
+        register_config = Configuration.find(where)
         if not register_config:
             return jsonify({
                 'message': 'invalid register config',
@@ -168,14 +174,9 @@ def edit_file(_id):
 
         data['register'] = register
 
-    result = db.collection('playbook').update_one({
-        '_id': ObjectId(_id)
-    }, {
-        '$set': data,
-    }, upsert=True)
+    result = Playbook.update_one({'_id': ObjectId(_id)}, {'$set': data}, upsert=True)
     data['_id'] = result.upserted_id
-    logger.info('update playbook file', extra={'record': record, 'changed': data})
-    book = db.collection('books').find_one({'_id': ObjectId(record['book_id'])})
+    book = Book.find_one({'_id': ObjectId(record['book_id'])})
     wk = Workspace()
     wk.write_book_file(book.get('name'), record)
 
@@ -275,35 +276,27 @@ def rename(_id):
             'code': 104001,
         }), 400
 
-    upset = {
-        '$set': {
-            'path': file_path
-        }
-    }
-    record = db.collection('playbook').find_one({'_id': oid})
+    record = Playbook.find_by_id(oid)
     if not record:
         return jsonify({
             'message': 'record not found',
             'code': 104040,
-        }), 400
+        }), 404
 
-    if record.get('is_dir') is True:
-        records = db.collection('playbook').find({'parent': record.get('path')})
-        for doc in records:
-            new_path = doc['path'].replace(record['path'], file_path)
-            db.collection('playbook').update_one({'_id': doc['_id']}, {
-                '$set': {
-                    'path': new_path
-                }
-            })
+    if record.get('path') == file_path:
+        return jsonify({
+            'message': 'ok',
+            'code': 0,
+            'data': record
+        })
 
-    db.collection('playbook').update_one({'_id': oid}, upset)
+    Playbook().rename(_id, file_path)
 
     return jsonify({
         'message': 'ok',
         'code': 0,
         'data': record
-})
+    })
 
 
 @jwt_required
@@ -316,10 +309,16 @@ def upload():
             'code': 104000,
         }), 400
 
+    if not files.get('files'):
+        return jsonify({
+            'message': 'illegal param',
+            'code': 104001,
+        }), 400
+
     parent_id = form.get('parent')
     book_id = form.get('bookId')
     if parent_id == '/' and book_id:
-        book = db.collection('books').find_one({'_id': ObjectId(book_id)})
+        book = Book.find_one({'_id': ObjectId(book_id)})
         if not book:
             return jsonify({
                 "message": "record not found",
@@ -327,11 +326,11 @@ def upload():
             }), 404
 
         parent = {
-            'path': '',
+            'path': '/',
             'book_id': book_id
         }
     else:
-        parent = db.collection('playbook').find_one({'_id': ObjectId(parent_id)})
+        parent = Playbook.find_one({'_id': ObjectId(parent_id)})
 
     if not parent:
         return jsonify({
@@ -341,7 +340,7 @@ def upload():
 
     file = files['files']
     filename = file.filename
-    path = parent['path'] + '/' + filename
+    path = os.path.join(parent['path'], filename)
     record = {
         'book_id': parent.get('book_id'),
         'path': path,
@@ -359,26 +358,22 @@ def upload():
         content = file.read()
         content = content.decode('utf-8')
         record['content'] = content
+
     record['is_edit'] = can_edit
     record['created_at'] = int(time.time())
     record['updated_at'] = datetime.datetime.now().isoformat()
-    # exist = db.collection('playbook').find_one({'path': path})
-    # if exist:
-    #     db.collection('playbook').update_one({})
-    #     return jsonify({
-    #         "message": "ok",
-    #         "code": 104005,
-    #     }), 400
-    db.collection('playbook').update_one({
-            'path': path,
-            'book_id': ObjectId(parent['book_id']),
-        }, {
-            '$set': record,
-        }, upsert=True)
+    where = {
+        'path': path,
+        'book_id': ObjectId(parent['book_id'])
+    }
+    update = {
+        '$set': record,
+    }
+    Playbook.update_one(where, update=update, upsert=True)
 
     return jsonify({
-        "message": "ok",
-        "code": 0,
+        'message': 'ok',
+        'code': 0,
     })
 
 
@@ -398,7 +393,7 @@ def add_folder():
     parent = parent if parent != '.' else '/'
     parent_path = None
     if parent != '/':
-        parent_record = db.collection('playbook').find_one({'_id': ObjectId(record_id), 'is_dir': True})
+        parent_record = Playbook.find_one({'_id': ObjectId(record_id), 'is_dir': True})
         if not parent_record:
             return jsonify({
                 'message': 'invalid params',
@@ -422,19 +417,20 @@ def add_folder():
     meta = get_meta(file_path)
     record.update(meta)
     record['additions'] = meta
-    check = db.collection('playbook').find_one({'book_id': book_id, 'path': record['path']})
+    check = Playbook.find_one({'book_id': book_id, 'path': record['path']})
     if check:
-        additions = check.get('additions')
+        additions = check.get('additions') or {}
         additions.update(meta)
-        parent['additions'] = additions
-        db.collection('playbook').update_one({'_id': check['_id']}, {'$set': record})
+        record['additions'] = additions
+        Playbook.update_one({'_id': check['_id']}, {'$set': record})
     else:
-        db.collection('playbook').insert_one(record)
+        Playbook.insert_one(record)
 
     return jsonify({
         'message': 'ok',
         'code': 0,
     })
+
 
 @jwt_required
 def get_file(_id):

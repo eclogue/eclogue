@@ -6,6 +6,8 @@ from eclogue import create_app
 from migrate import Migration
 from eclogue.tasks.system import register_schedule, scheduler
 from eclogue.config import config
+from eclogue.tasks.dispatch import tiger
+from gevent.pywsgi import WSGIServer
 
 app = create_app(schedule=False)
 
@@ -44,9 +46,22 @@ def start():
     app.run(debug=debug, host='0.0.0.0', port=5000)
 
 
+@click.command()
+def server():
+    http_server = WSGIServer(('0.0.0.0', 5000), app)
+    http_server.serve_forever()
+
+
+@click.command()
+def worker():
+    tiger.run_worker()
+
+
 eclogue.add_command(migrate)
 eclogue.add_command(bootstrap)
 eclogue.add_command(start)
+eclogue.add_command(worker)
+eclogue.add_command(server)
 
 if __name__ == '__main__':
     eclogue()

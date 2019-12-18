@@ -13,7 +13,9 @@ from eclogue.middleware import jwt_required, login_user
 from eclogue.models.job import Job
 from eclogue.scheduler import scheduler
 from eclogue.lib.logger import logger
-from eclogue.models.task import task_model
+from eclogue.models.task import Task as TaskModel
+from eclogue.redis import redis_client
+from eclogue.tasks.reporter import Reporter
 
 
 @jwt_required
@@ -88,6 +90,7 @@ def monitor():
         },
     ])
 
+    task_model = TaskModel()
     task_histogram = task_model.histogram()
     task_state_pies = task_model.state_pies()
     task_pies = {
@@ -189,10 +192,11 @@ def get_queue_tasks():
             if job_record:
                 data['job_name'] = job_record.get('name')
 
-            data['state'] = record.get('state')
+            data['state'] = state
             data['result'] = record['result']
         else:
             data['job_name'] = 'default'
+            data['state'] = state
         data['executions'] = task.executions
 
         bucket.append(data)
@@ -281,8 +285,6 @@ def retry(_id, state):
 
 @jwt_required
 def cancel(_id, state):
-    print(_id, state)
-
     record = db.collection('tasks').find_one({'_id': ObjectId(_id)})
     if not record:
         return jsonify({
@@ -397,6 +399,38 @@ def task_logs(_id):
             'total': total,
             'page': page,
             'pageSize': limit,
+            'state': record.get('state')
+        }
+    })
+
+
+@jwt_required
+def task_log_buffer(_id):
+    if not ObjectId.is_valid(_id):
+        return jsonify({
+            'message': 'invalid id',
+            'code': 104000
+        }), 400
+
+    query = request.args
+    record = TaskModel.find_by_id(_id)
+    if not record:
+        return jsonify({
+            'message': 'record not found',
+            'code': 104040
+        }), 404
+
+    start = int(query.get('page', 0))
+    end = -1
+    reporter = Reporter(task_id=_id)
+    buffer = reporter.get_buffer(start=start, end=end)
+
+    return jsonify({
+        'message': 'ok',
+        'code': 0,
+        'data': {
+            'list': buffer,
+            'page': start,
             'state': record.get('state')
         }
     })
@@ -593,7 +627,6 @@ def rollback(_id):
         }), 404
 
     build_id = str(history.get('_id'))
-    print(job_id, build_id)
     run_job(job_id, build_id)
 
     return jsonify({

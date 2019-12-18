@@ -7,9 +7,8 @@ class AuthTest(BaseTestCase):
         user = self.user
         payload = {
             'username': user['username'],
-            'password': user['password'],
+            'password': str(user['password']),
         }
-
         headers = {
             'Content-Type': 'application/json',
         }
@@ -35,7 +34,7 @@ class AuthTest(BaseTestCase):
         temp = payload.copy()
         temp['password'] = 'some_password'
         response = self.client.post(url, data=self.body(temp), headers=headers)
-        self.assert400(response)
+        self.assert401(response)
         self.assertResponseCode(response, 104003)
 
         # test success

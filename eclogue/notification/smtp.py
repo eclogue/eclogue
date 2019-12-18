@@ -39,6 +39,9 @@ class SMTP(BaseSender):
         return self.config.get('from')
 
     def send(self, text, to, subject='', subtype='plain'):
+        if not self.enable:
+            return False
+
         subject = subject or 'eclogue system notification'
         receivers = [to]
         params = {

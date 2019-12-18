@@ -100,17 +100,16 @@ def is_edit(file):
 
 
 def make_zip(source_dir, output, base_dir=None):
-    # print('zip file: ', os.listdir(source_dir), output)
-    # zipf = zipfile.ZipFile(output, 'w')
-    # pre_len = len(os.path.dirname(source_dir))
-    # for parent, dirnames, filenames in os.walk(source_dir):
-    #     for filename in filenames:
-    #         pathfile = os.path.join(parent, filename)
-    #         arcname = pathfile[pre_len:].strip(os.path.sep)
-    #         zipf.write(pathfile, arcname)
-    #
-    # zipf.close()
-    return shutil.make_archive(base_name=output, format='zip', root_dir=source_dir, base_dir=base_dir)
+    zipf = zipfile.ZipFile(output, 'w')
+    pre_len = len(os.path.dirname(source_dir))
+    for parent, dirnames, filenames in os.walk(source_dir):
+        for filename in filenames:
+            pathfile = os.path.join(parent, filename)
+            arcname = pathfile[pre_len:].strip(os.path.sep)
+            zipf.write(pathfile, arcname)
+
+    zipf.close()
+    # return shutil.make_archive(base_name=output, format='zip', root_dir=source_dir)
 
 
 def gen_password(length=8):

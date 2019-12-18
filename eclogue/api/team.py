@@ -4,6 +4,7 @@ from bson import ObjectId
 from flask import request, jsonify
 from eclogue.model import db
 from eclogue.middleware import jwt_required, login_user
+from eclogue.model import Model
 from eclogue.models.team import Team
 from eclogue.models.user import User
 from eclogue.models.menu import Menu
@@ -13,11 +14,9 @@ from eclogue.models.teamrole import TeamRole
 from eclogue.lib.logger import logger
 
 
-
 @jwt_required
 def add_team():
     payload = request.get_json()
-    print(payload)
     if not payload:
         return jsonify({
             'message': 'invalid params',
@@ -76,8 +75,14 @@ def add_team():
         result = Role.insert_one(role)
         role['_id'] = result.inserted_id
         role['team_id'] = data['_id']
-        logger.info('add role by team', extra={'record': role})
-        role_ids = [role['_id']]
+        role_ids = [str(role['_id'])]
+        # team_role = {
+        #     'role_id': result.inserted_id,
+        #     'team_id': role['team_id'],
+        #     'add_by': login_user.get('username'),
+        #     'created_at': time.time(),
+        # }
+        # Model.build_model('team_roles').insert_one(team_role)
 
     for role_id in role_ids:
         team_role = {
@@ -300,7 +305,6 @@ def get_team_tree():
     teams = db.collection('teams').find(where)
     teams = list(teams)
     tree = []
-    user_collection = User()
     for team in teams:
         item = {
             'title': team['name'],
@@ -315,7 +319,7 @@ def get_team_tree():
 
         user_ids = map(lambda i: i['user_id'], relations)
         user_ids = list(user_ids)
-        users = user_collection.find_by_ids(user_ids)
+        users = User.find_by_ids(user_ids)
         children = []
         for user in users:
             children.append({

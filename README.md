@@ -1,15 +1,18 @@
 ### eclogue
+
 <p align="center">
   <a href="//ecloguelabs.org">
-    <img alt="docsify" src="./images/logo.svg" width="320">
+    <img alt="eclogue" src="images/logo.svg" width="320">
   </a>
 </p>
+
 <p align="center">
   eclogue（牧歌），基于 ansible 的 devops 平台。让 ansible 更简单易用，WYSIWYG，让持续交付更高效。
 </p>
 
 <p align="center">
 
+<img src="http://jks.sangsay.com/view/all/job/eclogue/badge/icon" />
 <img src="https://img.shields.io/github/issues/eclogue/eclogue"/>
 <img src="https://img.shields.io/github/search/eclogue/eclogue/devops"/>
 <img src="https://img.shields.io/github/pipenv/locked/python-version/eclogue/eclogue"/>
@@ -19,6 +22,12 @@
 <img src="https://img.shields.io/github/languages/code-size/eclogue/eclogue"/>
 
 </p>
+
+---
+
+**注意** 当前版本仍处测试阶段请勿用于生产环境
+
+
 
 **~~最初目的~~**：
 - 提供一个 ansible tower(awx) 外更多选择 ansible web 平台（仅个人认为觉得 awx 太难掌控），不要再让 ansible 到处执行
@@ -33,11 +42,12 @@
 - 兼容 crontab 格式计划任务
 - RBAC 权限模型
 
-### Install
+### 安装
 - `pipenv shell`
 - `pipenv install`
 - `python manage.py migrate bootstrap  // 仅当第一次安装执行`
 - `python manage.py start` // dev 运行运行
+- `python run manage.py server` 使用 gevent 作为服务器
 - 更多操作 `python manage.py --help`
 
 ### Docker
@@ -45,24 +55,26 @@
 - `docker-composer up` 访问 http://localhost:5000/
 - 创建初始化数据,添加超级管理员 `docker-compose exec web pipenv run python manage.py bootstrap --username=admin --password=eclogue`
 
+### 文档
+[中文文档](http://doc.sangsay.com)|~~English~~
 
 ### Demo
-[http://demo.ecloguelabs.com](http://demo.ecloguelabs.com)
+[http://demo.ecloguelabs.com](http://demo.sangsay.com)
 
 - `username`: natsume
 - `password`: takashi
-### Job workflow
 
-![image](https://raw.githubusercontent.com/eclogue/eclogue/master/images/flow.png)
+### 工作流程
 
-### Document
-[中文文档](http://doc.ecloguelabs.com)|~~English~~
+![image](images/flow.png)
+
+
 
 ### Community
 QQ 群：362847712
 
 ### Contributing
-[see](http://doc.ecloguelabs.com/#/contributing)
+give me your star or [see](http://doc.ecloguelabs.com/#/contributing)
 
 ### License
 GPL-3.0

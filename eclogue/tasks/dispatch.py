@@ -2,15 +2,14 @@ import sys
 import yaml
 import os
 import shutil
-from io import StringIO
 from time import time
 from bson import ObjectId
 
 from tempfile import NamedTemporaryFile, TemporaryDirectory
-from tasktiger import TaskTiger, Task, periodic
+from tasktiger import TaskTiger, Task
 from tasktiger._internal import ERROR, QUEUED
 from flask_log_request_id import current_request_id
-from eclogue.config import config
+# from traceback import print_exception
 
 from eclogue.model import Mongo
 from eclogue.redis import redis_client
@@ -26,6 +25,11 @@ from eclogue.scheduler import scheduler
 from eclogue.utils import make_zip
 from eclogue.config import config
 from eclogue.notification.notify import Notify
+from eclogue.models.task import Task as TaskModel
+from eclogue.models.job import Job
+from eclogue.models.application import Application
+from eclogue.models.user import User
+
 
 task_cfg = config.task
 
@@ -40,8 +44,8 @@ cache_result_numer = config.task.get('history') or 100
 
 def run_job(_id, history_id=None, **kwargs):
     db = Mongo()
-    record = db.collection('jobs').find_one({'_id': ObjectId(_id)})
-    if not record or record.get('status') != 1:
+    record = Job.find_by_id(_id)
+    if not record:
         return False
 
     request_id = str(current_request_id())
@@ -52,7 +56,6 @@ def run_job(_id, history_id=None, **kwargs):
     template = record.get('template')
     schedule = extra.get('schedule')
     ansible_type = record.get('type')
-    print(schedule)
     if template.get('run_type') == 'schedule':
         existed = db.collection('scheduler_jobs').find_one({'_id': record['_id']})
         if existed:
@@ -116,9 +119,15 @@ def run_adhoc_task(_id, request_id, username, history_id, **kwargs):
         args = payload.get('args')
         hosts = options['hosts']
         with NamedTemporaryFile('w+t', delete=True) as fd:
-            fd.write(private_key)
-            fd.seek(0)
-            options['private_key'] = fd.name
+            if private_key:
+                key_text = get_credential_content_by_id(private_key, 'private_key')
+                if not key_text:
+                    raise Exception('invalid private_key')
+
+                fd.write(key_text)
+                fd.seek(0)
+                options['private-key'] = fd.name
+
             tasks = [{
                 'action': {
                     'module': module,
@@ -177,8 +186,8 @@ def run_adhoc_task(_id, request_id, username, history_id, **kwargs):
 
 def run_playbook_task(_id, request_id, username, history_id, **kwargs):
     db = Mongo()
-    record = db.collection('jobs').find_one({'_id': ObjectId(_id)})
-    task_record = db.collection('tasks').find_one({'request_id': request_id})
+    record = Job.find_by_id(ObjectId(_id))
+    task_record = TaskModel.find_one({'request_id': request_id})
     if not task_record:
         return False
 
@@ -208,7 +217,7 @@ def run_playbook_task(_id, request_id, username, history_id, **kwargs):
 
         app_id = template.get('app')
         if app_id:
-            app_info = db.collection('apps').find_one({'_id': ObjectId(app_id)})
+            app_info = Application.find_by_id(ObjectId(app_id))
             if not app_info:
                 raise Exception('app not found: {}'.format(app_id))
 
@@ -235,14 +244,17 @@ def run_playbook_task(_id, request_id, username, history_id, **kwargs):
             raise Exception('install playbook failed, book name: {}'.format(data.get('book_name')))
 
         entry = os.path.join(bookspace,  data.get('entry'))
-        with NamedTemporaryFile('w+t', delete=False) as fd:
-            key_text = get_credential_content_by_id(private_key, 'private_key')
-            if not key_text:
-                raise Exception('invalid private_key')
 
-            fd.write(key_text)
-            fd.seek(0)
-            options['private-key'] = fd.name
+        with NamedTemporaryFile('w+t', delete=False) as fd:
+            if private_key:
+                key_text = get_credential_content_by_id(private_key, 'private_key')
+                if not key_text:
+                    raise Exception('invalid private_key')
+
+                fd.write(key_text)
+                fd.seek(0)
+                options['private-key'] = fd.name
+
             options['tags'] = ['uptime']
             options['verbosity'] = 2
             inventory = data.get('inventory')
@@ -279,20 +291,20 @@ def run_playbook_task(_id, request_id, username, history_id, **kwargs):
                     shutil.rmtree(bookspace)
 
     except Exception as e:
-        result = e.args
+        result = str(e)
         extra = {'task_id': task_id}
         logger.error('run task with exception: {}'.format(str(e)), extra=extra)
         state = 'error'
         extra_options = record.get('extra')
-        user = db.collection('users').find_one({'username': username})
-        user_id = str(user['_id'])
-        notification = extra_options.get('notification')
-        message = '[error]run job: {}, message: {}'.format(record.get('name'), str(e))
-        sys.stdout.write(message)
-        if notification and type(notification) == list:
-            Notify().dispatch(user_id=user_id, msg_type='task', content=message, channel=notification)
+        user = User.find_one({'username': username})
+        if user:
+            user_id = str(user['_id'])
+            notification = extra_options.get('notification')
+            message = '[error]run job: {}, message: {}'.format(record.get('name'), str(e))
+            sys.stdout.write(message)
+            if notification and type(notification) == list:
+                Notify().dispatch(user_id=user_id, msg_type='task', content=message, channel=notification)
 
-        raise e
     finally:
         content = temp_stdout.getvalue()
         temp_stdout.close(True)
@@ -308,12 +320,12 @@ def run_playbook_task(_id, request_id, username, history_id, **kwargs):
                 'result': result,
             }
         }
-        db.collection('tasks').update_one({'_id': task_id}, update=update)
+        TaskModel.update_one({'_id': task_id}, update=update)
         trace = {
             'task_id': str(task_id),
             'request_id': request_id,
             'username': username,
-            'content': content,
+            'content': str(content),
             'created_at': time(),
         }
         db.collection('task_logs').insert_one(trace)
@@ -355,7 +367,7 @@ def get_tasks_by_job(job_id, offset=0, limit=20, sort=None):
     where = {
         'job_id': job_id,
     }
-    return Mongo().collection('tasks').find(where, skip=offset, limit=limit, sort=sort)
+    return TaskModel.find(where, skip=offset, limit=limit, sort=sort)
 
 
 def get_queue_by_job(job_id):

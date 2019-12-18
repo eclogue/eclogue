@@ -61,9 +61,8 @@ class Model(object):
     def collection(self):
         return self._collection
 
-    @classmethod
-    def get_collection(cls):
-        return db.collection(cls.name)
+    def get_collection(self):
+        return db.collection(self.name)
 
     @classmethod
     def find_by_id(cls, _id):
@@ -109,12 +108,16 @@ class Model(object):
     @classmethod
     def insert_one(cls, data, *args, **kwargs):
         model = cls()
+        if data.get('status') is None:
+            data['status'] = 1
 
         result = model.collection.insert_one(data, *args, **kwargs)
         record = data.copy()
         record['_id'] = result.inserted_id
         msg = 'insert new record to {}, _id: {}'.format(model.name, record['_id'])
         logger.info(msg, extra={'record': record})
+
+        return result
 
     @classmethod
     def update_one(cls, where, update, **kwargs):
@@ -123,7 +126,10 @@ class Model(object):
         if not record and not kwargs.get('upsert'):
             return False
 
-        msg = 'update record from {}, _id: {}'.format(model.name, record['_id'])
+        msg = 'update record from {}'.format(model.name)
+        if record:
+            msg = msg + ', _id: %s' % record.get('_id')
+
         extra = {
             'record': record,
             'change': update,
@@ -134,7 +140,7 @@ class Model(object):
         return model.collection.update_one(where, update, **kwargs)
 
     @classmethod
-    def delete_one(cls, where, **kwargs):
+    def delete_one(cls, where, force=False, **kwargs):
         model = cls()
         record = model.collection.find_one(where)
         if not record:
@@ -153,8 +159,10 @@ class Model(object):
         }
 
         logger.info(msg, extra)
+        if not force:
+            return model.collection.update_one(where, update=update, **kwargs)
 
-        return model.collection.update_one(where, update=update, **kwargs)
+        return model.collection.delete_one(where)
 
     @staticmethod
     def check_ids(ids):
@@ -173,6 +181,13 @@ class Model(object):
             return result
 
         return None
+
+    @classmethod
+    def build_model(cls, name):
+        cls.name = name
+        model = cls()
+
+        return model
 
     def __setitem__(self, key, value):
         self._attr[key] = value

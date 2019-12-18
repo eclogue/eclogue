@@ -36,7 +36,6 @@ def search_user():
     records = list(records)
     records = map(lambda item: {'username': item.get('username')}, records)
     records = list(records)
-    print(records)
 
     return jsonify({
         'message': 'ok',
@@ -211,7 +210,6 @@ def add_role():
             }), 400
 
     result = role.collection.insert_one(data)
-    print(result)
     role_id = result.inserted_id
     if menus and type(menus) == list:
         data = []
@@ -420,6 +418,7 @@ def add_user():
             'message': 'invalid params',
             'code': 104000
         }), 400
+
     current_user = login_user.get('username')
     is_admin = login_user.get('is_admin')
     username = payload.get('username')
@@ -429,7 +428,8 @@ def add_user():
     role_ids = payload.get('role_ids')
     team_id = payload.get('team_id')
     address = payload.get('address')
-    if not username or not nickname or not email or not phone:
+    password = payload.get('password')
+    if not username or not email:
         return jsonify({
             'message': 'miss required params',
             'code': 104001,
@@ -461,7 +461,8 @@ def add_user():
             'message': 'username or email existed',
             'code': 104030
         }), 400
-    password = gen_password()
+
+    password = password or gen_password()
     encrypt_pwd = generate_password_hash(password)
     user_info = {
         'username': username,
@@ -675,7 +676,6 @@ def save_alert():
         }
     }
 
-    print(where, update)
     user = User()
     record = user.collection.find_one(where)
     user.collection.update_one(where, update=update)
@@ -712,7 +712,6 @@ def update_user(_id):
     role_ids = payload.get('role')
     team_id = payload.get('team_id')
     address = payload.get('address')
-    print(payload)
     # current_team_id = payload.get('currentTeamId')
     # current_role_ids = payload.get('currentRoleIds')
     if not is_admin:
@@ -769,9 +768,7 @@ def update_user(_id):
         db.collection('team_members').update_one(condition, update=change, upsert=True)
 
     if role_ids:
-        print('role_ids', role_ids)
         result = User().bind_roles(_id, role_ids, add_by=login_user.get('username'))
-        print(result)
 
     User.update_one({'_id': record['_id']}, {'$set': update})
 
@@ -821,3 +818,4 @@ def delete_user(_id):
         'message': 'ok',
         'code': 0,
     })
+

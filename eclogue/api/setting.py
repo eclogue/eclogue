@@ -5,9 +5,7 @@ from bson import ObjectId
 from flask import Flask, request, jsonify
 from eclogue.model import db
 from eclogue.middleware import jwt_required, login_user
-from eclogue.notification.wechat import Wechat
-from eclogue.notification.smtp import SMTP
-from eclogue.notification.slack import Slack
+from eclogue.models.setting import Setting
 
 @jwt_required
 def add_setting():
@@ -105,7 +103,7 @@ def get_setting():
 
 
 def test():
-    raise Exception('test')
+    print(Setting.build_model('teams').name)
     record = db.collection('setting').find_one({})
 
     # wechat = record.get('wechat')

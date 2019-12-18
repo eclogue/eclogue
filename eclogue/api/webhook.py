@@ -68,18 +68,13 @@ def gitlab_job(token):
         return jsonify(payload), 400
 
     data = ansible_params.get('data')
-    options = data.get('options')
-    private_key = data.get('private_key')
     wk = Workspace()
     res = wk.load_book_from_db(name=data.get('book_name'), roles=data.get('roles'))
-    print('xxxxx-----~~~~~~~', res, data)
     if not res:
         return jsonify({
             'message': 'load book failed',
             'code': 104000,
         }), 400
-
-    entry = wk.get_book_entry(data.get('book_name'), data.get('entry'))
 
     return jsonify({
         'message': 'ok',

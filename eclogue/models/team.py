@@ -1,18 +1,23 @@
 import time
 
 from bson import ObjectId
-# from eclogue.middleware import login_user
 from eclogue.model import Model, db
 from eclogue.models.role import Role
+from eclogue.models.member import TeamMember
+from eclogue.middleware import login_user
 
 
 class Team(Model):
     name = 'teams'
 
     def add_member(self, team_id, members, owner_id):
-        team = self.find_by_id(team_id)
-        if not team or owner_id not in team.get('master'):
+        if not members:
             return False
+
+        team = self.find_by_id(team_id)
+        if not login_user.get('is_admin'):
+            if not team or owner_id not in team.get('master'):
+                return False
 
         current_user = db.collection('users').find_one({'_id': ObjectId(owner_id)})
         for user_id in members:
@@ -24,7 +29,7 @@ class Team(Model):
             data['team_id'] = team_id
             data['created_at'] = time.time()
             data['add_by'] = current_user.get('username')
-            db.collection('team_members').update_one(where, {'$set': data}, upsert=True)
+            TeamMember.update_one(where, {'$set': data}, upsert=True)
 
     def get_roles(self, team_id):
         team_roles = self.db.collection('team_roles').find({'team_id': team_id})

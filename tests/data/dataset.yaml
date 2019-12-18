@@ -1,5 +1,5 @@
 user:
-  username: tester
+  username: unittest-tester
   password: 123123
   is_admin: 0
   email: tester@ecloguelabs.com
@@ -7,9 +7,145 @@ user:
   address: here
 
 admin:
-  username: admin
+  username: unittest-admin
   password: 123123
   is_admin: 1
   email: tester@ecloguelabs.com
   phone: 123123123123
   address: here
+application:
+  name: unittest-app
+  server: 127.0.0.1
+  document: null
+  type: git
+  params:
+    extract: artifacts
+    repository: "https://github.com/eclogue/ben.git"
+    income: |
+      build_id: "{{ BUILD_ID }}"
+  repo: null
+  protocol: https,http
+  port: 12345
+  description: null
+  maintainer:
+    - player
+  status: 1.0
+book:
+  status: 1
+  name: unittest-book
+  importType: manual
+  galaxyRepo: test@eclogue
+  description: blog project
+  maintainer:
+    - user1
+    - user2
+playbook:
+  name: handlers
+  is_edit: false
+  path: /roles/test/handlers
+  project: test
+  role: handlers
+  parent: /roles/test
+  created_at: 1559741558
+  is_dir: true
+  book_id: null
+playbook_file:
+  name: hosts
+  is_edit: true
+  path: /hosts
+  project: test
+  role: hosts
+  parent: ''
+  is_dir: false
+  book_id: null
+  content: test content
+configuration:
+  name: test1
+  description: test
+  maintainer:
+    - unittest-tester
+  variables:
+    a: 1
+  status: 1
+  add_by: player
+console_adhoc:
+  module: command
+  args: ls
+  inventory:
+    - group@5dc51e52e3f7e033bf35c284@local
+  private_key: null
+  become_method: sudo
+  become_user: root
+  verbosity: 1
+  type: adhoc
+  extraOptions:
+    a: 1
+console_playbook:
+  inventory:
+    - group@5dc51e52e3f7e033bf35c284@local
+  private_key: 5cf2b8a4c3666e0afe5ad846
+  become_method: null
+  become_user: null
+  verbosity: 1
+  type: playbook
+  extraOptions: null
+  entry: |+
+    ---
+    - hosts: local
+      tasks:
+         - name: "helloworld"
+           shell: echo "Hello World"
+private_key:
+  body:
+    ssh_port: '22'
+    private_key: Test
+    ssh_user: sang
+  status: 1
+  created_at: 1559410852
+  name: sang
+  users: []
+  scope: global
+  description: sang say
+  type: private_key
+  add_by: player
+playbook_job:
+  name: demo
+  type: playbook
+  description: test
+  book_id: book_id
+  template:
+    name: demo
+    description: test
+    run_type: run
+    entry: [book_id, play_id]
+    inventory_type: file
+    inventory: [group@host_id@develop]
+    roles: [playfile_id]
+    app: app_id
+    tags: []
+    stkip_tags: []
+    forks: 5
+    inventoryType: file
+  extra:
+    code_check: []
+    notification: web
+    schedule: {}
+    extraVars: {citrus-git_home: '{{ ECLOGUE_JOB_SPACE }}'}
+  entry: entry.yml
+  status: 0
+  maintainer: [admin]
+adhoc_job:
+  name: adhoc-demo
+  type: adhoc
+  description: test
+  module: command
+  args: ls
+  inventory: inventory
+  verbosity: 2
+  schedule:
+  check: false
+  job_id: null
+  extraOptions: {}
+  notification: []
+  status: 1
+  maintainer: [admin]

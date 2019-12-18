@@ -50,3 +50,5 @@ class Reporter(object):
     def getvalue(self):
         return self.read()
 
+    def get_buffer(self, start=0, end=-1):
+        return self.store.lrange(self.key, start=start, end=end)

@@ -5,7 +5,7 @@ from eclogue.model import db
 from eclogue.middleware import jwt_required, login_user
 from eclogue.lib.integration import Integration
 from eclogue.lib.logger import logger
-from eclogue.docker.client import Docker
+from eclogue.models.application import Application
 
 
 def get_apps():
@@ -74,7 +74,6 @@ def get_apps():
             'pageSize': size
         }
     })
-    pass
 
 
 @jwt_required
@@ -144,6 +143,7 @@ def add_apps():
         'type': app_type,
         'params': params,
         'repo': repo,
+        'status': 1,
         'protocol': protocol,
         'port': port,
         'description': description,
@@ -152,7 +152,7 @@ def add_apps():
         'created_at': int(time.time())
     }
     logger.info('add apps', extra={'record': data})
-    db.collection('apps').insert_one(data)
+    Application.insert_one(data)
 
     return jsonify({
         'message': 'ok',

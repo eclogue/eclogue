@@ -1,5 +1,4 @@
 import time
-import datetime
 import os
 import pymongo
 
@@ -12,8 +11,8 @@ from eclogue.utils import is_edit, md5, make_zip
 from eclogue.ansible.vault import Vault
 from eclogue.lib.helper import get_meta
 from eclogue.lib.workspace import Workspace
-from eclogue.models.book import book
-from eclogue.models.playbook import playbook
+from eclogue.models.book import Book
+from eclogue.models.playbook import Playbook
 from eclogue.ansible.remote import AnsibleGalaxy
 from eclogue.lib.logger import logger
 from eclogue.ansible.playbook import check_playbook
@@ -67,7 +66,7 @@ def books():
     if date:
         where['$and'] = date
 
-    cursor = db.collection('books').find(where, skip=offset, limit=size)
+    cursor = Book.find(where, skip=offset, limit=size)
     total = cursor.count()
     records = list(cursor)
     data = []
@@ -96,9 +95,9 @@ def books():
             'role': 'entry',
             'book_id': item['_id'],
         }
-        entry = playbook.collection.find_one(where)
+        entry = Playbook.find_one(where)
         if not entry:
-            book.collection.update_one({'_id': item['_id']}, {'$set': {'status': 0}})
+            Book.update_one({'_id': item['_id']}, {'$set': {'status': 0}})
             item['status'] = 0
 
         data.append(item)
@@ -109,7 +108,7 @@ def books():
         'data': {
             'list': records,
             'page': page,
-            'pagesize': size,
+            'pageSize': size,
             'total': total,
         }
     })
@@ -123,6 +122,7 @@ def add_book():
             'message': 'invalid params',
             'code': 154000,
         }), 400
+
     name = params.get('name')
     if not name:
         return jsonify({
@@ -130,7 +130,7 @@ def add_book():
             'code': 154001,
         }), 400
 
-    existed = db.collection('books').find_one({'name': name})
+    existed = Book.find_one({'name': name})
     if existed:
         return jsonify({
             'message': 'book exist',
@@ -139,12 +139,12 @@ def add_book():
 
     description = params.get('description')
     status = params.get('status', 1)
-    pbid = params.get('_id')
+    bid = params.get('_id')
     import_type = params.get('importType')
     galaxy_repo = params.get('galaxyRepo')
     maintainer = params.get('maintainer', [])
-    if pbid:
-        record = db.collection('playbook').find_one({'_id': ObjectId(pbid)})
+    if bid:
+        record = Book.find_one({'_id': ObjectId(bid)})
         if not record:
             return jsonify({
                 'message': 'record not found',
@@ -167,11 +167,7 @@ def add_book():
         'created_at': int(time.time())
     }
 
-    result = db.collection('books').update_one({
-        '_id': ObjectId(pbid)
-    }, {
-        '$set': data,
-    }, upsert=True)
+    result = Book.update_one({'_id': ObjectId(bid)}, {'$set': data}, upsert=True)
     data['_id'] = result.upserted_id
 
     return jsonify({
@@ -196,7 +192,7 @@ def edit_book(_id):
     maintainer = params.get('maintainer', [])
     import_type = params.get('importType')
     galaxy_repo = params.get('galaxyRepo')
-    record = db.collection('books').find_one({'_id': ObjectId(_id)})
+    record = Book.find_one({'_id': ObjectId(_id)})
     if not record:
         return jsonify({
             'message': 'record not found',
@@ -220,11 +216,7 @@ def edit_book(_id):
         galaxy = AnsibleGalaxy([galaxy_repo], {'force': True})
         galaxy.install(record.get('_id'))
 
-    db.collection('books').update_one({
-        '_id': ObjectId(_id)
-    }, {
-        '$set': data,
-    }, upsert=True)
+    Book.update_one({'_id': ObjectId(_id)}, {'$set': data}, upsert=True)
     logger.info('book update', extra={'record': record, 'changed': data})
 
     return jsonify({
@@ -236,7 +228,7 @@ def edit_book(_id):
 
 @jwt_required
 def book_detail(_id):
-    record = book.find_by_id(_id)
+    record = Book.find_by_id(_id)
     if not record:
         return jsonify({
             'message': 'record not found',
@@ -252,34 +244,22 @@ def book_detail(_id):
 
 @jwt_required
 def delete_book(_id):
-    is_admin = login_user.get('is_admin')
-    record = book.find_by_id(_id)
+    record = Book.find_by_id(_id)
     if not record:
         return jsonify({
             'message': 'record not found',
             'code': 154041
-        }), 400
+        }), 404
 
-    if not is_admin and record.get('add_by') != login_user.get('username'):
-        return jsonify({
-            'message': 'permission deny',
-            'code': 104030
-        }), 403
-
-    # @todo 封装到 model 中
     update = {
         '$set': {
             'status': -1,
             'delete_at': time.time(),
-            'delete_by': login_user.get('username')
+            'delete_by': login_user.get('username'),
+            'version': str(ObjectId()),
         }
     }
-    db.collection('books').update_one({'_id': record['_id']}, update=update)
-    msg = 'delete book:, name: {}'.format(record.get('name'))
-    extra = {
-        'record': record,
-    }
-    logger.info(msg, extra=extra)
+    Book.update_one({'_id': record['_id']}, update=update)
     db.collection('playbook').update_many({'book_id': str(record['_id'])}, update=update)
 
     return jsonify({
@@ -290,23 +270,44 @@ def delete_book(_id):
 
 @jwt_required
 def all_books():
-    cursor = book.collection.find({})
+    query = request.args
+    job_id = query.get('id')
+    where = {}
+    cursor = Book.find({})
+    records = list(cursor)
+    for book in records:
+        def get_children(item):
+            return {
+                'value': item['_id'],
+                'label': item.get('name'),
+                'isLeaf': True,
+            }
+
+        entries = Playbook.find({'book_id': str(book['_id']), 'role': 'entry'})
+        children = map(get_children, entries)
+        book['children'] = list(children)
 
     return jsonify({
         'message': 'ok',
         'code': 0,
-        'data': list(cursor),
+        'data': list(records),
     })
 
 
 @jwt_required
 def upload_playbook(_id):
     files = request.files
-    record = book.find_by_id(_id)
+    record = Book.find_by_id(_id)
     if not record:
         return jsonify({
-            "message": "parent path not found",
+            "message": "book not found",
             "code": 104004,
+        }), 400
+
+    if not files:
+        return jsonify({
+            'message': 'invalid files params',
+            'code': 104001
         }), 400
 
     file = files['file']
@@ -317,7 +318,7 @@ def upload_playbook(_id):
     home_path, basename = os.path.split(filename)
     file_list = set(_make_path(filename))
     for dirname in file_list:
-        check = playbook.collection.find_one({
+        check = Playbook.find_one({
             'book_id': _id,
             'path': dirname,
         })
@@ -331,15 +332,15 @@ def upload_playbook(_id):
                 'book_id': _id,
                 'parent': parent_path,
                 'name': name,
-                'created_at': int(time.time()),
+                'created_at': time.time(),
             }
             meta = get_meta(dirname)
             parent.update(meta)
             parent['additions'] = meta
-            playbook.insert_one(parent)
+            Playbook.insert_one(parent)
 
     data = {
-        "path": filename,
+        'path': filename,
         'is_dir': False,
         'parent': home_path or None,
         'book_id': _id
@@ -354,8 +355,8 @@ def upload_playbook(_id):
         content = content.decode('utf-8')
         data['is_encrypt'] = Vault.is_encrypted(content)
         if data['is_encrypt']:
-            # @todo
-            vault = Vault({'vault_pass': ''})
+            # @todo vault password
+            vault = Vault()
             data['content'] = vault.encrypt_string(content)
             data['md5'] = md5(content)
         else:
@@ -366,16 +367,9 @@ def upload_playbook(_id):
     data.update(meta)
     data['additions'] = meta
     data['is_edit'] = can_edit
-    data['created_at'] = int(time.time())
-    data['updated_at'] = datetime.datetime.now().isoformat()
-    playbook.collection.update_one({
-        'path': filename,
-        'book_id': _id,
-    }, {
-        '$set': data,
-    }, upsert=True)
-    data['book_id'] = _id
-    logger.info('upload playbook', extra={'record': record, 'changed': data})
+    data['created_at'] = time.time()
+    data['updated_at'] = time.time()
+    Playbook.update_one({'path': filename, 'book_id': _id}, {'$set': data}, upsert=True)
 
     return jsonify({
         "message": "ok",
@@ -398,7 +392,7 @@ def _make_path(path):
 
 
 def download_book(_id):
-    record = book.find_by_id(_id)
+    record = Book.find_by_id(_id)
     if not record:
         return jsonify({
             'message': 'record not found',
@@ -410,31 +404,24 @@ def download_book(_id):
     wk.load_book_from_db(name)
     dirname = wk.get_book_space(name)
     filename = name + '.zip'
-    with NamedTemporaryFile('w+t', delete=True) as fd:
+    with NamedTemporaryFile('w+t', delete=False) as fd:
         make_zip(dirname, fd.name)
 
-        return send_file(fd.name, attachment_filename=filename)
+        return send_file(fd.name, attachment_filename=filename, as_attachment=True)
 
 
 @jwt_required
 def get_playbook(_id):
-    if not _id:
-        return jsonify({
-            'message': 'invalid id',
-            'code': 154000
-        }), 400
-
-    book = db.collection('books').find_one({'_id': ObjectId(_id)})
+    book = Book.find_one({'_id': ObjectId(_id)})
     if not book or not int(book.get('status')):
         return jsonify({
             'message': 'invalid id',
             'code': 154001,
         }), 400
 
-    cursor = db.collection('playbook').find({'book_id': str(book.get('_id'))})
+    cursor = Playbook.find({'book_id': str(book.get('_id'))})
     cursor = cursor.sort([('is_edit', pymongo.ASCENDING), ('path', pymongo.ASCENDING)])
-    # for item in cursor:
-    #     db.collection('playbook').update_one({'_id': item['_id']}, {'$set': {'book_id': str(item.get('book_id'))}})
+
     return jsonify({
         'message': 'ok',
         'code': 0,
@@ -444,7 +431,7 @@ def get_playbook(_id):
 
 @jwt_required
 def get_roles_by_book(_id):
-    record = db.collection('books').find_one(({
+    record = Book.find_one(({
         '_id': ObjectId(_id)
     }))
     if not record:
@@ -461,7 +448,6 @@ def get_roles_by_book(_id):
         'is_dir': True
     }
 
-    print(condition)
     parent = db.collection('playbook').find_one(condition)
     if not parent:
         return jsonify({
@@ -483,4 +469,29 @@ def get_roles_by_book(_id):
         'code': 0,
         'data': records,
     })
+
+
+@jwt_required
+def get_entry(_id):
+    book = Book.find_one(({'_id': ObjectId(_id)}))
+
+    if not book:
+        return jsonify({
+            'message': 'book not found',
+            'code': 164000
+        }), 400
+
+    where = {
+        'book_id': str(book.get('_id')),
+        'is_dir': False,
+        'role': 'entry',
+    }
+    cursor = Playbook.find(where)
+
+    return jsonify({
+        'message': 'ok',
+        'code': 0,
+        'data': list(cursor),
+    })
+
 

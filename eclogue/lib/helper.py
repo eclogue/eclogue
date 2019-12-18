@@ -13,6 +13,7 @@ from eclogue.ansible.vault import Vault
 from eclogue.config import config
 from eclogue.lib.integration import Integration
 from eclogue.lib.credential import get_credential_content_by_id
+from eclogue.models.application import Application
 
 
 def ini_yaml(text):
@@ -180,8 +181,8 @@ def load_ansible_playbook(payload):
     app = template.get('app')
     if app:
         # @todo status=1
-        app_record = db.collection('apps').find_one({'_id': ObjectId(app)})
-        if not app_record or not app_record.get('status'):
+        app_record = Application.find_by_id(app)
+        if not app_record:
             return {
                 'message': 'invalid app',
                 'code': 104043
@@ -252,7 +253,6 @@ def load_ansible_playbook(payload):
     options['verbosity'] = template.get('verbosity', 0)
     options['diff'] = template.get('diff', False)
     # options['vault'] = template.get('vault')
-    print('eeeeeeeeeeeeeeeeeeee', extra_vars)
     options['extra_vars'] = json.dumps(extra_vars)
     status = int(extra.get('status', 0))
 
@@ -295,15 +295,15 @@ def load_ansible_adhoc(payload):
             'code': 104002,
         }
 
-    check_module = db.collection('ansible_modules').find_one({
-        'name': module
-    })
-
-    if not check_module:
-        return {
-            'message': 'invalid module',
-            'code': 104003,
-        }
+    # check_module = db.collection('ansible_modules').find_one({
+    #     'name': module
+    # })
+    #
+    # if not check_module:
+    #     return {
+    #         'message': 'invalid module',
+    #         'code': 104003,
+    #     }
 
     inventory = parse_cmdb_inventory(inventory)
     if not inventory:

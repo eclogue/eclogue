@@ -2,7 +2,6 @@ from eclogue.api.menus import Menus
 from eclogue.api.catheter import Catheter
 from eclogue.api.auth import Auth
 from eclogue.api.host import dump_inventory
-from eclogue.api.bookshelf import get_entry
 import eclogue.api.inventory as cmdb
 from eclogue.api.credential import credentials, add_credential, update_credential
 from eclogue.api.console import run_task
@@ -29,10 +28,9 @@ routes = [
     ('/menus/<_id>', Menus.delete_menu, ['delete']),
     ('/playbook/dumper', Catheter.get, ['GET']),
     ('/playbook/dumper', Catheter.drop, ['DELETE']),
-    ('/playbook/rename/<_id>', playbook.rename, ['PATCH']),
+    ('/playbook/<_id>/rename', playbook.rename, ['PATCH']),
     ('/playbook/upload', playbook.upload, ['POST']),
     ('/playbook/folder', playbook.add_folder, ['POST']),
-    # ('/playbook/setup', Catheter.setup, ['POST']),
     ('/playbook/galaxy', playbook.import_galaxy, ['get']),
     ('/playbook/tags', playbook.get_tags, ['post']),
     ('/playbook/<_id>/file', playbook.edit_file, ['put']),
@@ -42,6 +40,7 @@ routes = [
     ('/tasks/queue', task.get_queue_tasks, ['get']),
     ('/tasks/history', task.get_task_history, ['get']),
     ('/tasks/<_id>/logs', task.task_logs, ['get']),
+    ('/tasks/<_id>/logs/buffer', task.task_log_buffer, ['get']),
     ('/tasks/<_id>/info', task.get_task_info, ['get']),
     ('/tasks/<_id>/retry', task.retry, ['post']),
     ('/tasks/<_id>/<state>/remove', task.delete_task, ['delete']),
@@ -62,7 +61,7 @@ routes = [
     ('/books/<_id>/playbook', book.get_playbook, ['GET']),
     ('/books/<_id>/download', book.download_book, ['GET']),
     ('/books/<_id>/playbook', book.upload_playbook, ['post']),
-    ('/books/<_id>/entries', get_entry, ['GET']),
+    ('/books/<_id>/entries', book.get_entry, ['GET']),
     ('/books/<name>/inventory', cmdb.get_inventory_by_book, ['GET']),
     ('/books/<_id>/roles', book.get_roles_by_book, ['GET']),
     ('/search/users', user.search_user, ['get']),
