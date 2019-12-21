@@ -149,3 +149,37 @@ adhoc_job:
   notification: []
   status: 1
   maintainer: [admin]
+job:
+  name: demo
+  type: playbook
+  description:
+  book_id: xx
+  template:
+    name: demo
+    description: test
+    run_type: run
+    entry:
+      - xx
+      - xx
+    inventory_type: file
+    inventory:
+      - group@xx@develop
+    roles:
+      - xx
+    app: xx
+    tags: []
+    stkip_tags: []
+    forks: 5
+    inventoryType: file
+  extra:
+    code_check: []
+    notification: web
+    schedule: {}
+    extraVars:
+      citrus-git_home: "{{ ECLOGUE_JOB_SPACE }}"
+  entry: entry.yml
+  status: 0
+  maintainer:
+    - admin
+  created_at: 1574672560
+

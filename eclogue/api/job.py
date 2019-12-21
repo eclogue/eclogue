@@ -168,7 +168,7 @@ def get_jobs():
     if date:
         where['$and'] = date
 
-    jobs = db.collection('jobs').find(where, skip=offset, limit=size)
+    jobs = Job().collection.find(where, skip=offset, limit=size)
     total = jobs.count()
     jobs = list(jobs)
 
@@ -295,6 +295,7 @@ def add_jobs():
 
 @jwt_required
 def delete_job(_id):
+    is_admin = login_user.get('is_admin')
     record = Job.find_by_id(ObjectId(_id))
     if not record:
         return jsonify({
@@ -302,17 +303,13 @@ def delete_job(_id):
             'code': 104040
         }), 404
 
-    update = {
-        '$set': {
-            'status': -1
-        }
-    }
+    if not is_admin or login_user.get('username') not in record['maintainer']:
+        return jsonify({
+            'message': 'permission deny',
+            'code': 104031
+        }), 403
 
-    Job.update_one({'_id': record['_id']}, update=update)
-    extra = {
-        'record': record
-    }
-    logger.info('delete job', extra=extra)
+    Job.delete_one({'_id': record['_id']})
 
     return jsonify({
         'message': 'ok',

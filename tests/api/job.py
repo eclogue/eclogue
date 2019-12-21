@@ -174,6 +174,7 @@ class JobTest(BaseTestCase):
         parse_file_inventory.return_value = ''
         response = self.client.get(url, headers=self.jwt_headers)
         parse_file_inventory.assert_called()
+        check_book.assert_called()
         self.assert200(response)
         self.assertResponseDataHasKey(response, 'logs')
         self.assertResponseDataHasKey(response, 'previewContent')
@@ -192,6 +193,29 @@ class JobTest(BaseTestCase):
         self.assertResponseDataHasKey(response, 'logs')
         self.assertResponseDataHasKey(response, 'previewContent')
         self.assertResponseDataHasKey(response, 'record')
+
+    def test_get_jobs(self):
+        job = self.get_data('job')
+        job['name'] = str(uuid.uuid4())
+        self.add_test_data(Job, job)
+        url = self.get_api_path('/jobs')
+        response = self.client.get(url, headers=self.jwt_headers)
+        self.assert200(response)
+        query = {
+            'page': 2,
+            'pageSize': 1,
+            'name': 'test',
+            'start': '2000-11-03',
+            'end': '2019-11-04',
+            'status': 1
+        }
+        response = self.client.get(url, query_string=query, headers=self.jwt_headers)
+        self.assert200(response)
+        self.assertResponseDataHasKey(response, 'page')
+        data = response.json.get('data')
+        self.assertEqual(data['page'], query['page'])
+
+
 
 
 
