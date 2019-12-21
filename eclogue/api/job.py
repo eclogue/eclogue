@@ -33,21 +33,14 @@ from eclogue.models.application import Application
 @jwt_required
 def get_job(_id):
     username = login_user.get('username')
-    if not _id:
-        return jsonify({
-            'message': 'invalid id',
-            'code': 154000
-        }), 400
-
     job = Job.find_one({
         '_id': ObjectId(_id),
         'maintainer': {'$in': [username]}
     })
 
-    # @todo job status
     if not job:
         return jsonify({
-            'message': 'invalid id',
+            'message': 'record not found',
             'code': 154001,
         }), 400
 
@@ -56,12 +49,20 @@ def get_job(_id):
     inventory = template.get('inventory')
     if job.get('type') == 'adhoc':
         inventory_content = parse_cmdb_inventory(inventory)
+        logs = None
+        task = Task.find_one({'job_id': _id})
+        if task:
+            log = db.collection('logs').find_one({'task_id': str(task['_id'])})
+            if log:
+                logs = log.get('message')
+
         return jsonify({
             'message': 'ok',
             'code': 0,
             'data': {
                 'record': job,
                 'previewContent': inventory_content,
+                'logs': logs
             },
         })
 
@@ -72,7 +73,7 @@ def get_job(_id):
 
     check_playbook(job['book_id'])
     if inventory_type == 'file':
-        book = Book.find_one({'_id': ObjectId(job['book_id'])})
+        book = Book.find_by_id(job['book_id'])
         if not book:
             hosts = []
         else:

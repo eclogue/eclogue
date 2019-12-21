@@ -29,6 +29,8 @@ class BaseTestCase(TestCase):
             (model, result.inserted_id)
         ]
 
+        return result
+
     def setUp(self):
         super().setUp()
         base_dir = os.path.dirname(__file__)

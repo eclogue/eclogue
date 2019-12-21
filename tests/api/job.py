@@ -149,6 +149,50 @@ class JobTest(BaseTestCase):
         self.assert200(response)
         Job().collection.delete_one({'name': data['name']})
 
+    @patch('eclogue.api.job.parse_cmdb_inventory')
+    @patch('eclogue.api.job.parse_file_inventory')
+    @patch('eclogue.api.job.check_playbook')
+    def test_get_job(self, check_book, parse_file_inventory, parse_cmdb_inventory):
+        data = self.get_data('playbook_job')
+        data['name'] = str(uuid.uuid4())
+        data['status'] = 1
+        url = self.get_api_path('/jobs/%s' % str(ObjectId()))
+        response = self.client.get(url, headers=self.jwt_headers)
+        self.assert400(response)
+        self.assertResponseCode(response, 154001)
+        result = self.add_test_data(Job, data)
+        url = self.get_api_path('/jobs/%s' % str(result.inserted_id))
+        response = self.client.get(url, headers=self.jwt_headers)
+        self.assert400(response)
+        Job.update_one({'_id': result.inserted_id}, {
+            '$set': {
+                'maintainer': [self.user.get('username')],
+                'book_id': str(ObjectId())
+            }
+        })
+        parse_cmdb_inventory.return_value = ''
+        parse_file_inventory.return_value = ''
+        response = self.client.get(url, headers=self.jwt_headers)
+        parse_file_inventory.assert_called()
+        self.assert200(response)
+        self.assertResponseDataHasKey(response, 'logs')
+        self.assertResponseDataHasKey(response, 'previewContent')
+        self.assertResponseDataHasKey(response, 'record')
+        self.assertResponseDataHasKey(response, 'roles')
+        data = self.get_data('adhoc_job')
+        data['maintainer'] = [self.user.get('username')]
+        data['template'] = {
+            'inventory_type': 'adhoc',
+            'inventory': 'localhost'
+        }
+        result = self.add_test_data(Job, data)
+        url = self.get_api_path('/jobs/%s' % str(result.inserted_id))
+        response = self.client.get(url, headers=self.jwt_headers)
+        parse_cmdb_inventory.assert_called()
+        self.assertResponseDataHasKey(response, 'logs')
+        self.assertResponseDataHasKey(response, 'previewContent')
+        self.assertResponseDataHasKey(response, 'record')
+
 
 
 
