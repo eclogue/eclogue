@@ -14,6 +14,11 @@ from eclogue.config import config
 from eclogue.lib.integration import Integration
 from eclogue.lib.credential import get_credential_content_by_id
 from eclogue.models.application import Application
+from eclogue.models.playbook import Playbook
+from eclogue.models.book import Book
+from eclogue.models.group import Group
+from eclogue.models.host import Host
+from eclogue.models.credential import Credential
 
 
 def ini_yaml(text):
@@ -23,10 +28,10 @@ def ini_yaml(text):
     inventory = {}
     varRegex = re.compile("[\t ]*([a-zA-Z][a-zA-Z0-9_]+)=('[^']+'|\"[^\"]+\"|[^ ]+)")
     noQuotesNeededRegex = re.compile("^([-.0-9a-zA-Z]+|'[^']+'|\"[^\"]+\")$")
-
     # Parse host variable and return corresponding YAML object
     def parse_value(value):
-        if noQuotesNeededRegex.match(value):  # Integers, booleans and quoted strings strings must not be quoted
+        # Integers, booleans and quoted strings strings must not be quoted
+        if noQuotesNeededRegex.match(value):
             result = yaml.load('value: ' + value)['value']
         else:
             result = yaml.load('value: "' + value + '"')['value']
@@ -55,24 +60,29 @@ def ini_yaml(text):
                 hostname = host[0]
                 hostvars = host[1] if len(host) > 1 else ''
                 hostvars = varRegex.findall(hostvars)
-
-                inventory.setdefault('all', {}).setdefault('children', {}).setdefault(group[0], {}).setdefault('hosts',
-                                                                                                               {})[
-                    hostname] = {}
+                inventory.setdefault('all', {})\
+                    .setdefault('children', {})\
+                    .setdefault(group[0], {})\
+                    .setdefault('hosts', {})[hostname] = {}
                 for hostvar in hostvars:
                     value = parse_value(hostvar[1])
-                    inventory.setdefault('all', {}).setdefault('children', {}).setdefault(group[0], {}).setdefault(
-                        'hosts', {})[hostname][hostvar[0]] = value
+                    inventory.setdefault('all', {})\
+                        .setdefault('children', {})\
+                        .setdefault(group[0], {})\
+                        .setdefault('hosts', {})[hostname][hostvar[0]] = value
         elif group[1] == 'vars':  # section contains group vars
             for name, value in config.items(section):
                 value = parse_value(value)
-                inventory.setdefault('all', {}).setdefault('children', {}).setdefault(group[0], {}).setdefault('vars',
-                                                                                                               {})[
-                    name] = value
+                inventory.setdefault('all', {})\
+                    .setdefault('children', {})\
+                    .setdefault(group[0], {})\
+                    .setdefault('vars', {})[name] = value
         elif group[1] == 'children':  # section contains group of groups
             for name, value in config.items(section):
-                inventory.setdefault('all', {}).setdefault('children', {}).setdefault(group[0], {}).setdefault(
-                    'children', {})[name] = {}
+                inventory.setdefault('all', {})\
+                    .setdefault('children', {})\
+                    .setdefault(group[0], {})\
+                    .setdefault('children', {})[name] = {}
 
     return inventory
 
@@ -101,14 +111,14 @@ def load_ansible_playbook(payload):
         }
 
     book_id, entry_id = entry
-    book_record = db.collection('books').find_one({'_id': ObjectId(book_id)})
+    book_record = Book.find_by_id(book_id)
     if not book_record:
         return {
             'message': 'book not found',
             'code': 1040011,
         }
 
-    entry_record = db.collection('playbook').find_one({'_id': ObjectId(entry_id)})
+    entry_record = Playbook.find_by_id(entry_id)
     if not entry_record:
         return {
             'message': 'entry not found',
@@ -145,7 +155,7 @@ def load_ansible_playbook(payload):
     role_names = []
     if roles:
         roles = list(map(lambda i: ObjectId(i), roles))
-        check = db.collection('playbook').find({
+        check = Playbook.find({
             'book_id': book_id,
             '_id': {
                 '$in': roles,
@@ -166,7 +176,7 @@ def load_ansible_playbook(payload):
 
     private_key = template.get('private_key')
     if private_key:
-        key_record = db.collection('credentials').find_one({'_id': ObjectId(private_key), 'type': 'private_key'})
+        key_record = Credential.find_one({'_id': ObjectId(private_key), 'type': 'private_key'})
         if not key_record:
             return {
                 'message': 'invalid private key',
@@ -237,7 +247,7 @@ def load_ansible_playbook(payload):
 
     vault_pass = template.get('vault_pass')
     if vault_pass:
-        vault_record = db.collection('credentials').find_one({'_id': ObjectId(vault_pass)})
+        vault_record = Credential.find_one({'_id': ObjectId(vault_pass)})
         if not vault_record or not vault_record.get('body'):
             return {
                 'message': 'invalid vault pass',
@@ -436,7 +446,7 @@ def parse_file_inventory(inventory_params):
             return False
 
         mark_name, _id, group = inventory_list
-        record = db.collection('playbook').find_one({'_id': ObjectId(_id)})
+        record = Playbook.find_one({'_id': ObjectId(_id)})
         if not record:
             return False
 
@@ -467,11 +477,11 @@ def parse_cmdb_inventory(inventory):
                     '_id': _id,
                 }
             else:
-                group = db.collection('groups').find_one({'_id': ObjectId(_id)})
+                group = Group.find_one({'_id': ObjectId(_id)})
                 if not group:
                     continue
 
-            records = db.collection('machines').find({'group': {'$in': [str(group['_id'])]}})
+            records = Host.find({'group': {'$in': [str(group['_id'])]}})
             for record in records:
                 hosts[record['hostname']] = {
                     'ansible_ssh_host': record.get('ansible_ssh_host'),
@@ -480,7 +490,7 @@ def parse_cmdb_inventory(inventory):
                 }
         else:
             group_name += '_node'
-            record = db.collection('machines').find_one({'_id': ObjectId(_id)})
+            record = Host.find_one({'_id': ObjectId(_id)})
             if record:
                 hosts[record['node_name']] = {
                     'ansible_ssh_host': record.get('ansible_ssh_host'),
@@ -521,4 +531,6 @@ def get_meta(pathname):
     elif path_len >= 3:
         meta['role'] = path_split[2]
         meta['project'] = path_split[1]
+
     return meta
+

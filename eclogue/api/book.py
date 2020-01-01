@@ -1,6 +1,7 @@
 import time
 import os
 import pymongo
+import uuid
 
 from bson import ObjectId
 from tempfile import NamedTemporaryFile
@@ -16,6 +17,8 @@ from eclogue.models.playbook import Playbook
 from eclogue.ansible.remote import AnsibleGalaxy
 from eclogue.lib.logger import logger
 from eclogue.ansible.playbook import check_playbook
+from eclogue.vcs.versioncontrol import GitDownload
+from flask_log_request_id import request_id
 
 
 @jwt_required
@@ -493,5 +496,28 @@ def get_entry(_id):
         'code': 0,
         'data': list(cursor),
     })
+
+
+@jwt_required
+def run(_id):
+    is_admin = login_user.get('is_admin')
+    book = Book.find_by_id(_id)
+    if not book:
+        return jsonify({
+            'message': 'record not found',
+            'code': 10404
+        }), 404
+
+    wk = Workspace()
+    payload = request.get_json()
+    roles = payload.get('options')
+    if book.repo == 'git':
+        vcs = GitDownload(book.get('repo_options'))
+        dest = vcs.install()
+
+    wk = Workspace()
+    bookspace = wk.load_book_from_db(name=book.get('name'), roles=roles, build_id=task_id)
+    pass
+
 
 

@@ -12,7 +12,6 @@ from flask_log_request_id import current_request_id
 # from traceback import print_exception
 
 from eclogue.model import Mongo
-from eclogue.redis import redis_client
 from eclogue.lib.helper import load_ansible_playbook, load_ansible_adhoc
 from eclogue.lib.credential import get_credential_content_by_id
 from eclogue.lib.workspace import Workspace
@@ -29,17 +28,11 @@ from eclogue.models.task import Task as TaskModel
 from eclogue.models.job import Job
 from eclogue.models.application import Application
 from eclogue.models.user import User
-
+from eclogue.tasks import tiger
 
 task_cfg = config.task
-
-tiger = TaskTiger(connection=redis_client, config={
-    'REDIS_PREFIX': 'ece',
-    'ALWAYS_EAGER': task_cfg.get('always_eager'),
-}, setup_structlog=True)
-
 logger = get_logger('console')
-cache_result_numer = config.task.get('history') or 100
+cache_result_number = config.task.get('history') or 100
 
 
 def run_job(_id, history_id=None, **kwargs):
@@ -156,8 +149,6 @@ def run_adhoc_task(_id, request_id, username, history_id, **kwargs):
         message = 'run job: {}, error:{}'.format(record.get('name'), str(e))
         sys.stdout.write(message)
         Notify().dispatch(user_id=user_id, msg_type='task', content=message, channel=notification)
-
-        raise e
     finally:
         content = temp_stdout.getvalue()
         sys.stdout = old_stdout
@@ -235,7 +226,7 @@ def run_playbook_task(_id, request_id, username, history_id, **kwargs):
         wk = Workspace()
         roles = data.get('roles')
         if history_id:
-            bookspace = wk.build_book(history_id)
+            bookspace = wk.build_book_from_history(history_id)
         else:
             bookname = data.get('book_name')
             bookspace = wk.load_book_from_db(name=bookname, roles=roles, build_id=task_id)
@@ -265,7 +256,7 @@ def run_playbook_task(_id, request_id, username, history_id, **kwargs):
             builds = db.collection('build_history').count({'job_id': _id})
             state = 'finish'
             # @todo
-            if builds > cache_result_numer:
+            if builds > cache_result_number:
                 last_one = db.collection('build_history').find_one({'job_id': _id}, sort=[('_id', 1)])
                 if last_one:
                     db.fs().delete(last_one.get('file_id'))

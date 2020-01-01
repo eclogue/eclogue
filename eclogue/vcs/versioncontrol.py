@@ -2,7 +2,7 @@ import os
 
 from git.cmd import Git
 from eclogue.lib.workspace import Workspace
-from eclogue.lib.logger import logger, get_logger
+from eclogue.lib.logger import get_logger
 from eclogue.config import config
 
 

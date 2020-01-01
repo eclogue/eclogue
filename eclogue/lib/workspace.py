@@ -12,12 +12,13 @@ from eclogue.ansible.vault import Vault
 from eclogue.models.book import Book
 from eclogue.models.configuration import Configuration
 from eclogue.model import Model
+from eclogue.vcs.versioncontrol import GitDownload
 
 
 class Workspace(object):
 
-    def __init__(self, home_path=None):
-        self._base_dir = home_path or config.workspace.get('base_dir', '/var/lib/eclogue')
+    def __init__(self, root_path=None):
+        self._base_dir = root_path or config.workspace.get('base_dir', '/var/lib/eclogue')
         self._spaces = {
             'workspace': 0o755,
             'jobs': 0o755,
@@ -106,6 +107,7 @@ class Workspace(object):
         if not index:
             index = '/'
         if os.path.isfile(filename):
+            # can not import playbook model
             record = Model.build_model('playbooks').find_one({'path': index})
             if not record:
                 os.remove(filename)
@@ -115,14 +117,14 @@ class Workspace(object):
             self.check_workspace(filename, file)
         return True
 
-    def import_book_from_dir(self, home_path, book_id, exclude=['*.retry'], links=False):
+    def import_book_from_dir(self, root_path, book_id, exclude=['*.retry'], links=False):
         bucket = []
         cursor = 0
-        parent = home_path
+        parent = root_path
         book_record = Book.find_one({'_id': ObjectId(book_id)})
         pattern = '|'.join(exclude).replace('*', '.*?')
-        for current, dirs, files in os.walk(home_path, topdown=True, followlinks=links):
-            pathname = current.replace(home_path, '') or '/'
+        for current, dirs, files in os.walk(root_path, topdown=True, followlinks=links):
+            pathname = current.replace(root_path, '') or '/'
             if exclude:
                 match = re.search(pattern, pathname)
                 if match:
@@ -137,7 +139,7 @@ class Workspace(object):
                 'parent': None,
                 'created_at': int(time.time()),
             }
-            if not current == home_path:
+            if not current == root_path:
                 dir_record['parent'] = parent
                 meta = Workspace.get_meta(pathname=pathname)
                 dir_record.update(meta)
@@ -167,7 +169,7 @@ class Workspace(object):
                         file_record['md5'] = md5(file_record['content'])
                         file_record['is_encrypt'] = Vault.is_encrypted(file_record['content'])
 
-                meta = self._get_role(file_record['path'])
+                meta = self.get_meta(file_record['path'])
                 file_record.update(meta)
                 file_record['additions'] = meta
                 bucket.append(file_record)
@@ -342,7 +344,7 @@ class Workspace(object):
     @staticmethod
     def get_meta(pathname):
         pathname = pathname.rstrip('/')
-        home_path, filename = os.path.split(pathname)
+        root_path, filename = os.path.split(pathname)
         meta = {
             'name': filename
         }
@@ -363,7 +365,7 @@ class Workspace(object):
             meta['project'] = path_split[1]
         return meta
 
-    def build_book(self, build_id):
+    def build_book_from_history(self, build_id):
         history = db.collection('build_history').find_one({'_id': ObjectId(build_id)})
         task_id = history.get('task_id')
         file_id = history.get('file_id')
@@ -380,3 +382,6 @@ class Workspace(object):
         os.unlink(save_file)
 
         return bookspace
+    
+        
+

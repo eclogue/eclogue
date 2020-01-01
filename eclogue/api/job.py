@@ -33,16 +33,19 @@ from eclogue.models.application import Application
 @jwt_required
 def get_job(_id):
     username = login_user.get('username')
-    job = Job.find_one({
-        '_id': ObjectId(_id),
-        'maintainer': {'$in': [username]}
-    })
-
+    is_admin = login_user.get('is_admin')
+    job = Job.find_by_id(_id)
     if not job:
         return jsonify({
             'message': 'record not found',
             'code': 154001,
         }), 400
+
+    if not is_admin and username not in job['maintainer']:
+        return jsonify({
+            'message': 'permission deny',
+            'code': 104031
+        }), 403
 
     template = job.get('template')
     inventory_type = template.get('inventory_type')
@@ -371,7 +374,7 @@ def check_job(_id):
 @jwt_required
 def job_detail(_id):
     query = request.args
-    record = db.collection('jobs').find_one({'_id': ObjectId(_id)})
+    record = Job.find_by_id(_id)
     if not record:
         return jsonify({
             'message': 'record not found',
@@ -384,7 +387,7 @@ def job_detail(_id):
         inventory_content = parse_cmdb_inventory(inventory)
         template['inventory_content'] = inventory_content
     else:
-        book = db.collection('books').find_one({'_id': ObjectId(record.get('book_id'))})
+        book = Book.find_one(record.get('book_id'))
         record['book_name'] = book.get('name')
         template = record.get('template')
         if template:
@@ -642,7 +645,7 @@ def job_webhook():
             'code': 104000
         }), 400
 
-    record = Job().collection.find_one({'token': token})
+    record = Job.find_one({'token': token})
     if not record:
         return jsonify({
             'message': 'illegal token',

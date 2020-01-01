@@ -2,14 +2,10 @@ import os
 import yaml
 
 from collections import namedtuple
-import pprint
 
-import ansible.constants as C
 from ansible.galaxy import Galaxy
 from ansible.galaxy.api import GalaxyAPI
-from ansible.galaxy.login import GalaxyLogin
 from ansible.galaxy.role import GalaxyRole
-from ansible.galaxy.token import GalaxyToken
 from ansible.errors import AnsibleError, AnsibleOptionsError
 from ansible.playbook.role.requirement import RoleRequirement
 from eclogue.lib.logger import logger
@@ -27,7 +23,7 @@ class AnsibleGalaxy(object):
 
         Options = namedtuple('Options', sorted(opts))
         self.options = Options(**opts)
-        self.galaxy = Galaxy(self.options)
+        self.galaxy = Galaxy()
 
     def default_options(self):
         wk = Workspace()
@@ -134,8 +130,10 @@ class AnsibleGalaxy(object):
                     for doc in documents:
                         if doc.get('role') != 'entry':
                             doc['path'] = '/roles' + doc.get('path')
-                        print(doc['path'])
-                        Playbook().collection.update_one({'path': doc.get('path')}, {'$set': doc}, upsert=True)
+                        Playbook.update_one({
+                            'book_id': doc['book_id'],
+                            'path': doc.get('path')
+                        }, {'$set': doc}, upsert=True)
 
             except AnsibleError as e:
                 print("- %s was NOT installed successfully: %s " % (role.name, str(e)))
