@@ -12,7 +12,6 @@ from eclogue.ansible.vault import Vault
 from eclogue.models.book import Book
 from eclogue.models.configuration import Configuration
 from eclogue.model import Model
-from eclogue.vcs.versioncontrol import GitDownload
 
 
 class Workspace(object):
@@ -228,9 +227,10 @@ class Workspace(object):
         if not files:
             return False
 
-        bookspace = self.get_book_space(name)
         if build_id:
-            bookspace = os.path.join(bookspace, md5(str(build_id)))
+            bookspace = os.path.join(self.book, md5(str(build_id)))
+        else:
+            bookspace = self.get_book_space(name)
 
         def parse_register(record):
             register = record.get('register')
@@ -279,6 +279,8 @@ class Workspace(object):
                 if project and project not in roles:
                     continue
             filename = bookspace + item.get('path')
+            print(filename)
+            # continue
             # print(filename)
             if item['is_dir']:
                 if os.path.isdir(filename):

@@ -1,13 +1,13 @@
 import ansible.constants as C
 from ansible.plugins.callback.default import CallbackModule
 from ansible.playbook.task_include import TaskInclude
-from eclogue.ansible.display import EcDisplay
+from eclogue.ansible.display import Display as ECDisplay
 
 
 class FormatCollector(CallbackModule):
     def __init__(self, display=None, options=None):
         super(FormatCollector, self).__init__(display=display, options=options)
-        self._display = EcDisplay()
+        self._display = ECDisplay()
 
     def v2_runner_on_failed(self, result, ignore_errors=False):
 

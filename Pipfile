@@ -44,6 +44,7 @@ wechatpy = "*"
 ansi2html = "*"
 gevent = "*"
 flask-testing = "*"
+ansible-lint = "*"
 
 [requires]
 python_version = "3.6"

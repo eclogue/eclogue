@@ -1,6 +1,6 @@
 import os
 from eclogue.model import Model
-from eclogue.lib.helper import get_meta
+from eclogue.lib.workspace import Workspace
 
 
 class Playbook(Model):
@@ -19,7 +19,7 @@ class Playbook(Model):
                     self.rename(doc['_id'], new_path)
                     continue
 
-                meta = get_meta(new_path)
+                meta = Workspace.get_meta(new_path)
                 update = {
                     'path': new_path,
                     'parent': os.path.dirname(new_path),
@@ -27,7 +27,7 @@ class Playbook(Model):
                 }
                 self.update_one({'_id': doc['_id']}, {'$set': update})
 
-        meta = get_meta(path)
+        meta = Workspace.get_meta(path)
         update = {
             'path': path,
             'parent': os.path.dirname(path),

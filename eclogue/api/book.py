@@ -19,6 +19,7 @@ from eclogue.lib.logger import logger
 from eclogue.ansible.playbook import check_playbook
 from eclogue.vcs.versioncontrol import GitDownload
 from flask_log_request_id import request_id
+from eclogue.tasks.book import dispatch
 
 
 @jwt_required
@@ -500,7 +501,6 @@ def get_entry(_id):
 
 @jwt_required
 def run(_id):
-    is_admin = login_user.get('is_admin')
     book = Book.find_by_id(_id)
     if not book:
         return jsonify({
@@ -508,16 +508,25 @@ def run(_id):
             'code': 10404
         }), 404
 
-    wk = Workspace()
     payload = request.get_json()
-    roles = payload.get('options')
-    if book.repo == 'git':
-        vcs = GitDownload(book.get('repo_options'))
-        dest = vcs.install()
+    entry = payload.get('entry')
+    args = payload.get('args')
+    req_id = str(request_id)
+    options = {
+        'username': login_user.get('username'),
+        'req_id': req_id,
+        'args': args,
+    }
+    result = dispatch(_id, entry, options)
+    if not result:
+        return jsonify({
+            'message': 'invalid request',
+            'code': 104008
+        }), 400
 
-    wk = Workspace()
-    bookspace = wk.load_book_from_db(name=book.get('name'), roles=roles, build_id=task_id)
-    pass
-
+    return jsonify({
+        'message': 'ok',
+        'code': 0,
+    })
 
 
