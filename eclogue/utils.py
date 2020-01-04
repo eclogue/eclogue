@@ -71,7 +71,7 @@ def check_workspace(path=None, child=None):
         record = db.collection('playbook').find_one({'path': index})
         if not record:
             os.remove(filename)
-        return True;
+        return True
     files = os.listdir(filename)
     for file in files:  # 遍历文件夹
         check_workspace(filename, file)

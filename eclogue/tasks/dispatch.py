@@ -29,6 +29,7 @@ from eclogue.models.job import Job
 from eclogue.models.application import Application
 from eclogue.models.user import User
 from eclogue.tasks import tiger
+from eclogue.lib.builder import build_book_from_db
 
 task_cfg = config.task
 logger = get_logger('console')
@@ -223,64 +224,57 @@ def run_playbook_task(_id, request_id, username, history_id, **kwargs):
         data = payload.get('data')
         options = data.get('options')
         private_key = data.get('private_key')
-        wk = Workspace()
         roles = data.get('roles')
-        if history_id:
-            bookspace = wk.build_book_from_history(history_id)
-        else:
-            bookname = data.get('book_name')
-            bookspace = wk.load_book_from_db(name=bookname, roles=roles, build_id=task_id)
+        bookname = data.get('book_name')
+        with build_book_from_db(bookname, roles=roles,
+                                build_id=task_id, history_id=history_id) as bookspace:
+            if not bookspace or not os.path.isdir(bookspace):
+                raise Exception('install playbook failed, book name: {}'.format(data.get('book_name')))
 
-        if not bookspace or not os.path.isdir(bookspace):
-            raise Exception('install playbook failed, book name: {}'.format(data.get('book_name')))
+            entry = os.path.join(bookspace,  data.get('entry'))
+            with NamedTemporaryFile('w+t', delete=False) as fd:
+                if private_key:
+                    key_text = get_credential_content_by_id(private_key, 'private_key')
+                    if not key_text:
+                        raise Exception('invalid private_key')
 
-        entry = os.path.join(bookspace,  data.get('entry'))
+                    fd.write(key_text)
+                    fd.seek(0)
+                    options['private-key'] = fd.name
 
-        with NamedTemporaryFile('w+t', delete=False) as fd:
-            if private_key:
-                key_text = get_credential_content_by_id(private_key, 'private_key')
-                if not key_text:
-                    raise Exception('invalid private_key')
+                options['tags'] = ['uptime']
+                options['verbosity'] = 2
+                inventory = data.get('inventory')
+                logger.info('ansible-playbook run load inventory: \n{}'.format(yaml.safe_dump(inventory)))
+                play = PlayBookRunner(data.get('inventory'), options, job_id=job_id)
+                play.run(entry)
+                result = play.get_result()
+                builds = db.collection('build_history').count({'job_id': _id})
+                state = 'finish'
+                # @todo
+                if builds > cache_result_number:
+                    last_one = db.collection('build_history').find_one({'job_id': _id}, sort=[('_id', 1)])
+                    if last_one:
+                        db.fs().delete(last_one.get('file_id'))
+                        db.collection('build_history').delete_one({'_id': last_one['_id']})
 
-                fd.write(key_text)
-                fd.seek(0)
-                options['private-key'] = fd.name
-
-            options['tags'] = ['uptime']
-            options['verbosity'] = 2
-            inventory = data.get('inventory')
-            logger.info('ansible-playbook run load inventory: \n{}'.format(yaml.safe_dump(inventory)))
-            play = PlayBookRunner(data.get('inventory'), options, job_id=job_id)
-            play.run(entry)
-            result = play.get_result()
-            builds = db.collection('build_history').count({'job_id': _id})
-            state = 'finish'
-            # @todo
-            if builds > cache_result_number:
-                last_one = db.collection('build_history').find_one({'job_id': _id}, sort=[('_id', 1)])
-                if last_one:
-                    db.fs().delete(last_one.get('file_id'))
-                    db.collection('build_history').delete_one({'_id': last_one['_id']})
-
-            with TemporaryDirectory() as dir_name:
-                bookname = data.get('book_name')
-                zip_file = os.path.join(dir_name, bookname)
-                zip_file = make_zip(bookspace, zip_file)
-                with open(zip_file, mode='rb') as stream:
-                    filename = bookname + '.zip'
-                    file_id = db.save_file(filename=filename, fileobj=stream)
-                    store_info = {
-                        'task_id': str(task_id),
-                        'file_id': str(file_id),
-                        'job_id': str(_id),
-                        'job_info': record,
-                        'filename': filename,
-                        'created_at': time(),
-                        'kwargs': kwargs,
-                    }
-                    db.collection('build_history').insert_one(store_info)
-                    shutil.rmtree(bookspace)
-
+                with TemporaryDirectory() as dir_name:
+                    bookname = data.get('book_name')
+                    zip_file = os.path.join(dir_name, bookname)
+                    zip_file = make_zip(bookspace, zip_file)
+                    with open(zip_file, mode='rb') as stream:
+                        filename = bookname + '.zip'
+                        file_id = db.save_file(filename=filename, fileobj=stream)
+                        store_info = {
+                            'task_id': str(task_id),
+                            'file_id': str(file_id),
+                            'job_id': str(_id),
+                            'job_info': record,
+                            'filename': filename,
+                            'created_at': time(),
+                            'kwargs': kwargs,
+                        }
+                        db.collection('build_history').insert_one(store_info)
     except Exception as e:
         result = str(e)
         extra = {'task_id': task_id}

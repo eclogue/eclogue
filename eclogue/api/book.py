@@ -20,6 +20,7 @@ from eclogue.ansible.playbook import check_playbook
 from eclogue.vcs.versioncontrol import GitDownload
 from flask_log_request_id import request_id
 from eclogue.tasks.book import dispatch
+from eclogue.lib.builder import build_book_from_db
 
 
 @jwt_required
@@ -405,13 +406,12 @@ def download_book(_id):
 
     name = record.get('name')
     wk = Workspace()
-    wk.load_book_from_db(name)
-    dirname = wk.get_book_space(name)
-    filename = name + '.zip'
-    with NamedTemporaryFile('w+t', delete=False) as fd:
-        make_zip(dirname, fd.name)
+    with build_book_from_db(name) as bookspace:
+        filename = name + '.zip'
+        with NamedTemporaryFile('w+t', delete=False) as fd:
+            make_zip(bookspace, fd.name)
 
-        return send_file(fd.name, attachment_filename=filename, as_attachment=True)
+            return send_file(fd.name, attachment_filename=filename, as_attachment=True)
 
 
 @jwt_required

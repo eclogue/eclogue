@@ -3,7 +3,9 @@ import time
 import re
 import pymongo
 import yaml
-from tempfile import TemporaryDirectory, NamedTemporaryFile
+import shutil
+from tempfile import NamedTemporaryFile
+from contextlib import contextmanager
 from bson import ObjectId
 from eclogue.config import config
 from eclogue.model import db
@@ -12,6 +14,7 @@ from eclogue.ansible.vault import Vault
 from eclogue.models.book import Book
 from eclogue.models.configuration import Configuration
 from eclogue.model import Model
+from eclogue.lib.logger import logger
 
 
 class Workspace(object):
@@ -271,6 +274,7 @@ class Workspace(object):
 
             return record
 
+        print('finally start:%s' % bookspace)
         self.check_workspace(path=self._check_make(bookspace))
         for item in files:
             item = parse_register(item)
@@ -279,8 +283,6 @@ class Workspace(object):
                 if project and project not in roles:
                     continue
             filename = bookspace + item.get('path')
-            # continue
-            # print(filename)
             if item['is_dir']:
                 if os.path.isdir(filename):
                     continue
@@ -384,5 +386,7 @@ class Workspace(object):
 
         return bookspace
     
-        
+    @staticmethod
+    def remove_directory(directory):
+        shutil.rmtree(directory)
 

@@ -2,6 +2,7 @@ import time
 import datetime
 import base64
 import yaml
+import os
 
 from bson import ObjectId
 from tempfile import NamedTemporaryFile, TemporaryDirectory
@@ -28,6 +29,7 @@ from eclogue.utils import extract
 from eclogue.models.book import Book
 from eclogue.models.task import Task
 from eclogue.models.application import Application
+from eclogue.lib.builder import build_book_from_db
 
 
 @jwt_required
@@ -225,41 +227,44 @@ def add_jobs():
     is_check = body.get('check')
     private_key = data.get('private_key')
     wk = Workspace()
-    res = wk.load_book_from_db(name=data.get('book_name'), roles=data.get('roles'))
-    if not res:
-        return jsonify({
-            'message': 'book not found',
-            'code': 104000,
-        }), 400
-
-    entry = wk.get_book_entry(data.get('book_name'),  data.get('entry'))
-    dry_run = bool(is_check)
-    options['check'] = dry_run
-    if dry_run:
-        with NamedTemporaryFile('w+t', delete=True) as fd:
-            if private_key:
-                key_text = get_credential_content_by_id(private_key, 'private_key')
-                if not key_text:
-                    return jsonify({
-                        'message': 'invalid private_key',
-                        'code': 104033,
-                    }), 401
-
-                fd.write(key_text)
-                fd.seek(0)
-                options['private_key'] = fd.name
-
-            play = PlayBookRunner(data['inventory'], options, callback=CallbackModule())
-            play.run(entry)
-
+    book_name = data.get('book_name')
+    roles = data.get('roles')
+    with build_book_from_db(name=book_name, roles=roles) as bookspace:
+        if not bookspace:
             return jsonify({
-                'message': 'ok',
-                'code': 0,
-                'data': {
-                    'result': play.get_result(),
-                    'options': options
-                }
-            })
+                'message': 'invalid book',
+                'code': 104000
+            }), 400
+
+        entry = wk.get_book_entry(data.get('book_name'),  data.get('entry'))
+        # entry = os.path.join(bookspace, data['entry'])
+        dry_run = bool(is_check)
+        options['check'] = dry_run
+        if dry_run:
+            with NamedTemporaryFile('w+t', delete=True) as fd:
+                if private_key:
+                    key_text = get_credential_content_by_id(private_key, 'private_key')
+                    if not key_text:
+                        return jsonify({
+                            'message': 'invalid private_key',
+                            'code': 104033,
+                        }), 401
+
+                    fd.write(key_text)
+                    fd.seek(0)
+                    options['private_key'] = fd.name
+
+                play = PlayBookRunner(data['inventory'], options, callback=CallbackModule())
+                play.run(entry)
+
+                return jsonify({
+                    'message': 'ok',
+                    'code': 0,
+                    'data': {
+                        'result': play.get_result(),
+                        'options': options
+                    }
+                })
 
     name = data.get('name')
     existed = Job.find_one({'name': name})
@@ -342,7 +347,7 @@ def check_job(_id):
     options = data.get('options')
     private_key = data.get('private_key')
     wk = Workspace()
-    res = wk.load_book_from_db(name=data.get('book_name'), roles=data.get('roles'))
+    res = build_book_from_db(name=data.get('book_name'), roles=data.get('roles'))
     if not res:
         return jsonify({
             'message': 'book not found',

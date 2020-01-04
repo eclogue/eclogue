@@ -14,6 +14,7 @@ from eclogue.lib.workspace import Workspace
 from eclogue.ansible.runer import PlayBookRunner
 from eclogue.lib.helper import load_ansible_playbook, get_meta
 from eclogue.models.configuration import configuration
+from eclogue.lib.builder import build_book_from_db
 
 
 class Catheter(object):
@@ -355,21 +356,24 @@ class Catheter(object):
         data = payload.get('data')
         options = data.get('options')
         wk = Workspace()
-        res = wk.load_book_from_db(name=data.get('book_name'), roles=data.get('roles'))
-        if not res:
-            return jsonify({
-                'message': 'book not found',
-                'code': 104000,
-            }), 400
-        entry = wk.get_book_entry(data.get('book_name'), data.get('entry'))
-        play = PlayBookRunner([data['inventory']], options)
-        play.run(entry)
+        with build_book_from_db(name=data.get('book_name'), roles=data.get('roles')) as bookspace:
+            if not bookspace:
+                return jsonify({
+                    'message': 'book not found',
+                    'code': 104000,
+                }), 400
+
+            entry = wk.get_book_entry(data.get('book_name'), data.get('entry'))
+            play = PlayBookRunner([data['inventory']], options)
+            play.run(entry)
+            tags = list(play.tags)
+            tasks = list(play.tasks)
 
         return jsonify({
             'message': 'ok',
             'code': 0,
             'data': {
-                'tags': list(play.tags),
-                'tasks': list(play.tasks),
+                'tags': tags,
+                'tasks': tasks,
             }
         })

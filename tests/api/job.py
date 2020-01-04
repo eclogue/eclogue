@@ -12,7 +12,7 @@ class JobTest(BaseTestCase):
 
     @patch('eclogue.api.job.PlayBookRunner')
     @patch('eclogue.api.job.get_credential_content_by_id')
-    @patch('eclogue.api.job.Workspace')
+    @patch('eclogue.lib.builder.Workspace')
     @patch('eclogue.api.job.load_ansible_playbook')
     def test_add_job(self, load_ansible_playbook, workspace, key_mock, runner):
         data = self.get_data('playbook_job')
@@ -162,16 +162,16 @@ class JobTest(BaseTestCase):
         self.assertResponseCode(response, 154001)
         result = self.add_test_data(Job, data)
         url = self.get_api_path('/jobs/%s' % str(result.inserted_id))
+        parse_cmdb_inventory.return_value = ''
+        parse_file_inventory.return_value = ''
         response = self.client.get(url, headers=self.jwt_headers)
-        self.assert400(response)
+        self.assert200(response)
         Job.update_one({'_id': result.inserted_id}, {
             '$set': {
                 'maintainer': [self.user.get('username')],
                 'book_id': str(ObjectId())
             }
         })
-        parse_cmdb_inventory.return_value = ''
-        parse_file_inventory.return_value = ''
         response = self.client.get(url, headers=self.jwt_headers)
         parse_file_inventory.assert_called()
         check_book.assert_called()

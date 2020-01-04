@@ -13,6 +13,8 @@ from eclogue.tasks.reporter import Reporter
 from eclogue.models.perform import Perform
 from eclogue.tasks import tiger
 from eclogue.lib.logger import get_logger
+from eclogue.lib.builder import build_book_from_db
+
 
 logger = get_logger('console')
 
@@ -70,15 +72,18 @@ def run(book_id, run_id, options):
             # @todo
 
         book_name = book.get('name')
-        dest = wk.load_book_from_db(book_name, build_id=run_id)
-
-        inventory = os.path.join(dest, options['inventory'])
-        entry = os.path.join(dest, options['entry'])
-        args = options['args']
-        runner = PlayBookRunner(inventory, args)
-        runner.run([entry])
-        result = runner.get_result()
-        state = 'finish'
+        with build_book_from_db(book_name, build_id=run_id) as dest:
+            if not dest:
+                logger.warning('install book failed')
+                state = 'finish'
+            else:
+                inventory = os.path.join(dest, options['inventory'])
+                entry = os.path.join(dest, options['entry'])
+                args = options['args']
+                runner = PlayBookRunner(inventory, args)
+                runner.run([entry])
+                result = runner.get_result()
+                state = 'finish'
     except Exception as err:
         result = str(err)
         extra = {'run_id': run_id}

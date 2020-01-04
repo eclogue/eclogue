@@ -9,6 +9,7 @@ from eclogue.models.playbook import Playbook
 from eclogue.lib.workspace import Workspace
 from eclogue.models.book import Book
 from eclogue.config import config
+from eclogue.lib.builder import build_book_from_db
 
 
 def get_default_options(args):
@@ -123,34 +124,32 @@ def lint(book_id, options, config=None):
 
     options.skip_list = frozenset(skip)
     wk = Workspace()
-    book_path = wk.load_book_from_db(book.get('name'), options.get('roles'))
-    playbooks = []
-    for record in entries:
-        entry = os.path.join(book_path, record['path'][1:])
-        print('.......', entry)
+    with build_book_from_db(book.get('name'), options.get('roles')) as book_path:
+        playbooks = []
+        for record in entries:
+            entry = os.path.join(book_path, record['path'][1:])
+            playbooks.append(entry)
 
-        playbooks.append(entry)
+        playbooks = sorted(set(playbooks))
+        matches = list()
+        checked_files = set()
+        for playbook in playbooks:
+            runner = Runner(rules, playbook, options.tags,
+                            options.skip_list, options.exclude_paths,
+                            options.verbosity, checked_files)
+            matches.extend(runner.run())
 
-    playbooks = sorted(set(playbooks))
-    matches = list()
-    checked_files = set()
-    for playbook in playbooks:
-        runner = Runner(rules, playbook, options.tags,
-                        options.skip_list, options.exclude_paths,
-                        options.verbosity, checked_files)
-        matches.extend(runner.run())
+        matches.sort(key=lambda x: (normpath(x.filename), x.linenumber, x.rule.id))
+        results = []
+        for match in matches:
+            line = str(match.line)
+            line = line.replace(book_path, '')
+            results.append({
+                'lineNumber': match.linenumber,
+                'line': line,
+                'rule': match.rule.id,
+                'filename': match.filename,
+                'message': match.message,
+            })
 
-    matches.sort(key=lambda x: (normpath(x.filename), x.linenumber, x.rule.id))
-    results = []
-    for match in matches:
-        line = str(match.line)
-        line = line.replace(book_path, '')
-        results.append({
-            'lineNumber': match.linenumber,
-            'line': line,
-            'rule': match.rule.id,
-            'filename': match.filename,
-            'message': match.message,
-        })
-
-    return results
+        return results

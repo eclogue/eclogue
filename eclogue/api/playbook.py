@@ -18,6 +18,7 @@ from eclogue.models.configuration import configuration
 from eclogue.models.playbook import Playbook
 from eclogue.models.book import Book
 from eclogue.models.configuration import Configuration
+from eclogue.lib.builder import build_book_from_db
 
 
 @jwt_required
@@ -65,25 +66,25 @@ def get_tags():
     data = payload.get('data')
     options = data.get('options')
     wk = Workspace()
-    res = wk.load_book_from_db(name=data.get('book_name'), roles=data.get('roles'))
-    if not res:
+    with build_book_from_db(name=data.get('book_name'), roles=data.get('roles')) as bookspace:
+        if not bookspace:
+            return jsonify({
+                'message': 'book not found',
+                'code': 104000,
+            }), 400
+
+        entry = wk.get_book_entry(data.get('book_name'), data.get('entry'))
+        play = PlayBookRunner([data['inventory']], options)
+        play.run(entry)
+
         return jsonify({
-            'message': 'book not found',
-            'code': 104000,
-        }), 400
-
-    entry = wk.get_book_entry(data.get('book_name'), data.get('entry'))
-    play = PlayBookRunner([data['inventory']], options)
-    play.run(entry)
-
-    return jsonify({
-        'message': 'ok',
-        'code': 0,
-        'data': {
-            'tags': list(play.tags),
-            'tasks': list(play.tasks),
-        }
-    })
+            'message': 'ok',
+            'code': 0,
+            'data': {
+                'tags': list(play.tags),
+                'tasks': list(play.tasks),
+            }
+        })
 
 
 @jwt_required
