@@ -279,7 +279,6 @@ class Workspace(object):
                 if project and project not in roles:
                     continue
             filename = bookspace + item.get('path')
-            print(filename)
             # continue
             # print(filename)
             if item['is_dir']:

@@ -37,7 +37,6 @@ flask-log-request-id = "*"
 prometheus-client = "*"
 prometheus-flask-exporter = "*"
 sshpubkeys = "*"
-apscheduler = "*"
 redis = "==2.10.6"
 nexmo = "*"
 wechatpy = "*"
@@ -45,9 +44,8 @@ ansi2html = "*"
 gevent = "*"
 flask-testing = "*"
 ansible-lint = "*"
-
-[requires]
-python_version = "3.6"
+apscheduler = "==3.6.3"
+bunch = "*"
 
 [scripts]
 test = "python -m unittest discover -s tests -p '*.py'"

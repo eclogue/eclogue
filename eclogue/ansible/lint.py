@@ -2,11 +2,34 @@ import os
 import six
 import ansiblelint.formatters as formatters
 from collections import namedtuple
+from bunch import Bunch
 from ansiblelint import RulesCollection, Runner, default_rulesdir
 from ansiblelint.utils import get_playbooks_and_roles, normpath
 from eclogue.models.playbook import Playbook
 from eclogue.lib.workspace import Workspace
 from eclogue.models.book import Book
+from eclogue.config import config
+
+
+def get_default_options(args):
+    opts = {
+        'listrules': False,
+        'quiet': False,
+        'parseable': False,
+        'parseable_severity': False,
+        'rulesdir': [],
+        'use_default_rules': False,
+        'tags': [],
+        'listtags': None,
+        'verbosity': 0,
+        'skip_list': [],
+        'colored': True,
+        'exclude_paths': [],
+        'c': None
+    }
+    opts.update(args)
+
+    return Bunch(opts)
 
 
 def lint(book_id, options, config=None):
@@ -18,8 +41,8 @@ def lint(book_id, options, config=None):
     :param config:
     :return: None
     """
-    Options = namedtuple('Options', sorted(options))
-    options = Options(**options)
+    formatter = formatters.Formatter()
+    options = get_default_options(options)
     where = {
         'book_id': str(book_id),
         'role': 'entry',
@@ -41,7 +64,7 @@ def lint(book_id, options, config=None):
 
         if 'parseable_severity' in config:
             options.parseable_severity = options.parseable_severity or \
-                config['parseable_severity']
+                                         config['parseable_severity']
 
         if 'use_default_rules' in config:
             options.use_default_rules = options.use_default_rules or config['use_default_rules']
@@ -100,10 +123,12 @@ def lint(book_id, options, config=None):
 
     options.skip_list = frozenset(skip)
     wk = Workspace()
-    book_path = wk.load_book_from_db(book.get('name'), options.roles)
+    book_path = wk.load_book_from_db(book.get('name'), options.get('roles'))
     playbooks = []
     for record in entries:
-        entry = os.path.join(book_path, record['path'])
+        entry = os.path.join(book_path, record['path'][1:])
+        print('.......', entry)
+
         playbooks.append(entry)
 
     playbooks = sorted(set(playbooks))
@@ -118,6 +143,14 @@ def lint(book_id, options, config=None):
     matches.sort(key=lambda x: (normpath(x.filename), x.linenumber, x.rule.id))
     results = []
     for match in matches:
-        results.append(formatter.format(match, options.colored))
+        line = str(match.line)
+        line = line.replace(book_path, '')
+        results.append({
+            'lineNumber': match.linenumber,
+            'line': line,
+            'rule': match.rule.id,
+            'filename': match.filename,
+            'message': match.message,
+        })
 
     return results
