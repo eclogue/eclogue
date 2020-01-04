@@ -123,7 +123,6 @@ def lint(book_id, options, config=None):
         skip.update(str(s).split(','))
 
     options.skip_list = frozenset(skip)
-    wk = Workspace()
     with build_book_from_db(book.get('name'), options.get('roles')) as book_path:
         playbooks = []
         for record in entries:
@@ -142,13 +141,13 @@ def lint(book_id, options, config=None):
         matches.sort(key=lambda x: (normpath(x.filename), x.linenumber, x.rule.id))
         results = []
         for match in matches:
-            line = str(match.line)
-            line = line.replace(book_path, '')
+            filename = str(match.filename)
+            filename = filename.replace(book_path, '')
             results.append({
                 'lineNumber': match.linenumber,
-                'line': line,
+                'line': str(match.line),
                 'rule': match.rule.id,
-                'filename': match.filename,
+                'filename': filename,
                 'message': match.message,
             })
 

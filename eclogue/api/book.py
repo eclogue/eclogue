@@ -21,6 +21,7 @@ from eclogue.vcs.versioncontrol import GitDownload
 from flask_log_request_id import request_id
 from eclogue.tasks.book import dispatch
 from eclogue.lib.builder import build_book_from_db
+from eclogue.ansible.lint import lint
 
 
 @jwt_required
@@ -529,4 +530,36 @@ def run(_id):
         'code': 0,
     })
 
+
+@jwt_required
+def lint_book(_id):
+    # lint book use ansibleint
+    book = Book.find_by_id(_id)
+    if not book:
+        return jsonify({
+            'message': 'record not found',
+            'code': 104040
+        }), 404
+
+    body = request.get_json() or {}
+    tags = body.get('tags')
+    skiptags = body.get('skiptags')
+    tasks = body.get('tasks')
+    roles = body.get('roles')
+    opts = dict()
+    if tags:
+        opts['tags'] = tags
+    if tasks:
+        opts['tasks'] = tasks
+    if roles:
+        opts['roles'] = roles
+    if skiptags:
+        opts['skiptags'] = skiptags
+
+    result = lint(_id, options=opts)
+    return jsonify({
+        'message': 'ok',
+        'code': 0,
+        'data': result
+    })
 
