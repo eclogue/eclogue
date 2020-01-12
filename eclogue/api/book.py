@@ -18,10 +18,11 @@ from eclogue.ansible.remote import AnsibleGalaxy
 from eclogue.lib.logger import logger
 from eclogue.ansible.playbook import check_playbook
 from eclogue.vcs.versioncontrol import GitDownload
-from flask_log_request_id import request_id
+from flask_log_request_id import current_request_id
 from eclogue.tasks.book import dispatch
 from eclogue.lib.builder import build_book_from_db
 from eclogue.ansible.lint import lint
+from eclogue.ansible.runer import PlayBookRunner
 
 
 @jwt_required
@@ -510,15 +511,26 @@ def run(_id):
         }), 404
 
     payload = request.get_json()
-    entry = payload.get('entry')
-    args = payload.get('args')
-    req_id = str(request_id)
-    options = {
+    options = payload.get('options')
+    entry = options.get('entry')
+    args = options.get('args')
+    req_id = str(current_request_id())
+    params = {
         'username': login_user.get('username'),
         'req_id': req_id,
         'args': args,
+        'options': options
     }
-    result = dispatch(_id, entry, options)
+    # with build_book_from_db(book.get('name'), build_id=req_id) as dest:
+    #     inventory = os.path.join(dest, options['inventory'])
+    #     entry = os.path.join(dest, options['entry'].pop())
+    #     options['verbosity'] = 3
+    #     print(options)
+    #     runner = PlayBookRunner(inventory, options)
+    #     runner.run(entry)
+    #     result = runner.get_result()
+    #     print(result)
+    result = dispatch(_id, entry, params)
     if not result:
         return jsonify({
             'message': 'invalid request',

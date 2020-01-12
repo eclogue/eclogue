@@ -17,10 +17,10 @@ class Notify(object):
         return slack.send(text)
 
     def smtp(self, user, text):
-        if not user.email_status:
+        if not user or not user.get('email_status'):
             return False
 
-        to = user.email
+        to = user.get('email')
         subject = text[:50]
         smtp = SMTP()
 

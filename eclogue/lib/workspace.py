@@ -274,7 +274,6 @@ class Workspace(object):
 
             return record
 
-        print('finally start:%s' % bookspace)
         self.check_workspace(path=self._check_make(bookspace))
         for item in files:
             item = parse_register(item)

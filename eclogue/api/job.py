@@ -392,7 +392,7 @@ def job_detail(_id):
         inventory_content = parse_cmdb_inventory(inventory)
         template['inventory_content'] = inventory_content
     else:
-        book = Book.find_one(record.get('book_id'))
+        book = Book.find_by_id(record.get('book_id'))
         record['book_name'] = book.get('name')
         template = record.get('template')
         if template:
@@ -508,7 +508,7 @@ def add_adhoc():
     args = payload.get('args')
     inventory = payload.get('inventory')
     private_key = payload.get('private_key')
-    verbosity = payload.get('verbosity')
+    verbosity = payload.get('verbosity', 0)
     name = payload.get('name')
     schedule = payload.get('schedule')
     check = payload.get('check')

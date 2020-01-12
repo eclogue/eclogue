@@ -223,6 +223,7 @@ def run_playbook_task(_id, request_id, username, history_id, **kwargs):
 
         data = payload.get('data')
         options = data.get('options')
+        options['verbosity'] = 4
         private_key = data.get('private_key')
         roles = data.get('roles')
         bookname = data.get('book_name')
@@ -242,11 +243,13 @@ def run_playbook_task(_id, request_id, username, history_id, **kwargs):
                     fd.seek(0)
                     options['private-key'] = fd.name
 
-                options['tags'] = ['uptime']
-                options['verbosity'] = 2
                 inventory = data.get('inventory')
-                logger.info('ansible-playbook run load inventory: \n{}'.format(yaml.safe_dump(inventory)))
-                play = PlayBookRunner(data.get('inventory'), options, job_id=job_id)
+                # hosts = os.path.join(bookspace, 'hosts.yml')
+                # fileObject = open(hosts, mode='w+')
+                # # fileObject.write(inventory)
+                # yaml.dump_all(inventory, fileObject)
+                # fileObject.close()
+                play = PlayBookRunner(inventory, options, job_id=job_id)
                 play.run(entry)
                 result = play.get_result()
                 builds = db.collection('build_history').count({'job_id': _id})
@@ -289,7 +292,7 @@ def run_playbook_task(_id, request_id, username, history_id, **kwargs):
             sys.stdout.write(message)
             if notification and type(notification) == list:
                 Notify().dispatch(user_id=user_id, msg_type='task', content=message, channel=notification)
-
+        raise e
     finally:
         content = temp_stdout.getvalue()
         temp_stdout.close(True)
@@ -302,7 +305,7 @@ def run_playbook_task(_id, request_id, username, history_id, **kwargs):
                 'finish_at': finish_at,
                 'state': state,
                 'duration': finish_at - start_at,
-                'result': result,
+                'result': str(result),
             }
         }
         TaskModel.update_one({'_id': task_id}, update=update)

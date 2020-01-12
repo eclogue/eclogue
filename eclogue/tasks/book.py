@@ -1,10 +1,7 @@
 import uuid
 import time
-import sys
 import os
-from optparse import OptionParser
 
-from eclogue.lib.workspace import Workspace
 from eclogue.models.book import Book
 from eclogue.vcs.versioncontrol import GitDownload
 from eclogue.ansible.runer import PlayBookRunner, AdHocRunner
@@ -14,21 +11,24 @@ from eclogue.models.perform import Perform
 from eclogue.tasks import tiger
 from eclogue.lib.logger import get_logger
 from eclogue.lib.builder import build_book_from_db
+from eclogue.ansible.host import parser_inventory
+
 
 
 logger = get_logger('console')
 
 
-def dispatch(book_id, entry, options):
+def dispatch(book_id, entry, payload):
     book = Book.find_by_id(book_id)
     if not book:
         return False
 
-    username = options.get('username')
-    run_id = str(uuid.uuid4())
+    options = payload.get('options')
+    username = payload.get('username')
+    run_id = payload.get('req_id') or str(uuid.uuid4())
     params = [book_id, run_id]
-    args = options.get('args')
-    if not args or not entry:
+    options = payload.get('options')
+    if not entry:
         return False
 
     queue_name = 'book_runtime'
@@ -39,48 +39,46 @@ def dispatch(book_id, entry, options):
         'book_id': book_id,
         'run_id': run_id,
         'run_by': username,
-        'args': args,
+        'options': options,
         'result': '',
         'state': 'pending',
         'created_at': 1,
         'updated_at': 2,
     }
-    Perform.insert_one(run_record)
+    result = Perform.insert_one(run_record)
     task.delay()
 
+    return result.inserted_id
 
-def run(book_id, run_id, options):
-    perform = Perform.find_by_id(run_id)
-    if not perform:
-        return False
 
+def run(book_id, run_id, **options):
+    perform = Perform.find_one({'run_id': run_id})
     book = Book.find_by_id(book_id)
-    if not book:
-        return False
-
     start_at = time.time()
     state = 'progressing'
     result = ''
-    old_stdout = sys.stdout
-    old_stderr = sys.stderr
-    sys.stderr = sys.stdout = temp_stdout = Reporter(run_id)
+    # old_stdout = sys.stdout
+    # old_stderr = sys.stderr
+    # sys.stderr = sys.stdout = temp_stdout = Reporter(run_id)
     try:
-        wk = Workspace()
-        if book.repo == 'git':
+        if book.get('repo') == 'git':
             vcs = GitDownload(book.get('repo_options'))
-            dest = vcs.install()
+            install_path = vcs.install()
             # @todo
 
         book_name = book.get('name')
         with build_book_from_db(book_name, build_id=run_id) as dest:
             if not dest:
-                logger.warning('install book failed')
+                result = 'install book failed'
+                logger.warning(result)
                 state = 'finish'
             else:
                 inventory = os.path.join(dest, options['inventory'])
-                entry = os.path.join(dest, options['entry'])
-                args = options['args']
-                runner = PlayBookRunner(inventory, args)
+                entry = os.path.join(dest, options['entry'].pop())
+                options['verbosity'] = 3
+                options['tags'] = options['tags'].split(',')
+                options['basedir'] = dest
+                runner = PlayBookRunner(inventory, options)
                 runner.run([entry])
                 result = runner.get_result()
                 state = 'finish'
@@ -89,12 +87,13 @@ def run(book_id, run_id, options):
         extra = {'run_id': run_id}
         logger.error('run task with exception: {}'.format(result), extra=extra)
         state = 'error'
+        raise err
 
     finally:
-        content = temp_stdout.getvalue()
-        temp_stdout.close(True)
-        sys.stdout = old_stdout
-        sys.stderr = old_stderr
+        # content = temp_stdout.getvalue()
+        # temp_stdout.close(True)
+        # sys.stdout = old_stdout
+        # sys.stderr = old_stderr
         finish_at = time.time()
         update = {
             '$set': {
@@ -103,7 +102,7 @@ def run(book_id, run_id, options):
                 'state': state,
                 'duration': finish_at - start_at,
                 'result': result,
-                'trace': content,
+                # 'trace': content,
             }
         }
         Perform.update_one({'_id': perform['_id']}, update=update);

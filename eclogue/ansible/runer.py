@@ -16,6 +16,9 @@ from eclogue.ansible.inventory import HostsManager
 from ansible import context
 from ansible.utils.context_objects import CLIArgs
 from eclogue.ansible.plugins.callback import CallbackModule
+from ansible.utils.collection_loader import set_collection_playbook_paths
+from ansible.plugins.loader import add_all_plugin_dirs
+
 
 C.HOST_KEY_CHECKING = False
 C.ANSIBLE_NOCOLOR = True
@@ -113,7 +116,7 @@ class AdHocRunner(object):
         self.passwords = options.get('vault_pass') or {}
         self.inventory = HostsManager(loader=self.loader, sources=self.resource)
         self.variable_manager = VariableManager(loader=self.loader, inventory=self.inventory)
-        verbosity = options.get('verbosity')
+        verbosity = options.get('verbosity', 0)
         display.verbosity = verbosity
 
     def get_options(self, options, name=None):
@@ -224,10 +227,25 @@ class PlayBookRunner(AdHocRunner):
         """
         ansible playbook 模式运行任务
         """
+        print(self.options)
         # C.DEFAULT_ROLES_PATH = self.options.roles_path
-
+        b_playbook_dir = os.path.dirname(playbooks[0])
+        add_all_plugin_dirs(b_playbook_dir)
+        set_collection_playbook_paths([b_playbook_dir])
         loader, inventory, variable_manager = self._play_prereqs(
             self.options)
+
+        groups = inventory.groups
+        data = {}
+        for name, group in groups.items():
+            if name == 'all':
+                continue
+            hosts = group.get_hosts()
+            for host in hosts:
+                host_info = host.serialize()
+                del host_info['groups']
+                data[name] = host_info
+        print('ddddddddddddd', data)
         playbooks = playbooks if type(playbooks) == list else [playbooks]
         executor = PlaybookExecutor(
             playbooks=playbooks,

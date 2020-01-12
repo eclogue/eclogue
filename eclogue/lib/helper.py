@@ -171,7 +171,7 @@ def load_ansible_playbook(payload):
         role_names = list(map(lambda i: i.get('name'), check))
 
     extra_vars = {
-        'node': list(group_name),
+        'node': list(group_name)[0],
     }
 
     private_key = template.get('private_key')
@@ -263,7 +263,7 @@ def load_ansible_playbook(payload):
     options['verbosity'] = template.get('verbosity', 0)
     options['diff'] = template.get('diff', False)
     # options['vault'] = template.get('vault')
-    options['extra_vars'] = json.dumps(extra_vars)
+    options['extra_vars'] = extra_vars
     status = int(extra.get('status', 0))
 
     return {

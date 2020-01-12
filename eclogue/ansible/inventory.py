@@ -29,7 +29,6 @@ class HostsManager(InventoryManager):
                 if type(source) == str and ',' not in source and not yaml.safe_load(source):
                     source = unfrackpath(source, follow=False)
 
-                print('source:::::??', source)
                 parse = self.parse_source(source, cache=cache)
                 if parse and not parsed:
                     parsed = True
