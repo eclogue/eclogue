@@ -1,6 +1,7 @@
 import uuid
 import time
 import os
+import sys
 
 from eclogue.models.book import Book
 from eclogue.vcs.versioncontrol import GitDownload
@@ -57,9 +58,9 @@ def run(book_id, run_id, **options):
     start_at = time.time()
     state = 'progressing'
     result = ''
-    # old_stdout = sys.stdout
-    # old_stderr = sys.stderr
-    # sys.stderr = sys.stdout = temp_stdout = Reporter(run_id)
+    old_stdout = sys.stdout
+    old_stderr = sys.stderr
+    sys.stderr = sys.stdout = temp_stdout = Reporter(run_id)
     try:
         if book.get('repo') == 'git':
             vcs = GitDownload(book.get('repo_options'))
@@ -75,7 +76,6 @@ def run(book_id, run_id, **options):
             else:
                 inventory = os.path.join(dest, options['inventory'])
                 entry = os.path.join(dest, options['entry'].pop())
-                options['verbosity'] = 3
                 options['tags'] = options['tags'].split(',')
                 options['basedir'] = dest
                 runner = PlayBookRunner(inventory, options)
@@ -90,10 +90,10 @@ def run(book_id, run_id, **options):
         raise err
 
     finally:
-        # content = temp_stdout.getvalue()
-        # temp_stdout.close(True)
-        # sys.stdout = old_stdout
-        # sys.stderr = old_stderr
+        content = temp_stdout.getvalue()
+        temp_stdout.close(True)
+        sys.stdout = old_stdout
+        sys.stderr = old_stderr
         finish_at = time.time()
         update = {
             '$set': {
@@ -102,7 +102,7 @@ def run(book_id, run_id, **options):
                 'state': state,
                 'duration': finish_at - start_at,
                 'result': result,
-                # 'trace': content,
+                'trace': content,
             }
         }
         Perform.update_one({'_id': perform['_id']}, update=update);

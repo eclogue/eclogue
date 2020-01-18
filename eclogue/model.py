@@ -5,7 +5,7 @@ from bson import ObjectId
 from eclogue.config import config
 from gridfs import GridFS, GridFSBucket
 from mimetypes import guess_type
-from eclogue.lib.logger import logger
+from eclogue.middleware import login_user
 
 
 class Mongo(object):
@@ -115,7 +115,10 @@ class Model(object):
         record = data.copy()
         record['_id'] = result.inserted_id
         msg = 'insert new record to {}, _id: {}'.format(model.name, record['_id'])
-        logger.info(msg, extra={'record': record})
+        extra = {
+            'record': record,
+        }
+        model.report(msg, key=record['_id'], data=extra)
 
         return result
 
@@ -135,12 +138,12 @@ class Model(object):
             'change': update,
             'filter': where,
         }
-        logger.info(msg, extra)
+        model.report(msg, key=record['_id'], data=extra)
 
         return model.collection.update_one(where, update, **kwargs)
 
     @classmethod
-    def delete_one(cls, where, force=False, **kwargs):
+    def delete_one(cls, where, force=True, **kwargs):
         model = cls()
         record = model.collection.find_one(where)
         if not record:
@@ -158,7 +161,7 @@ class Model(object):
             }
         }
 
-        logger.info(msg, extra)
+        model.report(msg, key=record['_id'], data=extra)
         if not force:
             return model.collection.update_one(where, update=update, **kwargs)
 
@@ -188,6 +191,18 @@ class Model(object):
         model = cls()
 
         return model
+
+    def report(self, msg, key, data):
+        user = login_user or {}
+        record = {
+            'msg': msg,
+            'key': key,
+            'data': data,
+            'user': user.get('username'),
+            'created_at': time.time(),
+
+        }
+        self.db.collection('action_logs').insert_one(record)
 
     def __setitem__(self, key, value):
         self._attr[key] = value

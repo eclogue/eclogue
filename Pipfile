@@ -49,3 +49,4 @@ bunch = "*"
 
 [scripts]
 test = "python -m unittest discover -v -s tests -p '*.py'"
+start = "python manage.py start"

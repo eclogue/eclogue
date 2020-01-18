@@ -23,6 +23,8 @@ from eclogue.tasks.book import dispatch
 from eclogue.lib.builder import build_book_from_db
 from eclogue.ansible.lint import lint
 from eclogue.ansible.runer import PlayBookRunner
+from eclogue.models.perform import Perform
+from eclogue.tasks.reporter import Reporter
 
 
 @jwt_required
@@ -521,15 +523,6 @@ def run(_id):
         'args': args,
         'options': options
     }
-    # with build_book_from_db(book.get('name'), build_id=req_id) as dest:
-    #     inventory = os.path.join(dest, options['inventory'])
-    #     entry = os.path.join(dest, options['entry'].pop())
-    #     options['verbosity'] = 3
-    #     print(options)
-    #     runner = PlayBookRunner(inventory, options)
-    #     runner.run(entry)
-    #     result = runner.get_result()
-    #     print(result)
     result = dispatch(_id, entry, params)
     if not result:
         return jsonify({
@@ -575,3 +568,34 @@ def lint_book(_id):
         'data': result
     })
 
+
+@jwt_required
+def get_log_buffer(_id):
+    if not ObjectId.is_valid(_id):
+        return jsonify({
+            'message': 'invalid id',
+            'code': 104000
+        }), 400
+
+    query = request.args
+    record = Perform.find_by_id(_id)
+    if not record:
+        return jsonify({
+            'message': 'record not found',
+            'code': 104040
+        }), 404
+
+    start = int(query.get('page', 0))
+    end = -1
+    reporter = Reporter(task_id=_id)
+    buffer = reporter.get_buffer(start=start, end=end)
+
+    return jsonify({
+        'message': 'ok',
+        'code': 0,
+        'data': {
+            'list': buffer,
+            'page': start,
+            'state': record.get('state')
+        }
+    })

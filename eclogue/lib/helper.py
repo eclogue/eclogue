@@ -171,7 +171,7 @@ def load_ansible_playbook(payload):
         role_names = list(map(lambda i: i.get('name'), check))
 
     extra_vars = {
-        'node': list(group_name)[0],
+        'node': list(group_name),
     }
 
     private_key = template.get('private_key')
