@@ -5,7 +5,6 @@ from bson import ObjectId
 from eclogue.config import config
 from gridfs import GridFS, GridFSBucket
 from mimetypes import guess_type
-from eclogue.middleware import login_user
 
 
 class Mongo(object):
@@ -114,11 +113,6 @@ class Model(object):
         result = model.collection.insert_one(data, *args, **kwargs)
         record = data.copy()
         record['_id'] = result.inserted_id
-        msg = 'insert new record to {}, _id: {}'.format(model.name, record['_id'])
-        extra = {
-            'record': record,
-        }
-        model.report(msg, key=record['_id'], data=extra)
 
         return result
 
@@ -135,10 +129,10 @@ class Model(object):
 
         extra = {
             'record': record,
-            'change': update,
+            'change': update['$set'],
             'filter': where,
         }
-        model.report(msg, key=record['_id'], data=extra)
+        model.report(msg, key=record['_id'], operation='update', data=extra)
 
         return model.collection.update_one(where, update, **kwargs)
 
@@ -161,7 +155,7 @@ class Model(object):
             }
         }
 
-        model.report(msg, key=record['_id'], data=extra)
+        model.report(msg, key=record['_id'], operation='delete', data=extra)
         if not force:
             return model.collection.update_one(where, update=update, **kwargs)
 
@@ -192,13 +186,13 @@ class Model(object):
 
         return model
 
-    def report(self, msg, key, data):
-        user = login_user or {}
+    def report(self, msg, key, operation, data):
         record = {
             'msg': msg,
             'key': key,
+            'collection': self.name,
             'data': data,
-            'user': user.get('username'),
+            'operation': operation,
             'created_at': time.time(),
 
         }
