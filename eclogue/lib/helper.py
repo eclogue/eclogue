@@ -520,5 +520,5 @@ def get_meta(pathname):
         meta['role'] = filename
     elif path_len >= 3:
         meta['role'] = path_split[2]
-        meta['project'] = path_split[1]
+        meta['folder'] = path_split[1]
     return meta

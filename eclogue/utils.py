@@ -146,11 +146,12 @@ def mkdir(path, mode=0o700):
 
     return res
 
-def get_meta(file):
+
+def get_meta(pathname):
     """
     get meta from path
     """
-    pathname = file.rstrip('/')
+    pathname = pathname.rstrip('/')
     home_path, filename = os.path.split(pathname)
     meta = {
         'name': filename
@@ -169,5 +170,5 @@ def get_meta(file):
         meta['role'] = filename
     elif path_len >= 3:
         meta['role'] = path_split[2]
-        meta['project'] = path_split[1]
+        meta['folder'] = path_split[1]
     return meta
