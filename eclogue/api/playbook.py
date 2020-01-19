@@ -131,7 +131,7 @@ def edit_file(_id):
     can_edit = params.get('is_edit')
     is_dir = params.get('is_dir')
     is_encrypt = params.get('is_encrypt')
-    project = params.get('project')
+    folder = params.get('folder')
     register = params.get('register')
     content = params.get('content')
     record = Playbook.find_by_id(_id)
@@ -149,8 +149,8 @@ def edit_file(_id):
         data['name'] = name
     if role:
         data['role'] = role
-    if project:
-        data['project'] = project
+    if folder:
+        data['folder'] = folder
     if content:
         data['content'] = content
         data['md5'] = md5(content)

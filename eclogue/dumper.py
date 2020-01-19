@@ -107,7 +107,7 @@ class Dumper(object):
             meta['role'] = filename
         elif path_len >= 3:
             meta['role'] = path_split[2]
-            meta['project'] = path_split[1]
+            meta['folder'] = path_split[1]
         return meta
 
     def file_md5(self, fine_name, block_size=64 * 1024):
@@ -129,8 +129,8 @@ class Dumper(object):
         }).sort('seq_no', pymongo.ASCENDING)
         for item in books:
             if roles:
-                project = item.get('name')
-                if project and project not in roles:
+                folder = item.get('name')
+                if folder and folder not in roles:
                     continue
             filename = workspace + item['path']
             if item['is_dir']:

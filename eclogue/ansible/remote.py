@@ -126,7 +126,7 @@ class AnsibleGalaxy(object):
                 installed = role.install()
                 if installed and book_id:
                     wk = Workspace()
-                    documents = wk.import_book_from_dir(os.path.dirname(role.path), book_id, prefix=None)
+                    wk.import_book_from_dir(os.path.dirname(role.path), book_id, prefix='/roles')
 
             except AnsibleError as e:
                 print("- %s was NOT installed successfully: %s " % (role.name, str(e)))
