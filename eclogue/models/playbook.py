@@ -1,6 +1,6 @@
 import os
 from eclogue.model import Model
-from eclogue.lib.helper import get_meta
+from eclogue.utils import get_meta
 
 
 class Playbook(Model):
@@ -38,4 +38,3 @@ class Playbook(Model):
         return True
 
 
-playbook = Playbook()

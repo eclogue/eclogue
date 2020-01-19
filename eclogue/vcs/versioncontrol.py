@@ -151,8 +151,8 @@ class GitDownload(object):
         if rev is None:
             rev = 'HEAD'
 
-        commad = ['git', 'rev-parse', rev]
-        current_rev = self.run_command(commad)
+        command = ['git', 'rev-parse', rev]
+        current_rev = self.run_command(command)
 
         return current_rev.strip()
 

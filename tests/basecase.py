@@ -97,3 +97,7 @@ class BaseTestCase(TestCase):
             item = self.trash.pop()
             model, pk = item
             model().collection.delete_one({'_id': pk})
+    def add_data(self, model, data):
+        result = model.collection.insert_one(data)
+        self.trash.append([model, result.inserted_id])
+

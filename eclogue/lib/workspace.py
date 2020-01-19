@@ -7,11 +7,12 @@ from tempfile import TemporaryDirectory, NamedTemporaryFile
 from bson import ObjectId
 from eclogue.config import config
 from eclogue.model import db
-from eclogue.utils import is_edit, file_md5, md5, extract
+from eclogue.utils import is_edit, file_md5, md5, extract, get_meta
 from eclogue.ansible.vault import Vault
 from eclogue.models.book import Book
 from eclogue.models.configuration import Configuration
 from eclogue.model import Model
+from eclogue.models.playbook import Playbook
 
 
 class Workspace(object):
@@ -115,18 +116,32 @@ class Workspace(object):
             self.check_workspace(filename, file)
         return True
 
-    def import_book_from_dir(self, home_path, book_id, exclude=['*.retry'], links=False):
+    def import_book_from_dir(self, home_path, book_id, exclude=['*.retry'], links=False, prefix=''):
+        """
+        import dir file to db
+        @todo
+        """
         bucket = []
         cursor = 0
         parent = home_path
         book_record = Book.find_one({'_id': ObjectId(book_id)})
+        model = Model.build_model('playbooks')
+        playbooks = model.find({'book_id': book_id})
+        paths = map(lambda i: i['path'], playbooks)
+        paths = list(paths)
         pattern = '|'.join(exclude).replace('*', '.*?')
         for current, dirs, files in os.walk(home_path, topdown=True, followlinks=links):
-            pathname = current.replace(home_path, '') or '/'
+            pathname = current.replace(home_path, '')
+            pathname2 = os.path.join(prefix, pathname)
+            print(pathname2)
             if exclude:
                 match = re.search(pattern, pathname)
                 if match:
                     continue
+            if pathname in paths:
+                index = paths.index(pathname)
+                paths.pop(index)
+
 
             dir_record = {
                 'book_id': str(book_record.get('_id')),
@@ -139,7 +154,7 @@ class Workspace(object):
             }
             if not current == home_path:
                 dir_record['parent'] = parent
-                meta = Workspace.get_meta(pathname=pathname)
+                meta = get_meta(pathname=pathname)
                 dir_record.update(meta)
                 dir_record['additions'] = meta
 
@@ -167,29 +182,43 @@ class Workspace(object):
                         file_record['md5'] = md5(file_record['content'])
                         file_record['is_encrypt'] = Vault.is_encrypted(file_record['content'])
 
-                meta = self._get_role(file_record['path'])
-                file_record.update(meta)
+                meta = get_meta(file_record['path'])
                 file_record['additions'] = meta
+                file_record.update(meta)
                 bucket.append(file_record)
             cursor += 1
-        is_entry = filter(lambda i: i.get('role') == 'entry', bucket)
-        is_entry = list(is_entry)
-        if not is_entry:
-            path = '/entry.yml'
-            entry = {
-                'book_id': str(book_record.get('_id')),
-                'path': path,
-                'is_dir': False,
-                'is_edit': True,
-                'seq_no': 0,
-                'content': '',
-                'parent': None,
-                'created_at': int(time.time()),
-            }
-            meta = self._get_role(path)
-            entry.update(meta)
-            entry['additions'] = meta
-            bucket.append(entry)
+        # is_entry = filter(lambda i: i.get('role') == 'entry', bucket)
+        # is_entry = list(is_entry)
+        # if not is_entry:
+        #     path = '/entry.yml'
+        #     entry = {
+        #         'book_id': str(book_record.get('_id')),
+        #         'path': path,
+        #         'is_dir': False,
+        #         'is_edit': True,
+        #         'seq_no': 0,
+        #         'content': '',
+        #         'parent': None,
+        #         'created_at': int(time.time()),
+        #     }
+        #     meta = self._get_role(path)
+        #     entry.update(meta)
+        #     entry['additions'] = meta
+        #     bucket.append(entry)
+        for path in paths:
+            model.delete_one({'book_id': book_id, 'path': path})
+
+        mapping = {}
+        map(lambda i: {mapping['path']: i}, playbooks)
+        for item in bucket:
+            record = mapping.get(item['path'])
+            if not record:
+                model.insert_one(item)
+                continue
+            else:
+                if record['additions']:
+                    item['additions'].update(record['additions'])
+                model.update_one({'_id': record['_id']}, {'$set': item})
 
         return bucket
 

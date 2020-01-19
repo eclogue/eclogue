@@ -16,6 +16,7 @@ from eclogue.models.playbook import Playbook
 from eclogue.ansible.remote import AnsibleGalaxy
 from eclogue.lib.logger import logger
 from eclogue.ansible.playbook import check_playbook
+from eclogue.vcs.versioncontrol import GitDownload
 
 
 @jwt_required
@@ -141,8 +142,9 @@ def add_book():
     status = params.get('status', 1)
     bid = params.get('_id')
     import_type = params.get('importType')
-    galaxy_repo = params.get('galaxyRepo')
+    repo = params.get('repo')
     maintainer = params.get('maintainer', [])
+    readonly = params.get('readonly', False)
     if bid:
         record = Book.find_one({'_id': ObjectId(bid)})
         if not record:
@@ -152,17 +154,23 @@ def add_book():
             }), 404
 
     else:
-        if import_type == 'galaxy' and galaxy_repo:
-            galaxy = AnsibleGalaxy([galaxy_repo])
+        if import_type == 'galaxy' and repo:
+            galaxy = AnsibleGalaxy([repo])
             galaxy.install()
-            logger.info('import galaxy', extra={'repo': galaxy_repo})
+            logger.info('import galaxy', extra={'repo': repo})
+        elif import_type == 'git' and repo:
+            git = GitDownload({
+                'repository': repo
+            })
+            dest = git.install()
 
     data = {
         'name': name,
+        'readonly': readonly,
         'description': description,
         'maintainer': maintainer,
         'import_type': import_type,
-        'galaxy_repo': galaxy_repo,
+        'galaxy_repo': repo,
         'status': int(status),
         'created_at': int(time.time())
     }

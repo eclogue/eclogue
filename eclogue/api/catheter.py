@@ -7,9 +7,7 @@ from bson.objectid import ObjectId
 from flask import current_app, request, jsonify
 from eclogue.model import db
 from eclogue.middleware import jwt_required, login_user
-from eclogue.dumper import Dumper
 from eclogue.utils import md5, file_md5, check_workspace, is_edit
-from eclogue.config import config
 from eclogue.lib.workspace import Workspace
 from eclogue.ansible.runer import PlayBookRunner
 from eclogue.lib.helper import load_ansible_playbook, get_meta
