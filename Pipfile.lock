@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "5b9af78d445ebdecccf6f1df026c648e32e1aa221984bc5226063d07c93731ca"
+            "sha256": "52acea1583d253912e9ef59656103e8129f5b44b705143202a6e7eb7dae62016"
         },
         "pipfile-spec": 6,
         "requires": {},
@@ -90,14 +90,6 @@
             ],
             "index": "pypi",
             "version": "==3.1.5"
-        },
-        "bunch": {
-            "hashes": [
-                "sha256:3c554816ba260634b55c1edf8de6467d8122dbd18ec20f323e181869bc48ac93",
-                "sha256:50c77a0fc0cb372dfe48b5e11937d5f70e743adbf42683f3a6d2857645a76aaa"
-            ],
-            "index": "pypi",
-            "version": "==1.0.1"
         },
         "certifi": {
             "hashes": [
@@ -399,6 +391,14 @@
             "index": "pypi",
             "version": "==0.16.3"
         },
+        "munch": {
+            "hashes": [
+                "sha256:2d735f6f24d4dba3417fa448cae40c6e896ec1fdab6cdb5e6510999758a4dbd2",
+                "sha256:6f44af89a2ce4ed04ff8de41f70b226b984db10a91dcc7b9ac2efc1c77022fdd"
+            ],
+            "index": "pypi",
+            "version": "==2.5.0"
+        },
         "nexmo": {
             "hashes": [
                 "sha256:6f7d44d898f1c022b62ea5440e48d089feda4e0dc3b460746ff376c6196eb355",
@@ -656,11 +656,11 @@
         },
         "ruamel.yaml": {
             "hashes": [
-                "sha256:0db639b1b2742dae666c6fc009b8d1931ef15c9276ef31c0673cc6dcf766cf40",
-                "sha256:412a6f5cfdc0525dee6a27c08f5415c7fd832a7afcb7a0ed7319628aed23d408"
+                "sha256:91d6bfe4fce401a00388deb0f5d29e10d2d3683a868c1113ae16bbc351ceb6a4",
+                "sha256:966e5a049eebf011c90424b9ec7dab6358cee8de0907354b27a27f20a8c4c2ec"
             ],
             "markers": "python_version >= '3.7'",
-            "version": "==0.16.5"
+            "version": "==0.16.6"
         },
         "ruamel.yaml.clib": {
             "hashes": [

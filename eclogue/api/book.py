@@ -22,7 +22,6 @@ from flask_log_request_id import current_request_id
 from eclogue.tasks.book import dispatch
 from eclogue.lib.builder import build_book_from_db
 from eclogue.ansible.lint import lint
-from eclogue.ansible.runer import PlayBookRunner
 from eclogue.models.perform import Perform
 from eclogue.tasks.reporter import Reporter
 
@@ -75,9 +74,9 @@ def books():
     if date:
         where['$and'] = date
 
-    cursor = Book.find(where, skip=offset, limit=size)
-    total = cursor.count()
-    records = list(cursor)
+    result = Book.find(where, skip=offset, limit=size)
+    total = result.count()
+    records = list(result)
     data = []
     for item in records:
 
@@ -147,43 +146,53 @@ def add_book():
         }), 400
 
     description = params.get('description')
-    status = params.get('status', 1)
-    bid = params.get('_id')
+    status = params.get('status', 0)
+    book_id = params.get('_id')
     import_type = params.get('importType')
     repo = params.get('repo')
     maintainer = params.get('maintainer', [])
     readonly = params.get('readonly', False)
-    if bid:
-        record = Book.find_one({'_id': ObjectId(bid)})
+    if book_id:
+        record = Book.find_by_id(book_id)
         if not record:
             return jsonify({
                 'message': 'record not found',
                 'code': 154041,
             }), 404
-
     else:
+        data = {
+            'name': name,
+            'readonly': readonly,
+            'description': description,
+            'maintainer': maintainer,
+            'import_type': import_type,
+            'repo': repo,
+            'created_at': int(time.time())
+        }
+        result = Book.insert_one(data)
+        book_id = result.inserted_id
         if import_type == 'galaxy' and repo:
             galaxy = AnsibleGalaxy([repo])
-            galaxy.install()
+            galaxy.install(book_id)
             logger.info('import galaxy', extra={'repo': repo})
         elif import_type == 'git' and repo:
             git = GitDownload({
                 'repository': repo
             })
             dest = git.install()
-
+            print('=========................', dest)
+            Workspace().import_book_from_dir(dest, book_id, exclude=['.git'])
     data = {
-        'name': name,
         'readonly': readonly,
         'description': description,
         'maintainer': maintainer,
         'import_type': import_type,
-        'galaxy_repo': repo,
+        'repo': repo,
         'status': int(status),
-        'created_at': int(time.time())
+        'updated_at': time.time(),
     }
 
-    result = Book.update_one({'_id': ObjectId(bid)}, {'$set': data}, upsert=True)
+    result = Book.update_one({'_id': ObjectId(book_id)}, {'$set': data}, upsert=True)
     data['_id'] = result.upserted_id
 
     return jsonify({
@@ -207,7 +216,7 @@ def edit_book(_id):
     status = params.get('status', 1)
     maintainer = params.get('maintainer', [])
     import_type = params.get('importType')
-    galaxy_repo = params.get('galaxyRepo')
+    repo = params.get('repo')
     record = Book.find_one({'_id': ObjectId(_id)})
     if not record:
         return jsonify({
@@ -229,7 +238,7 @@ def edit_book(_id):
         data['maintainer'] = maintainer
 
     if import_type == 'galaxy':
-        galaxy = AnsibleGalaxy([galaxy_repo], {'force': True})
+        galaxy = AnsibleGalaxy([repo], {'force': True})
         galaxy.install(record.get('_id'))
 
     Book.update_one({'_id': ObjectId(_id)}, {'$set': data}, upsert=True)
@@ -573,36 +582,4 @@ def lint_book(_id):
         'message': 'ok',
         'code': 0,
         'data': result
-    })
-
-
-@jwt_required
-def get_log_buffer(_id):
-    if not ObjectId.is_valid(_id):
-        return jsonify({
-            'message': 'invalid id',
-            'code': 104000
-        }), 400
-
-    query = request.args
-    record = Perform.find_by_id(_id)
-    if not record:
-        return jsonify({
-            'message': 'record not found',
-            'code': 104040
-        }), 404
-
-    start = int(query.get('page', 0))
-    end = -1
-    reporter = Reporter(task_id=_id)
-    buffer = reporter.get_buffer(start=start, end=end)
-
-    return jsonify({
-        'message': 'ok',
-        'code': 0,
-        'data': {
-            'list': buffer,
-            'page': start,
-            'state': record.get('state')
-        }
     })

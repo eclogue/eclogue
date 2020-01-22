@@ -42,7 +42,7 @@ class AnsibleGalaxy(object):
             'offline': False,
         }
 
-    def install(self, book_id=None):
+    def install(self, book_id):
         """
         copy from ansible-galaxy
         uses the args list of roles to be installed, unless -f was specified. The list of roles

@@ -6,7 +6,7 @@ from apscheduler.executors.pool import ThreadPoolExecutor, ProcessPoolExecutor
 from eclogue.model import db
 
 
-store = MongoDBJobStore(database='upward', collection='schedule_jobs', client=db.client)
+store = MongoDBJobStore(database='eclogue', collection='schedule_jobs', client=db.client)
 jobstores = {
     'default': store,
 }

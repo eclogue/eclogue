@@ -158,7 +158,7 @@ class Workspace(object):
                 'parent': None,
                 'created_at': int(time.time()),
             }
-            if not current == root_path:
+            if not current == home_path:
                 dir_record['parent'] = parent
                 meta = get_meta(pathname)
                 dir_record.update(meta)
