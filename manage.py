@@ -6,8 +6,8 @@ from eclogue import create_app
 from migrate import Migration
 from eclogue.tasks.system import register_schedule, scheduler
 from eclogue.config import config
-from eclogue.tasks.dispatch import tiger
 from gevent.pywsgi import WSGIServer
+from circus import get_arbiter
 
 app = create_app(schedule=False)
 
@@ -54,7 +54,17 @@ def server():
 
 @click.command()
 def worker():
-    tiger.run_worker()
+    program = {
+        'name': 'worker',
+        'use': 'circus.plugins.http_observer.HttpObserver',
+        'loop_rate': 30,
+        'cmd': './venv/bin/python worker.py',
+        'sample_rate': 2.0,
+        'application_name': 'example',
+        'flapping.max_retry': 50,
+    }
+    arbiter = get_arbiter(watchers=[program])
+    arbiter.start()
 
 
 eclogue.add_command(migrate)

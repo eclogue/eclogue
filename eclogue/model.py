@@ -5,7 +5,7 @@ from bson import ObjectId
 from eclogue.config import config
 from gridfs import GridFS, GridFSBucket
 from mimetypes import guess_type
-from eclogue.middleware import login_user
+# from eclogue.middleware import login_user
 
 
 class Mongo(object):
@@ -193,12 +193,10 @@ class Model(object):
         return model
 
     def report(self, msg, key, data):
-        user = login_user or {}
         record = {
             'msg': msg,
             'key': key,
             'data': data,
-            'user': user.get('username'),
             'created_at': time.time(),
 
         }

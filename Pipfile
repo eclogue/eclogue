@@ -46,6 +46,7 @@ flask-testing = "*"
 ansible-lint = "*"
 apscheduler = "==3.6.3"
 bunch = "*"
+circus = "*"
 
 [scripts]
 test = "python -m unittest discover -v -s tests -p '*.py'"
