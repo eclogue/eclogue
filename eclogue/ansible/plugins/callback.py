@@ -42,7 +42,6 @@ class CallbackModule(CallbackBase):
         buf += result.get('stdout', '')
         buf += result.get('stderr', '')
         buf += result.get('msg', '')
-
         return buf + "\n"
 
     def v2_runner_on_unreachable(self, result):

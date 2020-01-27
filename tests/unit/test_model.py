@@ -106,7 +106,7 @@ class TestModel(unittest.TestCase):
         self.test_insert_one()
         result = self.model.delete_one(self.data)
         assert isinstance(result, UpdateResult)
-        result = self.model.delete_one(self.data, force=True)
+        result = self.model.delete_one({'uuid': self.data['uuid']}, force=True)
         assert isinstance(result, DeleteResult)
 
 

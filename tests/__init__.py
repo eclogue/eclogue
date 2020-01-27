@@ -7,5 +7,4 @@ def suite():
     test_suite = unittest.TestSuite()
     test_suite.addTest(unittest.makeSuite(BaseTestCase))
 
-
     return test_suite

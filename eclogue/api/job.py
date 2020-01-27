@@ -1,9 +1,8 @@
-import os
 import time
 import datetime
 import base64
 import yaml
-import json
+import os
 
 from bson import ObjectId
 from tempfile import NamedTemporaryFile, TemporaryDirectory
@@ -22,6 +21,7 @@ from eclogue.tasks.dispatch import run_job, get_tasks_by_job
 from eclogue.ansible.doc import AnsibleDoc
 from eclogue.ansible.playbook import check_playbook
 from eclogue.models.job import Job
+from eclogue.models.user import User
 from eclogue.models.playbook import Playbook
 from eclogue.lib.logger import logger
 from flask_log_request_id import current_request_id
@@ -29,40 +29,45 @@ from eclogue.utils import extract
 from eclogue.models.book import Book
 from eclogue.models.task import Task
 from eclogue.models.application import Application
+from eclogue.lib.builder import build_book_from_db
 
 
 @jwt_required
 def get_job(_id):
     username = login_user.get('username')
-    if not _id:
-        return jsonify({
-            'message': 'invalid id',
-            'code': 154000
-        }), 400
-
-    job = Job.find_one({
-        '_id': ObjectId(_id),
-        'maintainer': {'$in': [username]}
-    })
-
-    # @todo job status
+    is_admin = login_user.get('is_admin')
+    job = Job.find_by_id(_id)
     if not job:
         return jsonify({
-            'message': 'invalid id',
+            'message': 'record not found',
             'code': 154001,
         }), 400
+
+    if not is_admin and username not in job['maintainer']:
+        return jsonify({
+            'message': 'permission deny',
+            'code': 104031
+        }), 403
 
     template = job.get('template')
     inventory_type = template.get('inventory_type')
     inventory = template.get('inventory')
     if job.get('type') == 'adhoc':
         inventory_content = parse_cmdb_inventory(inventory)
+        logs = None
+        task = Task.find_one({'job_id': _id})
+        if task:
+            log = db.collection('logs').find_one({'task_id': str(task['_id'])})
+            if log:
+                logs = log.get('message')
+
         return jsonify({
             'message': 'ok',
             'code': 0,
             'data': {
                 'record': job,
                 'previewContent': inventory_content,
+                'logs': logs
             },
         })
 
@@ -73,7 +78,7 @@ def get_job(_id):
 
     check_playbook(job['book_id'])
     if inventory_type == 'file':
-        book = Book.find_one({'_id': ObjectId(job['book_id'])})
+        book = Book.find_by_id(job['book_id'])
         if not book:
             hosts = []
         else:
@@ -168,7 +173,7 @@ def get_jobs():
     if date:
         where['$and'] = date
 
-    jobs = db.collection('jobs').find(where, skip=offset, limit=size)
+    jobs = Job().collection.find(where, skip=offset, limit=size)
     total = jobs.count()
     jobs = list(jobs)
 
@@ -219,45 +224,50 @@ def add_jobs():
 
     data = payload.get('data')
     options = data.get('options')
-    is_check = body.get('check', False)
+    is_check = body.get('check')
     private_key = data.get('private_key')
     wk = Workspace()
-    res = wk.load_book_from_db(name=data.get('book_name'), roles=data.get('roles'))
-    if not res:
-        return jsonify({
-            'message': 'book not found',
-            'code': 104000,
-        }), 400
-
-    entry = wk.get_book_entry(data.get('book_name'),  data.get('entry'))
-    dry_run = bool(is_check)
-    options['check'] = dry_run
-    if dry_run:
-        with NamedTemporaryFile('w+t', delete=True) as fd:
-            key_text = get_credential_content_by_id(private_key, 'private_key')
-            if not key_text:
-                return jsonify({
-                    'message': 'invalid private_key',
-                    'code': 104033,
-                }), 401
-
-            fd.write(key_text)
-            fd.seek(0)
-            options['private_key'] = fd.name
-            play = PlayBookRunner(data['inventory'], options, callback=CallbackModule())
-            play.run(entry)
-
+    book_name = data.get('book_name')
+    roles = data.get('roles')
+    with build_book_from_db(name=book_name, roles=roles) as bookspace:
+        if not bookspace:
             return jsonify({
-                'message': 'ok',
-                'code': 0,
-                'data': {
-                    'result': play.get_result(),
-                    'options': options
-                }
-            })
+                'message': 'invalid book',
+                'code': 104000
+            }), 400
+
+        entry = wk.get_book_entry(data.get('book_name'),  data.get('entry'))
+        # entry = os.path.join(bookspace, data['entry'])
+        dry_run = bool(is_check)
+        options['check'] = dry_run
+        if dry_run:
+            with NamedTemporaryFile('w+t', delete=True) as fd:
+                if private_key:
+                    key_text = get_credential_content_by_id(private_key, 'private_key')
+                    if not key_text:
+                        return jsonify({
+                            'message': 'invalid private_key',
+                            'code': 104033,
+                        }), 401
+
+                    fd.write(key_text)
+                    fd.seek(0)
+                    options['private_key'] = fd.name
+
+                play = PlayBookRunner(data['inventory'], options, callback=CallbackModule())
+                play.run(entry)
+
+                return jsonify({
+                    'message': 'ok',
+                    'code': 0,
+                    'data': {
+                        'result': play.get_result(),
+                        'options': options
+                    }
+                })
 
     name = data.get('name')
-    existed = db.collection('jobs').find_one({'name': name})
+    existed = Job.find_one({'name': name})
     if existed and not current_id:
         return jsonify({
             'message': 'name existed',
@@ -282,11 +292,8 @@ def add_jobs():
 
     if record:
         Job.update_one({'_id': record['_id']}, update={'$set': new_record})
-        logger.info('update job', {'record': record, 'changed': new_record})
     else:
-        result = Job.insert_one(new_record)
-        new_record['_id'] = result.inserted_id
-        logger.info('add job', extra={'record': new_record})
+        Job.insert_one(new_record)
 
     return jsonify({
         'message': 'ok',
@@ -296,6 +303,7 @@ def add_jobs():
 
 @jwt_required
 def delete_job(_id):
+    is_admin = login_user.get('is_admin')
     record = Job.find_by_id(ObjectId(_id))
     if not record:
         return jsonify({
@@ -303,17 +311,13 @@ def delete_job(_id):
             'code': 104040
         }), 404
 
-    update = {
-        '$set': {
-            'status': -1
-        }
-    }
+    if not is_admin or login_user.get('username') not in record['maintainer']:
+        return jsonify({
+            'message': 'permission deny',
+            'code': 104031
+        }), 403
 
-    Job.update_one({'_id': record['_id']}, update=update)
-    extra = {
-        'record': record
-    }
-    logger.info('delete job', extra=extra)
+    Job.delete_one({'_id': record['_id']})
 
     return jsonify({
         'message': 'ok',
@@ -343,7 +347,7 @@ def check_job(_id):
     options = data.get('options')
     private_key = data.get('private_key')
     wk = Workspace()
-    res = wk.load_book_from_db(name=data.get('book_name'), roles=data.get('roles'))
+    res = build_book_from_db(name=data.get('book_name'), roles=data.get('roles'))
     if not res:
         return jsonify({
             'message': 'book not found',
@@ -375,7 +379,7 @@ def check_job(_id):
 @jwt_required
 def job_detail(_id):
     query = request.args
-    record = db.collection('jobs').find_one({'_id': ObjectId(_id)})
+    record = Job.find_by_id(_id)
     if not record:
         return jsonify({
             'message': 'record not found',
@@ -388,7 +392,7 @@ def job_detail(_id):
         inventory_content = parse_cmdb_inventory(inventory)
         template['inventory_content'] = inventory_content
     else:
-        book = db.collection('books').find_one({'_id': ObjectId(record.get('book_id'))})
+        book = Book.find_by_id(record.get('book_id'))
         record['book_name'] = book.get('name')
         template = record.get('template')
         if template:
@@ -504,7 +508,7 @@ def add_adhoc():
     args = payload.get('args')
     inventory = payload.get('inventory')
     private_key = payload.get('private_key')
-    verbosity = payload.get('verbosity')
+    verbosity = payload.get('verbosity', 0)
     name = payload.get('name')
     schedule = payload.get('schedule')
     check = payload.get('check')
@@ -514,13 +518,15 @@ def add_adhoc():
     notification = payload.get('notification')
     maintainer = payload.get('maintainer') or []
     if maintainer and isinstance(maintainer, list):
-        users = db.collection('users').find({'username': {'$in': maintainer}})
+        users = User.find({'username': {'$in': maintainer}})
         names = list(map(lambda i: i['username'], users))
         maintainer.extend(names)
 
-    maintainer.append(login_user.get('username'))
+    if login_user.get('username'):
+        maintainer.append(login_user.get('username'))
+
     if not job_id:
-        existed = db.collection('jobs').find_one({'name': name})
+        existed = Job.find_one({'name': name})
         if existed and existed.get('status') != -1:
             return jsonify({
                 'message': 'name exist',
@@ -544,16 +550,9 @@ def add_adhoc():
     #     }), 400
 
     inventory_content = parse_cmdb_inventory(inventory)
-    if not inventory:
+    if not inventory_content:
         return jsonify({
             'message': 'invalid inventory',
-            'code': 104004,
-        }), 400
-
-    key_text = get_credential_content_by_id(private_key, 'private_key')
-    if not key_text:
-        return jsonify({
-            'message': 'invalid private key',
             'code': 104004,
         }), 400
 
@@ -566,9 +565,18 @@ def add_adhoc():
 
     if check:
         with NamedTemporaryFile('w+t', delete=True) as fd:
-            fd.write(key_text)
-            fd.seek(0)
-            options['private_key'] = fd.name
+            if private_key:
+                key_text = get_credential_content_by_id(private_key, 'private_key')
+                if not key_text:
+                    return jsonify({
+                        'message': 'invalid private key',
+                        'code': 104004,
+                    }), 400
+
+                fd.write(key_text)
+                fd.seek(0)
+                options['private_key'] = fd.name
+
             tasks = [{
                 'action': {
                     'module': module,
@@ -611,7 +619,7 @@ def add_adhoc():
         }
 
         if job_id:
-            record = db.collection('jobs').find_one({'_id': ObjectId(job_id)})
+            record = Job.find_one({'_id': ObjectId(job_id)})
             if not record:
                 return jsonify({
                     'message': 'record not found',
@@ -621,12 +629,9 @@ def add_adhoc():
             update = {
                 '$set': data,
             }
-            db.collection('jobs').update_one({'_id': ObjectId(job_id)}, update=update)
-            logger.info('update job', extra={'record': record, 'changed': data})
+            Job.update_one({'_id': ObjectId(job_id)}, update=update)
         else:
-            result = db.collection('jobs').insert_one(data)
-            data['_id'] = result.inserted_id
-            logger.info('add job', extra={'record': data})
+            Job.insert_one(data)
 
     return jsonify({
         'message': 'ok',
@@ -645,7 +650,7 @@ def job_webhook():
             'code': 104000
         }), 400
 
-    record = Job().collection.find_one({'token': token})
+    record = Job.find_one({'token': token})
     if not record:
         return jsonify({
             'message': 'illegal token',

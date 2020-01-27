@@ -5,7 +5,8 @@ from bson import ObjectId
 from eclogue.config import config
 from gridfs import GridFS, GridFSBucket
 from mimetypes import guess_type
-from eclogue.lib.logger import logger
+# from eclogue.middleware import login_user
+from munch import Munch
 
 
 class Mongo(object):
@@ -51,11 +52,17 @@ class Mongo(object):
 class Model(object):
     name = ''
     indices = []
+    definitions = {}
 
-    def __init__(self, data=None, database=None):
-        self._attr = data or {}
-        self.db = database or db
+    def __init__(self, *args, **kwargs):
+        self._attr = Munch(*kwargs, **kwargs)
+        self._change = Munch()
+        self.db = db
         self._collection = self.get_collection()
+        self.cursor = None
+
+    def set_db(self, database):
+        self.db = database
 
     @property
     def collection(self):
@@ -72,7 +79,11 @@ class Model(object):
         _id = ObjectId(_id)
         model = cls()
 
-        return model.find_one({'_id': _id})
+        result = model.find_one({'_id': _id})
+        if not result:
+            return None
+
+        return model.load_result(result)
 
     @classmethod
     def find_by_ids(cls, ids):
@@ -84,8 +95,27 @@ class Model(object):
             }
 
         }
+        result = model.find(where)
+        return model.load_result(result)
 
-        return list(model.find(where))
+    @classmethod
+    def count_documents(cls, where):
+        model = cls()
+        return model.collection.count(where)
+
+    def count(self):
+        return self.cursor.count()
+
+    @classmethod
+    def load_result(cls, cursor):
+        if isinstance(cursor, dict):
+            return cls(cursor)
+        bucket = []
+        for item in cursor:
+            bucket.append(Model(item))
+        model = cls(bucket)
+        model.cursor = cursor
+        return model
 
     @classmethod
     def find(cls, where, *args, **kwargs):
@@ -94,7 +124,8 @@ class Model(object):
             '$ne': -1
         }
 
-        return model.collection.find(where, *args, **kwargs)
+        cursor = model.collection.find(where, *args, **kwargs)
+        return model.load_result(cursor)
 
     @classmethod
     def find_one(cls, where, *args, **kwargs):
@@ -103,7 +134,10 @@ class Model(object):
             '$ne': -1
         }
 
-        return model.collection.find_one(where, *args, **kwargs)
+        result = model.collection.find_one(where, *args, **kwargs)
+        if not result:
+            return None
+        return model.load_result(result)
 
     @classmethod
     def insert_one(cls, data, *args, **kwargs):
@@ -115,7 +149,10 @@ class Model(object):
         record = data.copy()
         record['_id'] = result.inserted_id
         msg = 'insert new record to {}, _id: {}'.format(model.name, record['_id'])
-        logger.info(msg, extra={'record': record})
+        extra = {
+            'record': record,
+        }
+        model.report(msg, key=record['_id'], data=extra)
 
         return result
 
@@ -135,12 +172,12 @@ class Model(object):
             'change': update,
             'filter': where,
         }
-        logger.info(msg, extra)
+        model.report(msg, key=record['_id'], data=extra)
 
         return model.collection.update_one(where, update, **kwargs)
 
     @classmethod
-    def delete_one(cls, where, force=False, **kwargs):
+    def delete_one(cls, where, force=True, **kwargs):
         model = cls()
         record = model.collection.find_one(where)
         if not record:
@@ -158,7 +195,7 @@ class Model(object):
             }
         }
 
-        logger.info(msg, extra)
+        model.report(msg, key=record['_id'], data=extra)
         if not force:
             return model.collection.update_one(where, update=update, **kwargs)
 
@@ -174,13 +211,22 @@ class Model(object):
         return result
 
     def save(self):
-        if self._attr:
-            result = self.collection.insert_one(self._attr)
-            self._attr = {}
+        update = self._attr.copy()
+        update.update(self._change.copy())
+        if not update:
+            return False
+
+        if update['_id']:
+            _id = update.pop('_id')
+            model = self.find_by_id(_id)
+            for k, v in update:
+                if v == model.v:
+                    update.pop(k)
+            result = self.update_one({'_id': _id}, update)
+            self._attr.update(dict(model))
 
             return result
-
-        return None
+        self.insert_one(update)
 
     @classmethod
     def build_model(cls, name):
@@ -189,10 +235,33 @@ class Model(object):
 
         return model
 
+    def report(self, msg, key, data):
+        record = {
+            'msg': msg,
+            'key': key,
+            'data': data,
+            'created_at': time.time(),
+
+        }
+        # print(record)
+        # self.db.collection('action_logs').insert_one(record)
+
+    def get(self, key, default=None):
+        return self.mixins.get(key) or default
+
+    @property
+    def mixins(self):
+        data = self._attr.copy()
+        data.update(self._change.copy())
+
+        return data
+
     def __setitem__(self, key, value):
-        self._attr[key] = value
+        self._change[key] = value
 
     def __getitem__(self, item):
+        if self._change.get(item):
+            return self._change.get(item)
         return self._attr.get(item)
 
     def __delitem__(self, key):
@@ -200,13 +269,17 @@ class Model(object):
             return self._attr.pop(key)
 
     def __iter__(self):
-        return iter(self._attr)
+        data = self._attr.copy()
+        data.update(self._change)
+        return iter(data)
 
     def __dict__(self):
-        return self._attr
+        data = self._attr.copy()
+        data.update(self._change)
+        return data
 
     def __str__(self):
-        return json.dumps(self._attr)
+        return json.dumps(self.__dict__())
 
 
 db = Mongo()

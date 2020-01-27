@@ -1,16 +1,15 @@
 import ansible.constants as C
 from ansible.plugins.callback.default import CallbackModule
 from ansible.playbook.task_include import TaskInclude
-from eclogue.ansible.display import EcDisplay
+from ansible.utils.display import Display
 
 
 class FormatCollector(CallbackModule):
     def __init__(self, display=None, options=None):
         super(FormatCollector, self).__init__(display=display, options=options)
-        self._display = EcDisplay()
+        self._display = Display
 
     def v2_runner_on_failed(self, result, ignore_errors=False):
-
         delegated_vars = result._result.get('_ansible_delegated_vars', None)
         self._clean_results(result._result, result._task.action)
 
@@ -41,9 +40,9 @@ class FormatCollector(CallbackModule):
 
     def v2_runner_on_ok(self, result):
         delegated_vars = result._result.get('_ansible_delegated_vars', None)
-
         if isinstance(result._task, TaskInclude):
             return
+
         elif result._result.get('changed', False):
             if self._last_task_banner != result._task._uuid:
                 self._print_task_banner(result._task)

@@ -71,7 +71,7 @@ def check_workspace(path=None, child=None):
         record = db.collection('playbook').find_one({'path': index})
         if not record:
             os.remove(filename)
-        return True;
+        return True
     files = os.listdir(filename)
     for file in files:  # 遍历文件夹
         check_workspace(filename, file)
@@ -100,16 +100,17 @@ def is_edit(file):
 
 
 def make_zip(source_dir, output, base_dir=None):
-    zipf = zipfile.ZipFile(output, 'w')
-    pre_len = len(os.path.dirname(source_dir))
-    for parent, dirnames, filenames in os.walk(source_dir):
-        for filename in filenames:
-            pathfile = os.path.join(parent, filename)
-            arcname = pathfile[pre_len:].strip(os.path.sep)
-            zipf.write(pathfile, arcname)
+    # zipf = zipfile.ZipFile(output, 'w')
+    # pre_len = len(os.path.dirname(source_dir))
+    # for parent, dirnames, filenames in os.walk(source_dir):
+    #     for filename in filenames:
+    #         pathfile = os.path.join(parent, filename)
+    #         arcname = pathfile[pre_len:].strip(os.path.sep)
+    #         zipf.write(pathfile, arcname)
+    #
+    # zipf.close()
 
-    zipf.close()
-    # return shutil.make_archive(base_name=output, format='zip', root_dir=source_dir)
+    return shutil.make_archive(base_name=output, format='zip', root_dir=source_dir, base_dir=source_dir)
 
 
 def gen_password(length=8):

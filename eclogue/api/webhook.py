@@ -6,6 +6,8 @@ from eclogue.model import db
 from eclogue.lib.workspace import Workspace
 from eclogue.lib.helper import load_ansible_playbook
 from eclogue.lib.integration import Integration
+from eclogue.lib.builder import build_book_from_db
+
 
 def gitlab_job(token):
     payload = request.get_json()
@@ -68,16 +70,15 @@ def gitlab_job(token):
         return jsonify(payload), 400
 
     data = ansible_params.get('data')
-    wk = Workspace()
-    res = wk.load_book_from_db(name=data.get('book_name'), roles=data.get('roles'))
-    if not res:
-        return jsonify({
-            'message': 'load book failed',
-            'code': 104000,
-        }), 400
+    with build_book_from_db(data.get('book_name'), roles=data.get('roles')) as bookspace:
+        if not bookspace:
+            return jsonify({
+                'message': 'load book failed',
+                'code': 104000,
+            }), 400
 
-    return jsonify({
-        'message': 'ok',
-        'code': 0,
-        'data': 1
-    })
+        return jsonify({
+            'message': 'ok',
+            'code': 0,
+            'data': 1
+        })

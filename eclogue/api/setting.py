@@ -1,11 +1,13 @@
 import time
 import datetime
 from bson import ObjectId
+import pprint
 
 from flask import Flask, request, jsonify
 from eclogue.model import db
 from eclogue.middleware import jwt_required, login_user
 from eclogue.models.setting import Setting
+from eclogue.ansible.lint import lint
 
 @jwt_required
 def add_setting():
@@ -105,6 +107,7 @@ def get_setting():
 def test():
     print(Setting.build_model('teams').name)
     record = db.collection('setting').find_one({})
+    result = lint('5e07498ce3f7e0289ce43bad', options={})
 
     # wechat = record.get('wechat')
     # print(wechat)
@@ -126,5 +129,6 @@ def test():
     return jsonify({
         'message': 'ok',
         'code': 0,
+        'data': result
     })
 

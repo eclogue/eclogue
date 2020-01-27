@@ -3,7 +3,9 @@ import time
 import re
 import pymongo
 import yaml
-from tempfile import TemporaryDirectory, NamedTemporaryFile
+import shutil
+from tempfile import NamedTemporaryFile
+from contextlib import contextmanager
 from bson import ObjectId
 from eclogue.config import config
 from eclogue.model import db
@@ -17,8 +19,8 @@ from eclogue.models.playbook import Playbook
 
 class Workspace(object):
 
-    def __init__(self, home_path=None):
-        self._base_dir = home_path or config.workspace.get('base_dir', '/var/lib/eclogue')
+    def __init__(self, root_path=None):
+        self._base_dir = root_path or config.workspace.get('base_dir', '/var/lib/eclogue')
         self._spaces = {
             'workspace': 0o755,
             'jobs': 0o755,
@@ -107,6 +109,7 @@ class Workspace(object):
         if not index:
             index = '/'
         if os.path.isfile(filename):
+            # can not import playbook model
             record = Model.build_model('playbooks').find_one({'path': index})
             if not record:
                 os.remove(filename)
@@ -182,7 +185,6 @@ class Workspace(object):
                         file_record['content'] = fd.read()
                         file_record['md5'] = md5(file_record['content'])
                         file_record['is_encrypt'] = Vault.is_encrypted(file_record['content'])
-
                 meta = get_meta(file_record['path'])
                 file_record['additions'] = meta
                 file_record.update(meta)
@@ -245,9 +247,10 @@ class Workspace(object):
         if not files:
             return False
 
-        bookspace = self.get_book_space(name)
         if build_id:
-            bookspace = os.path.join(bookspace, md5(str(build_id)))
+            bookspace = os.path.join(self.book, md5(str(build_id)))
+        else:
+            bookspace = self.get_book_space(name)
 
         def parse_register(record):
             register = record.get('register')
@@ -296,7 +299,6 @@ class Workspace(object):
                 if folder and folder not in roles:
                     continue
             filename = bookspace + item.get('path')
-            # print(filename)
             if item['is_dir']:
                 if os.path.isdir(filename):
                     continue
@@ -361,7 +363,7 @@ class Workspace(object):
     @staticmethod
     def get_meta(pathname):
         pathname = pathname.rstrip('/')
-        home_path, filename = os.path.split(pathname)
+        root_path, filename = os.path.split(pathname)
         meta = {
             'name': filename
         }
@@ -382,7 +384,7 @@ class Workspace(object):
             meta['folder'] = path_split[1]
         return meta
 
-    def build_book(self, build_id):
+    def build_book_from_history(self, build_id):
         history = db.collection('build_history').find_one({'_id': ObjectId(build_id)})
         task_id = history.get('task_id')
         file_id = history.get('file_id')
@@ -399,3 +401,8 @@ class Workspace(object):
         os.unlink(save_file)
 
         return bookspace
+
+    @staticmethod
+    def remove_directory(directory):
+        shutil.rmtree(directory)
+

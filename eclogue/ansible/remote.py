@@ -2,14 +2,10 @@ import os
 import yaml
 
 from collections import namedtuple
-import pprint
 
-import ansible.constants as C
 from ansible.galaxy import Galaxy
 from ansible.galaxy.api import GalaxyAPI
-from ansible.galaxy.login import GalaxyLogin
 from ansible.galaxy.role import GalaxyRole
-from ansible.galaxy.token import GalaxyToken
 from ansible.errors import AnsibleError, AnsibleOptionsError
 from ansible.playbook.role.requirement import RoleRequirement
 from eclogue.lib.logger import logger
@@ -27,7 +23,7 @@ class AnsibleGalaxy(object):
 
         Options = namedtuple('Options', sorted(opts))
         self.options = Options(**opts)
-        self.galaxy = Galaxy(self.options)
+        self.galaxy = Galaxy()
 
     def default_options(self):
         wk = Workspace()
@@ -46,7 +42,7 @@ class AnsibleGalaxy(object):
             'offline': False,
         }
 
-    def install(self, book_id=None):
+    def install(self, book_id):
         """
         copy from ansible-galaxy
         uses the args list of roles to be installed, unless -f was specified. The list of roles
