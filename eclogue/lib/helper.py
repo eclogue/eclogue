@@ -400,6 +400,7 @@ def process_ansible_setup(result):
     records = []
     for host, info in success.items():
         facts = info['ansible_facts']
+        print('fffff', facts)
         processor = {
             'architecture': facts.get('ansible_processor'),
             'cores': facts.get('ansible_processor_cores'),

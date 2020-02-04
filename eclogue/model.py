@@ -112,7 +112,7 @@ class Model(object):
             return cls(cursor)
         bucket = []
         for item in cursor:
-            bucket.append(Model(item))
+            bucket.append(cls(item))
         model = cls(bucket)
         model.cursor = cursor
         return model
@@ -159,12 +159,14 @@ class Model(object):
     @classmethod
     def update_one(cls, where, update, **kwargs):
         model = cls()
+        _id = None
         record = model.collection.find_one(where)
         if not record and not kwargs.get('upsert'):
             return False
 
         msg = 'update record from {}'.format(model.name)
         if record:
+            _id = record['_id']
             msg = msg + ', _id: %s' % record.get('_id')
 
         extra = {
@@ -172,9 +174,12 @@ class Model(object):
             'change': update,
             'filter': where,
         }
-        model.report(msg, key=record['_id'], data=extra)
 
-        return model.collection.update_one(where, update, **kwargs)
+        result = model.collection.update_one(where, update, **kwargs)
+        if kwargs.get('upsert'):
+            _id = result.upserted_id
+        model.report(msg, key=_id, data=extra)
+        return result
 
     @classmethod
     def delete_one(cls, where, force=True, **kwargs):

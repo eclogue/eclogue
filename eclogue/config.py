@@ -71,7 +71,7 @@ class Config(object):
                 template = stream.read()
                 template = Template(template)
                 content = template.render(home_path=APP_ROOT)
-                _append = yaml.load(content)
+                _append.update(yaml.load(content))
 
         _config.update(_append)
         return _config

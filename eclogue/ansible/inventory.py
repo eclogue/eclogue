@@ -11,8 +11,8 @@ logger = get_logger('console')
 
 class HostsManager(InventoryManager):
 
-    # def __init__(self, loader, sources=None):
-    #     super().__init__(loader=loader, sources=sources)
+    def __init__(self, loader, sources=None):
+        super().__init__(loader=loader, sources=sources)
 
     def _fetch_inventory_plugins(self):
         plugins = [ContentInventoryPlugin()]
