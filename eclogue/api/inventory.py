@@ -788,6 +788,7 @@ def get_host_groups(user_id):
 @jwt_required
 def get_node_info(_id):
     record = Host.find_by_id(_id)
+    print('~~~~~~~~~~', record)
     if not record:
         return jsonify({
             'message': 'record not found',

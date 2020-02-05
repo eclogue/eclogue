@@ -12,11 +12,15 @@ from eclogue.api import router_v1
 from eclogue.api.routes import routes
 from eclogue.scheduler import scheduler
 from eclogue.lib.logger import get_logger
+from eclogue.model import Model
 
 
 class JSONEncoder(json.JSONEncoder):
     # extend json-encoder class
     def default(self, o):
+        if isinstance(o, Model):
+            print('mmmmmmmmmmmmmm', type(o))
+            return o.__dict__()
         if isinstance(o, ObjectId):
             return str(o)
         if isinstance(o, datetime.datetime):

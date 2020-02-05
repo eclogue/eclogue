@@ -6,11 +6,6 @@ class Host(Model):
 
     name = 'machines'
 
-    def find_by_id(self, _id):
-        if type(_id) == str:
-            _id = ObjectId(_id)
-        return self.collection.find_one({'_id': _id})
-
     def get_host_tree(self, user_id, skip=0, limit=100):
         condition = [
             {

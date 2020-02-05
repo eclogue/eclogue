@@ -56,6 +56,7 @@ class Model(object):
     definitions = {}
 
     def __init__(self, *args, **kwargs):
+        print('fuckcckckckc', *args, **kwargs)
         self._attr = Munch(*args, **kwargs)
         self._change = Munch()
         self.db = db
@@ -80,11 +81,7 @@ class Model(object):
         _id = ObjectId(_id)
         model = cls()
 
-        result = model.find_one({'_id': _id})
-        if not result:
-            return None
-
-        return model.load_result(result)
+        return model.find_one({'_id': _id})
 
     @classmethod
     def find_by_ids(cls, ids):
@@ -96,7 +93,7 @@ class Model(object):
             }
 
         }
-        result = model.find(where)
+        return model.find(where)
         return model.load_result(result)
 
     @classmethod
@@ -109,6 +106,7 @@ class Model(object):
 
     @classmethod
     def load_result(cls, cursor):
+        print('xxxxx????', cursor, isinstance(cursor, dict))
         if isinstance(cursor, dict):
             return cls(cursor)
         bucket = []
@@ -289,7 +287,10 @@ class Model(object):
         data = self.mixins
         if data.get('_id'):
             data['_id'] = str(data['_id'])
-        return json.dumps(data)
+        return str(data)
+
+    def to_dict(self):
+        return self.__dict__()
 
 
 db = Mongo()
