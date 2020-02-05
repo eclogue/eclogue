@@ -5,6 +5,7 @@ from bson import ObjectId
 from eclogue.config import config
 from gridfs import GridFS, GridFSBucket
 from mimetypes import guess_type
+from pymongo.cursor import Cursor
 # from eclogue.middleware import login_user
 from munch import Munch
 
@@ -55,7 +56,7 @@ class Model(object):
     definitions = {}
 
     def __init__(self, *args, **kwargs):
-        self._attr = Munch(*kwargs, **kwargs)
+        self._attr = Munch(*args, **kwargs)
         self._change = Munch()
         self.db = db
         self._collection = self.get_collection()
@@ -111,11 +112,12 @@ class Model(object):
         if isinstance(cursor, dict):
             return cls(cursor)
         bucket = []
-        for item in cursor:
+        items = cursor
+        if isinstance(cursor, Cursor):
+            items = cursor.clone()
+        for item in items:
             bucket.append(cls(item))
-        model = cls(bucket)
-        model.cursor = cursor
-        return model
+        return bucket
 
     @classmethod
     def find(cls, where, *args, **kwargs):
@@ -125,7 +127,7 @@ class Model(object):
         }
 
         cursor = model.collection.find(where, *args, **kwargs)
-        return model.load_result(cursor)
+        return cursor
 
     @classmethod
     def find_one(cls, where, *args, **kwargs):
@@ -262,29 +264,32 @@ class Model(object):
         return data
 
     def __setitem__(self, key, value):
+        print('__set__', key, value)
         self._change[key] = value
 
     def __getitem__(self, item):
-        if self._change.get(item):
-            return self._change.get(item)
-        return self._attr.get(item)
+        print('__get__', item)
+        return self.mixins.get(item)
 
     def __delitem__(self, key):
         if key in self._attr:
-            return self._attr.pop(key)
+            self._attr.pop(key)
+        if key in self._change:
+            self._change.pop(key)
 
     def __iter__(self):
-        data = self._attr.copy()
-        data.update(self._change)
-        return iter(data)
+        return iter(self.mixins)
 
     def __dict__(self):
-        data = self._attr.copy()
-        data.update(self._change)
+        data = self.mixins
+        print('__dict__', data)
         return data
 
     def __str__(self):
-        return json.dumps(self.__dict__())
+        data = self.mixins
+        if data.get('_id'):
+            data['_id'] = str(data['_id'])
+        return json.dumps(data)
 
 
 db = Mongo()

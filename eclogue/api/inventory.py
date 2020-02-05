@@ -4,7 +4,6 @@ import datetime
 from flask import request, jsonify
 from bson import ObjectId
 from tempfile import NamedTemporaryFile
-from deepdiff import DeepDiff
 from eclogue.middleware import jwt_required, login_user
 from eclogue.model import db
 from eclogue.config import config
@@ -14,7 +13,7 @@ from eclogue.lib.helper import parse_cmdb_inventory, parse_file_inventory
 from eclogue.lib.player import setup
 from eclogue.ansible.host import parser_inventory
 from eclogue.lib.inventory import get_inventory_from_cmdb, get_inventory_by_book
-from eclogue.models.host import host_model, Host
+from eclogue.models.host import Host
 from eclogue.lib.logger import logger
 from eclogue.models.region import Region
 from eclogue.models.group import Group
@@ -254,7 +253,6 @@ def explore():
 
         manager = runner.inventory
         hosts = parser_inventory(manager)
-        print('&&&&&&&&', hosts)
         records = []
         default_region = Region.find_one({'name': 'default'})
         if not default_region:
@@ -270,11 +268,12 @@ def explore():
 
         for node in data:
             hostname = node.get('ansible_hostname')
-            print('>>>>>>>-------- hosts', hostname, hosts)
             for group, host in hosts.items():
                 where = {'name': group}
+                print('wehererereeee', where)
                 # insert_data = {'$set': insert_data}
                 existed = Group.find_one(where)
+                print('?????#######', existed._attr, not existed)
                 if not existed:
                     insert_data = {
                         'name': group,
@@ -286,13 +285,13 @@ def explore():
                         'created_at': int(time.time())
                     }
                     insert_result = Group.insert_one(insert_data)
-                    group = insert_result.inserted_id
+                    print('???????', insert_result)
+                    group = str(insert_result.inserted_id)
                 else:
-                    group = existed['_id']
-
+                    group = str(existed['_id'])
+                print('xxxxxxx', existed, group, not existed)
                 if host.get('name') == hostname:
                     vars = host.get('vars')
-                    print('explore vars====++++++', vars)
                     node['ansible_ssh_host'] = vars.get('ansible_ssh_host', hostname)
                     node['ansible_ssh_user'] = vars.get('ansible_ssh_user', 'root')
                     node['ansible_ssh_port'] = vars.get('ansible_ssh_port', '22')
@@ -301,7 +300,6 @@ def explore():
                     node['state'] = 'active'
                     records.append(node)
                     break
-        print('--------', records)
         for record in records:
             where = {'ansible_ssh_host': record['ansible_ssh_host']}
             update = {'$set': record}
@@ -739,7 +737,7 @@ def get_devices():
             '$in': [group],
         }
 
-    result = db.collection('machines').find(where).skip(skip=skip).limit(limit)
+    result = Host.find(where).skip(skip=skip).limit(limit)
     total = result.count()
     result = list(result)
     collection = Group()
@@ -789,7 +787,7 @@ def get_host_groups(user_id):
 
 @jwt_required
 def get_node_info(_id):
-    record = host_model.find_by_id(_id)
+    record = Host.find_by_id(_id)
     if not record:
         return jsonify({
             'message': 'record not found',

@@ -28,8 +28,6 @@ def parser_inventory(sources, to_dict=False):
                         continue
                     host_info = item
                     break
-            print('?????~~~~~~~~~~~=====', host_info)
-
             data[name] = host_info
     return dict_inventory(data) if to_dict else data
 
@@ -55,5 +53,4 @@ def dict_inventory(inventory):
                 bucket[group_name] = {
                     'hosts': hosts
                 }
-    print('++++++++++++++++=====', bucket)
     return bucket
