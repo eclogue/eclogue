@@ -175,8 +175,8 @@ def edit_file(_id):
 
         data['register'] = register
 
-    result = Playbook.update_one({'_id': ObjectId(_id)}, {'$set': data}, upsert=True)
-    data['_id'] = result.upserted_id
+    Playbook.update_one({'_id': ObjectId(_id)}, {'$set': data}, upsert=True)
+    data['_id'] = _id
     book = Book.find_one({'_id': ObjectId(record['book_id'])})
     wk = Workspace()
     wk.write_book_file(book.get('name'), record)

@@ -32,7 +32,6 @@ class Reporter(object):
 
     def flush(self, time=86400):
         self.store.expire(self.key, time)
-        pass
 
     def read(self):
         logs = self.store.lrange(self.key, 0, -1)

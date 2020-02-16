@@ -56,7 +56,6 @@ class Model(object):
     definitions = {}
 
     def __init__(self, *args, **kwargs):
-        print('fuckcckckckc', *args, **kwargs)
         self._attr = Munch(*args, **kwargs)
         self._change = Munch()
         self.db = db
@@ -106,7 +105,6 @@ class Model(object):
 
     @classmethod
     def load_result(cls, cursor):
-        print('xxxxx????', cursor, isinstance(cursor, dict))
         if isinstance(cursor, dict):
             return cls(cursor)
         bucket = []
@@ -262,11 +260,9 @@ class Model(object):
         return data
 
     def __setitem__(self, key, value):
-        print('__set__', key, value)
         self._change[key] = value
 
     def __getitem__(self, item):
-        print('__get__', item)
         return self.mixins.get(item)
 
     def __delitem__(self, key):
@@ -280,7 +276,6 @@ class Model(object):
 
     def __dict__(self):
         data = self.mixins
-        print('__dict__', data)
         return data
 
     def __str__(self):

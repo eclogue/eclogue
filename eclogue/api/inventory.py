@@ -193,7 +193,7 @@ def explore():
             item['state'] = 'active'
             where = {'ansible_ssh_host': item['ansible_ssh_host']}
             update = {'$set': item}
-            result = db.collection('machines').update_one(where, update, upsert=True)
+            result = Host.update_one(where, update, upsert=True)
             extra = item.copy()
             extra['_id'] = result.upserted_id
             logger.info('add machines hostname: '.format({item['hostname']}), extra={'record': data})

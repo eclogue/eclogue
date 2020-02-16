@@ -430,6 +430,8 @@ def task_log_buffer(_id):
     end = -1
     reporter = Reporter(task_id=_id)
     buffer = reporter.get_buffer(start=start, end=end)
+    if not buffer and record.get('trace'):
+        buffer = [record.get('trace')]
 
     return jsonify({
         'message': 'ok',
@@ -437,7 +439,8 @@ def task_log_buffer(_id):
         'data': {
             'list': buffer,
             'page': start,
-            'state': record.get('state')
+            'state': record.get('state'),
+            'record': record
         }
     })
 

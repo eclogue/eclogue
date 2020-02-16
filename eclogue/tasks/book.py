@@ -6,7 +6,7 @@ import sys
 from eclogue.models.book import Book
 from eclogue.vcs.versioncontrol import GitDownload
 from eclogue.ansible.runer import PlayBookRunner, AdHocRunner
-from tasktiger import TaskTiger, Task
+from tasktiger import Task
 from eclogue.tasks.reporter import Reporter
 from eclogue.models.perform import Perform
 from eclogue.tasks import tiger

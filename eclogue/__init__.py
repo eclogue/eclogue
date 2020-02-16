@@ -19,7 +19,6 @@ class JSONEncoder(json.JSONEncoder):
     # extend json-encoder class
     def default(self, o):
         if isinstance(o, Model):
-            print('mmmmmmmmmmmmmm', type(o))
             return o.__dict__()
         if isinstance(o, ObjectId):
             return str(o)

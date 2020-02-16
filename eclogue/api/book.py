@@ -191,7 +191,7 @@ def add_book():
     }
 
     result = Book.update_one({'_id': ObjectId(book_id)}, {'$set': data}, upsert=True)
-    data['_id'] = result.upserted_id
+    data['_id'] = book_id
 
     return jsonify({
         'message': 'ok',
@@ -547,6 +547,9 @@ def run(_id):
     return jsonify({
         'message': 'ok',
         'code': 0,
+        'data': {
+            'taskId': result
+        }
     })
 
 
