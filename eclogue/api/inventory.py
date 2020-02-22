@@ -270,10 +270,8 @@ def explore():
             hostname = node.get('ansible_hostname')
             for group, host in hosts.items():
                 where = {'name': group}
-                print('wehererereeee', where)
                 # insert_data = {'$set': insert_data}
                 existed = Group.find_one(where)
-                print('?????#######', existed._attr, not existed)
                 if not existed:
                     insert_data = {
                         'name': group,
@@ -285,11 +283,9 @@ def explore():
                         'created_at': int(time.time())
                     }
                     insert_result = Group.insert_one(insert_data)
-                    print('???????', insert_result)
                     group = str(insert_result.inserted_id)
                 else:
                     group = str(existed['_id'])
-                print('xxxxxxx', existed, group, not existed)
                 if host.get('name') == hostname:
                     vars = host.get('vars')
                     node['ansible_ssh_host'] = vars.get('ansible_ssh_host', hostname)
@@ -788,7 +784,6 @@ def get_host_groups(user_id):
 @jwt_required
 def get_node_info(_id):
     record = Host.find_by_id(_id)
-    print('~~~~~~~~~~', record)
     if not record:
         return jsonify({
             'message': 'record not found',

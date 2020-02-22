@@ -2,7 +2,7 @@ import os
 import yaml
 
 from collections import namedtuple
-
+from ansible import context
 from ansible.galaxy import Galaxy
 from ansible.galaxy.api import GalaxyAPI
 from ansible.galaxy.role import GalaxyRole
@@ -11,6 +11,7 @@ from ansible.playbook.role.requirement import RoleRequirement
 from eclogue.lib.logger import logger
 from eclogue.lib.workspace import Workspace
 from eclogue.models.playbook import Playbook
+from munch import Munch
 
 
 class AnsibleGalaxy(object):
@@ -20,6 +21,8 @@ class AnsibleGalaxy(object):
         self.repo = repo
         opts = self.default_options()
         opts.update(options)
+        context._init_global_context(Munch(opts))
+        print(context.CLIARGS)
 
         Options = namedtuple('Options', sorted(opts))
         self.options = Options(**opts)

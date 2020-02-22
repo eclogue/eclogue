@@ -1,4 +1,3 @@
-import json
 import time
 from pymongo import MongoClient
 from bson import ObjectId
@@ -6,7 +5,6 @@ from eclogue.config import config
 from gridfs import GridFS, GridFSBucket
 from mimetypes import guess_type
 from pymongo.cursor import Cursor
-# from eclogue.middleware import login_user
 from munch import Munch
 
 
@@ -250,7 +248,10 @@ class Model(object):
         # self.db.collection('action_logs').insert_one(record)
 
     def get(self, key, default=None):
-        return self.mixins.get(key) or default
+        result = self.mixins
+        print(key in result, self.mixins)
+
+        return result.get(key) if key in result else default
 
     @property
     def mixins(self):

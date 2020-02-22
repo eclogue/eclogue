@@ -108,11 +108,9 @@ def lint(book_id, options, config=None):
         rules.extend(RulesCollection.create_from_directory(rulesdir))
 
     if options.listrules:
-        print(rules)
         return 0
 
     if options.listtags:
-        print(rules.listtags())
         return 0
 
     if isinstance(options.tags, six.string_types):

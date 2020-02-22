@@ -101,7 +101,7 @@ def run(book_id, run_id, **options):
                 'finish_at': finish_at,
                 'state': state,
                 'duration': finish_at - start_at,
-                'result': result,
+                'result': str(result),
                 'trace': content,
             }
         }

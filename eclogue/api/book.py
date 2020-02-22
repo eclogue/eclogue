@@ -190,7 +190,7 @@ def add_book():
         'updated_at': time.time(),
     }
 
-    result = Book.update_one({'_id': ObjectId(book_id)}, {'$set': data}, upsert=True)
+    Book.update_one({'_id': ObjectId(book_id)}, {'$set': data}, upsert=True)
     data['_id'] = book_id
 
     return jsonify({
