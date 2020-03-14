@@ -1,6 +1,7 @@
 import json
 import datetime
 
+from collections import Iterable
 from logging.config import dictConfig
 from bson import ObjectId
 from flask import Flask, request, jsonify
@@ -15,19 +16,27 @@ from eclogue.lib.logger import get_logger
 from eclogue.model import Model
 
 
+def json_parser(o):
+    if hasattr(o, '__dict__'):
+        return o.__dict__()
+    # if hasattr(o, 'to_dict')
+    if isinstance(o, Model):
+        return o.__dict__()
+    if isinstance(o, ObjectId):
+        return str(o)
+    if isinstance(o, datetime.datetime):
+        return str(o)
+    if isinstance(o, bytes):
+        return o.decode('utf8')
+    if isinstance(o, Iterable):
+        return list(o)
+    #     return list(map(json_parser, o))
+
 class JSONEncoder(json.JSONEncoder):
     # extend json-encoder class
     def default(self, o):
-        if isinstance(o, Model):
-            return o.__dict__()
-        if isinstance(o, ObjectId):
-            return str(o)
-        if isinstance(o, datetime.datetime):
-            return str(o)
-        if isinstance(o, bytes):
-            return o.decode('utf8')
-
-        return json.JSONEncoder.default(self, o)
+        res = json_parser(o)
+        return res if res else json.JSONEncoder.default(self, o)
 
 
 def create_app(schedule=True):

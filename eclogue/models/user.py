@@ -77,7 +77,7 @@ class User(Model):
             data['groups'] = groups
 
         if host_ids:
-            hosts = Host().find_by_ids(host_ids)
+            hosts = Host.find_by_ids(host_ids)
             data['hosts'] = hosts
 
         return data

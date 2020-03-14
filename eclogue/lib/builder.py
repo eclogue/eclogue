@@ -14,5 +14,4 @@ def build_book_from_db(name, roles=None, build_id=None, history_id=None):
         yield bookspace
     finally:
         if bookspace:
-            # wk.remove_directory(bookspace)
-            print('tend to remove', bookspace)
+            wk.remove_directory(bookspace)

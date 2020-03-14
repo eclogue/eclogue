@@ -2,6 +2,7 @@
 # coding=utf-8
 
 import click
+import os
 from eclogue import create_app
 from migrate import Migration
 from eclogue.tasks.system import register_schedule, scheduler
@@ -54,14 +55,15 @@ def server():
 
 @click.command()
 def worker():
+    cwd = os.path.abspath('.')
     program = {
         'name': 'worker',
-        'use': 'circus.plugins.http_observer.HttpObserver',
-        'loop_rate': 30,
-        'cmd': './venv/bin/python worker.py',
+        'use': 'circus.plugins.redis_observer.RedisObserver',
+        'loop_rate': 5,
+        'cmd': '.venv/bin/python worker.py',
+        'working_dir': cwd,
         'sample_rate': 2.0,
-        'application_name': 'example',
-        'flapping.max_retry': 50,
+        'application_name': 'eclogue-worker',
     }
     arbiter = get_arbiter(watchers=[program])
     arbiter.start()

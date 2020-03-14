@@ -10,7 +10,7 @@ from eclogue.utils import md5, is_edit
 from eclogue.middleware import jwt_required, login_user
 from eclogue.ansible.runer import PlayBookRunner
 from eclogue.lib.workspace import Workspace
-from eclogue.lib.helper import load_ansible_playbook, get_meta
+from eclogue.lib.helper import load_ansible_playbook, get_meta, check_playbook_node
 from eclogue.lib.inventory import get_inventory_from_cmdb, get_inventory_by_book
 from eclogue.ansible.remote import AnsibleGalaxy
 from eclogue.lib.logger import logger
@@ -309,13 +309,11 @@ def upload():
             'message': 'illegal param',
             'code': 104000,
         }), 400
-
     if not files.get('files'):
         return jsonify({
             'message': 'illegal param',
             'code': 104001,
         }), 400
-
     parent_id = form.get('parent')
     book_id = form.get('bookId')
     if parent_id == '/' and book_id:
@@ -326,31 +324,29 @@ def upload():
                 "code": 104040,
             }), 404
 
-        parent = {
+        current = {
             'path': '/',
             'book_id': book_id
         }
     else:
-        parent = Playbook.find_one({'_id': ObjectId(parent_id)})
-
-    if not parent:
+        current = Playbook.find_one({'_id': ObjectId(parent_id)})
+    if not current:
         return jsonify({
-            "message": "parent path not found",
+            "message": "current path not found",
             "code": 104004,
         }), 400
-
     file = files['files']
     filename = file.filename
-    path = os.path.join(parent['path'], filename)
+    path = os.path.join(current['path'], filename)
+    # parent = Playbook.find_one({'book_id': book_id, 'path': os.path.dirname(path)})
     record = {
-        'book_id': parent.get('book_id'),
+        'book_id': book_id,
         'path': path,
         'is_dir': False,
+        'parent': os.path.dirname(path),
     }
-
     meta = get_meta(path)
     record.update(meta)
-
     can_edit = is_edit(file)
     if not can_edit:
         file_id = db.save_file(filename=filename, fileobj=file)
@@ -363,14 +359,15 @@ def upload():
     record['is_edit'] = can_edit
     record['created_at'] = int(time.time())
     record['updated_at'] = datetime.datetime.now().isoformat()
-    where = {
-        'path': path,
-        'book_id': ObjectId(parent['book_id'])
-    }
-    update = {
-        '$set': record,
-    }
-    Playbook.update_one(where, update=update, upsert=True)
+    # where = {
+    #     'path': path,
+    #     'book_id': ObjectId(book_id)
+    # }
+    # update = {
+    #     '$set': record,
+    # }
+    check_playbook_node(record)
+    # Playbook.update_one(where, update=update, upsert=True)
 
     return jsonify({
         'message': 'ok',
@@ -456,3 +453,5 @@ def get_file(_id):
         'code': 0,
         'data': record,
     })
+
+

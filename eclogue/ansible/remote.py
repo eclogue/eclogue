@@ -22,8 +22,6 @@ class AnsibleGalaxy(object):
         opts = self.default_options()
         opts.update(options)
         context._init_global_context(Munch(opts))
-        print(context.CLIARGS)
-
         Options = namedtuple('Options', sorted(opts))
         self.options = Options(**opts)
         self.galaxy = Galaxy()

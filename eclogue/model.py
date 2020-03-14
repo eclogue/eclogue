@@ -1,4 +1,5 @@
 import time
+import json
 from pymongo import MongoClient
 from bson import ObjectId
 from eclogue.config import config
@@ -90,7 +91,7 @@ class Model(object):
             }
 
         }
-        return model.find(where)
+        result = model.find(where)
         return model.load_result(result)
 
     @classmethod
@@ -249,10 +250,14 @@ class Model(object):
 
     def get(self, key, default=None):
         result = self.mixins
-        print(key in result, self.mixins)
 
         return result.get(key) if key in result else default
 
+    def pop(self, key):
+        if key in self._attr:
+            self._attr.pop(key)
+        elif key in self._change:
+            self._change.pop(key)
     @property
     def mixins(self):
         data = self._attr.copy()
@@ -284,6 +289,9 @@ class Model(object):
         if data.get('_id'):
             data['_id'] = str(data['_id'])
         return str(data)
+
+    def __repr__(self):
+        return json.dumps(self.__dict__)
 
     def to_dict(self):
         return self.__dict__()

@@ -1,6 +1,6 @@
 [[source]]
 name = "pypi"
-url = "http://mirrors.aliyun.com/pypi/simple/"
+url = "https://pypi.org/simple"
 verify_ssl = false
 
 [dev-packages]
@@ -47,6 +47,7 @@ ansible-lint = "*"
 apscheduler = "==3.6.3"
 circus = "*"
 munch = "*"
+gevent-websocket = "*"
 
 [scripts]
 test = "python -m unittest discover -v -s tests -p '*.py'"

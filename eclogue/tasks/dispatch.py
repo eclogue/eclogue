@@ -223,7 +223,6 @@ def run_playbook_task(_id, request_id, username, history_id, **kwargs):
 
         data = payload.get('data')
         options = data.get('options')
-        options['verbosity'] = 4
         private_key = data.get('private_key')
         roles = data.get('roles')
         bookname = data.get('book_name')
@@ -272,7 +271,7 @@ def run_playbook_task(_id, request_id, username, history_id, **kwargs):
                             'task_id': str(task_id),
                             'file_id': str(file_id),
                             'job_id': str(_id),
-                            'job_info': record,
+                            'job_info': record.to_dict(),
                             'filename': filename,
                             'created_at': time(),
                             'kwargs': kwargs,
