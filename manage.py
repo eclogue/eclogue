@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 # coding=utf-8
-
+from gevent import monkey; monkey.patch_all()
 import click
 import os
-from eclogue import create_app
+from eclogue import create_app, socketio
 from migrate import Migration
-from eclogue.tasks.system import register_schedule, scheduler
+from eclogue.tasks.system import register_schedule
 from eclogue.config import config
 from gevent.pywsgi import WSGIServer
 from circus import get_arbiter
@@ -44,7 +44,8 @@ def bootstrap(username=None, password=None):
 def start():
     debug = config.debug
     register_schedule()
-    app.run(debug=debug, host='0.0.0.0', port=5000)
+    app.debug = debug
+    socketio.run(app=app, host='0.0.0.0', port=5000)
 
 
 @click.command()

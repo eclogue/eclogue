@@ -1,6 +1,5 @@
 import json
 import datetime
-
 from collections import Iterable
 from logging.config import dictConfig
 from bson import ObjectId
@@ -14,6 +13,9 @@ from eclogue.api.routes import routes
 from eclogue.scheduler import scheduler
 from eclogue.lib.logger import get_logger
 from eclogue.model import Model
+from flask_socketio import SocketIO
+
+socketio = SocketIO()
 
 
 def json_parser(o):
@@ -44,24 +46,26 @@ def create_app(schedule=True):
     # root_path = os.path.join(config.home_path, 'public')
     root_path = config.home_path
 
-    instance = Flask(__name__, root_path=root_path, static_folder='public', static_url_path='')
-    instance.json_encoder = JSONEncoder
-    instance.config.from_object(config)
-    instance.config['LOG_REQUEST_ID_LOG_ALL_REQUESTS'] = True
-    RequestID(app=instance)
-    Middleware(instance)
+    app = Flask(__name__, root_path=root_path, static_folder='public', static_url_path='')
+    app.json_encoder = JSONEncoder
+    app.config.from_object(config)
+    app.config['LOG_REQUEST_ID_LOG_ALL_REQUESTS'] = True
+    RequestID(app=app)
+    Middleware(app)
     bp = router_v1(routes)
-    instance.register_blueprint(bp)
-    # instance.register_blueprint(static())
+    app.register_blueprint(bp)
+    # app.register_blueprint(static())
     if schedule:
         scheduler.start()
+    socketio.init_app(app=app, cors_allowed_origins='*')
+    import eclogue.socket
     # api.add_resource(Menus, '/menus')
 
-    @instance.route('/', methods=['get'])
+    @app.route('/', methods=['get'])
     def index():
-        return instance.send_static_file('index.html')
+        return app.send_static_file('index.html')
 
-    @instance.errorhandler(404)
+    @app.errorhandler(404)
     def not_found(error):
         return jsonify({
             'message': 'not found',
@@ -69,7 +73,7 @@ def create_app(schedule=True):
             'error': str(error)
         }), 404
 
-    @instance.errorhandler(500)
+    @app.errorhandler(500)
     def server_error(error):
 
         return jsonify({
@@ -78,7 +82,7 @@ def create_app(schedule=True):
             'error': str(error)
         }), 500
 
-    @instance.errorhandler(405)
+    @app.errorhandler(405)
     def metho_not_allow(error):
         return jsonify({
             'message': 'method not allow',
@@ -86,7 +90,7 @@ def create_app(schedule=True):
             'error': str(error)
         }), 405
 
-    @instance.errorhandler(HTTPException)
+    @app.errorhandler(HTTPException)
     def handle_exception(e):
         """Return JSON instead of HTML for HTTP errors."""
         # start with the correct headers and status code from the error
@@ -103,7 +107,7 @@ def create_app(schedule=True):
             'message': 'api server error'
         })
 
-    return instance
+    return app
 
 
 __version__ = '0.0.1'
