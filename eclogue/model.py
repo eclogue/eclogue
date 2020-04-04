@@ -13,8 +13,12 @@ class Mongo(object):
 
     def __init__(self, conf=None):
         self.config = conf or config.mongodb
-        self.client = MongoClient(self.config.get('uri'), connect=False)
+        # self.client = MongoClient(self.config.get('uri'), connect=False)
         self.db = self.client[self.config['db']]
+
+    @property
+    def client(self):
+        return MongoClient(self.config.get('uri'), connect=False)
 
     def get_db(self, dbname):
         return self.client[dbname]

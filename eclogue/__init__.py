@@ -15,7 +15,7 @@ from eclogue.lib.logger import get_logger
 from eclogue.model import Model
 from flask_socketio import SocketIO
 
-socketio = SocketIO()
+socketio = SocketIO(async_mode='gevent')
 
 
 def json_parser(o):

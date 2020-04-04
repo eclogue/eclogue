@@ -240,13 +240,11 @@ class Workspace(object):
         book = Book.find_one({'name': name})
         if not book:
             return False
-
         files = Model.build_model('playbook').find({'book_id': str(book['_id'])})\
             .sort([('is_edit', pymongo.ASCENDING), ('path', pymongo.ASCENDING)])
         files = list(files)
         if not files:
             return False
-
         if build_id:
             bookspace = os.path.join(self.book, md5(str(build_id)))
         else:
@@ -288,9 +286,7 @@ class Workspace(object):
                 record['content'] = yaml.safe_dump(content)
             except Exception as e:
                 print(e)
-
             return record
-
         self.check_workspace(path=self._check_make(bookspace))
         for item in files:
             item = parse_register(item)

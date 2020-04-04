@@ -2,8 +2,7 @@ from uuid import uuid4
 from eclogue.models.host import Host
 from eclogue.ansible.runer import AdHocRunner
 from eclogue.lib.logger import logger
-from eclogue.scheduler import scheduler
-from eclogue.model import db
+from apscheduler.schedulers.gevent import GeventScheduler
 
 
 def ansible_inventory_patrol():
@@ -72,7 +71,7 @@ def _pack_inventory(records):
 
 def register_schedule(minutes=0):
     minutes = minutes or 60
-
+    scheduler = GeventScheduler()
     func = ansible_inventory_patrol
     name = func.__name__
     job_id = '5db150f3e3f7e0677091329f'

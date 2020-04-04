@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # coding=utf-8
-from gevent import monkey; monkey.patch_all()
+from gevent import monkey
+monkey.patch_all()
+
 import click
 import os
 from eclogue import create_app, socketio
@@ -43,7 +45,7 @@ def bootstrap(username=None, password=None):
 @click.command()
 def start():
     debug = config.debug
-    register_schedule()
+    # register_schedule()
     app.debug = debug
     socketio.run(app=app, host='0.0.0.0', port=5000)
 
