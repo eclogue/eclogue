@@ -20,31 +20,37 @@ def parser_inventory(sources, to_dict=False):
         hosts = group.get_hosts()
         for host in hosts:
             host_info = host.serialize()
-            del host_info['groups']
+            groups = host_info['groups']
+            # node name same as group name
+            if not host_info.get('vars'):
+                for item in groups:
+                    if not item or not item.get('vars'):
+                        continue
+                    host_info = item
+                    break
             data[name] = host_info
-
     return dict_inventory(data) if to_dict else data
 
 
 def dict_inventory(inventory):
     bucket = dict()
-    for key, value in inventory.items():
-        group_name = os.path.basename(key)
-        inventory_vars = value.get('vars', {})
-        field = os.path.basename(value.get('name'))
-        hosts = {
-            field: {
-                'ansible_ssh_host': inventory_vars.get('ansible_ssh_host'),
-                'ansible_ssh_user': inventory_vars.get('ansible_ssh_user', 'root'),
-                'ansible_ssh_port': inventory_vars.get('ansible_ssh_port', 22)
-            }
-        }
-
-        if bucket.get(group_name):
-            bucket[group_name]['hosts'].update(hosts)
-        else:
-            bucket[group_name] = {
-                'hosts': hosts
+    for key, groups in inventory.items():
+        for value in groups:
+            group_name = os.path.basename(key)
+            inventory_vars = value.get('vars', {})
+            field = os.path.basename(value.get('name'))
+            hosts = {
+                field: {
+                    'ansible_ssh_host': inventory_vars.get('ansible_ssh_host', value.get('address')),
+                    'ansible_ssh_user': inventory_vars.get('ansible_ssh_user', 'root'),
+                    'ansible_ssh_port': inventory_vars.get('ansible_ssh_port', 22)
+                }
             }
 
+            if bucket.get(group_name):
+                bucket[group_name]['hosts'].update(hosts)
+            else:
+                bucket[group_name] = {
+                    'hosts': hosts
+                }
     return bucket

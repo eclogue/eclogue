@@ -146,3 +146,30 @@ def mkdir(path, mode=0o700):
     res += [path]
 
     return res
+
+
+def get_meta(pathname):
+    """
+    get meta from path
+    """
+    pathname = pathname.rstrip('/')
+    home_path, filename = os.path.split(pathname)
+    meta = {
+        'name': filename
+    }
+    path_split = pathname.lstrip('/').split('/')
+    path_len = len(path_split)
+    if path_len is 1:
+        filename = path_split[0] or 'root'
+        if filename.find('hosts') >= 0:
+            meta['role'] = 'hosts'
+        elif filename.find('entry') >= 0:
+            meta['role'] = 'entry'
+        else:
+            meta['role'] = path_split[0] or 'unknown'
+    elif path_len is 2:
+        meta['role'] = filename
+    elif path_len >= 3:
+        meta['role'] = path_split[2]
+        meta['folder'] = path_split[1]
+    return meta

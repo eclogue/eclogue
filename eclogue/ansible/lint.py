@@ -2,7 +2,7 @@ import os
 import six
 import ansiblelint.formatters as formatters
 from collections import namedtuple
-from bunch import Bunch
+from munch import Munch
 from ansiblelint import RulesCollection, Runner, default_rulesdir
 from ansiblelint.utils import get_playbooks_and_roles, normpath
 from eclogue.models.playbook import Playbook
@@ -30,7 +30,7 @@ def get_default_options(args):
     }
     opts.update(args)
 
-    return Bunch(opts)
+    return Munch(opts)
 
 
 def lint(book_id, options, config=None):
@@ -108,11 +108,9 @@ def lint(book_id, options, config=None):
         rules.extend(RulesCollection.create_from_directory(rulesdir))
 
     if options.listrules:
-        print(rules)
         return 0
 
     if options.listtags:
-        print(rules.listtags())
         return 0
 
     if isinstance(options.tags, six.string_types):

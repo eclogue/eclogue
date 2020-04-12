@@ -227,7 +227,6 @@ class PlayBookRunner(AdHocRunner):
         """
         ansible playbook 模式运行任务
         """
-        print(self.options)
         # C.DEFAULT_ROLES_PATH = self.options.roles_path
         b_playbook_dir = os.path.dirname(playbooks[0])
         add_all_plugin_dirs(b_playbook_dir)
@@ -245,7 +244,6 @@ class PlayBookRunner(AdHocRunner):
                 host_info = host.serialize()
                 del host_info['groups']
                 data[name] = host_info
-        print('ddddddddddddd', data)
         playbooks = playbooks if type(playbooks) == list else [playbooks]
         executor = PlaybookExecutor(
             playbooks=playbooks,

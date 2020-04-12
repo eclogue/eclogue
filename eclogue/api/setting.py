@@ -105,7 +105,6 @@ def get_setting():
 
 
 def test():
-    print(Setting.build_model('teams').name)
     record = db.collection('setting').find_one({})
     result = lint('5e07498ce3f7e0289ce43bad', options={})
 

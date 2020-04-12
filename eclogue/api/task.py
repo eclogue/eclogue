@@ -16,6 +16,7 @@ from eclogue.lib.logger import logger
 from eclogue.models.task import Task as TaskModel
 from eclogue.redis import redis_client
 from eclogue.tasks.reporter import Reporter
+from eclogue.models.perform import Perform
 
 
 @jwt_required
@@ -413,7 +414,12 @@ def task_log_buffer(_id):
         }), 400
 
     query = request.args
-    record = TaskModel.find_by_id(_id)
+    record = None
+    if query.get('type') == 'task':
+        record = TaskModel.find_by_id(_id)
+    elif query.get('type') == 'book':
+        # @todo
+        record = Perform.find_by_id(_id)
     if not record:
         return jsonify({
             'message': 'record not found',
@@ -424,6 +430,8 @@ def task_log_buffer(_id):
     end = -1
     reporter = Reporter(task_id=_id)
     buffer = reporter.get_buffer(start=start, end=end)
+    if not buffer and record.get('trace'):
+        buffer = [record.get('trace')]
 
     return jsonify({
         'message': 'ok',
@@ -431,7 +439,8 @@ def task_log_buffer(_id):
         'data': {
             'list': buffer,
             'page': start,
-            'state': record.get('state')
+            'state': record.get('state'),
+            'record': record
         }
     })
 

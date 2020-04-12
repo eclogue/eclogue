@@ -5,6 +5,8 @@ from eclogue.ansible.runer import AdHocRunner, PlayBookRunner
 from eclogue.lib.helper import parse_cmdb_inventory
 from eclogue.lib.credential import get_credential_content_by_id
 from eclogue.lib.logger import logger
+from eclogue.tasks.once import dispatch
+from flask_log_request_id import current_request_id
 
 
 @jwt_required
@@ -15,7 +17,7 @@ def run_task():
             'message': 'invalid params',
             'code': 114000,
         }), 400
-
+    req_id = str(current_request_id())
     run_type = payload.get('type')
     inventory = payload.get('inventory')
     private_key = payload.get('private_key')
@@ -45,7 +47,15 @@ def run_task():
         options['become_method'] = become_mehtod
         if become_user:
             options['become_user'] = become_user
-
+    params = {
+        'username': login_user.get('username'),
+        'req_id': req_id,
+        'options': options,
+        'inventory': inventory,
+        'run_type': run_type,
+    }
+    if private_key:
+        params['private_key'] = private_key
     if run_type == 'adhoc':
         if not module:
             return jsonify({
@@ -59,61 +69,96 @@ def run_task():
                 'args': args
             }
         }]
-
-        with NamedTemporaryFile('w+t', delete=True) as fd:
-            if private_key:
-                key_text = get_credential_content_by_id(private_key, 'private_key')
-                if not key_text:
-                    return jsonify({
-                        'message': 'invalid private_key',
-                        'code': 104033,
-                    }), 401
-
-                fd.write(key_text)
-                fd.seek(0)
-                options['private_key'] = fd.name
-
-            runner = AdHocRunner(hosts, options=options)
-            logger.info('run ansible-adhoc', extra={'hosts': hosts, 'options': options})
-            res = runner.run('all', tasks)
-            result = runner.format_result()
-
-            return jsonify({
-                'message': 'ok',
-                'code': 0,
-                'data': result
-            })
+        params['tasks'] = tasks
     else:
         if not entry:
             return jsonify({
                 'message': 'invalid entry',
                 'code': 114004,
             }), 400
+        params['entry'] = entry
+    result = dispatch(params)
 
-        with NamedTemporaryFile('w+t', delete=True) as fd:
-            if private_key:
-                key_text = get_credential_content_by_id(private_key, 'private_key')
-                if not key_text:
-                    return jsonify({
-                        'message': 'invalid private_key',
-                        'code': 104033,
-                    }), 401
-
-                fd.write(key_text)
-                fd.seek(0)
-                options['private_key'] = fd.name
-
-            with NamedTemporaryFile('w+t', delete=True) as fh:
-                fh.write(entry)
-                fh.seek(0)
-                runner = PlayBookRunner(hosts, options)
-                logger.info('run ansible-playbook', extra={'hosts': hosts, 'options': options})
-                runner.run(fh.name)
-                result = runner.format_result()
-
-                return jsonify({
-                    'message': 'ok',
-                    'code': 0,
-                    'data': result
-                })
+    if not result:
+        return jsonify({
+            'message': 'invalid request',
+            'code': 104008
+        }), 400
+    return jsonify({
+        'message': 'ok',
+        'code': 0,
+        'data': {
+            'taskId': result
+        }
+    })
+    # if run_type == 'adhoc':
+    #     if not module:
+    #         return jsonify({
+    #             'message': 'invalid module',
+    #             'code': 114002,
+    #         }), 400
+    #
+    #     tasks = [{
+    #         'action': {
+    #             'module': module,
+    #             'args': args
+    #         }
+    #     }]
+    #
+    #     with NamedTemporaryFile('w+t', delete=True) as fd:
+    #         if private_key:
+    #             key_text = get_credential_content_by_id(private_key, 'private_key')
+    #             if not key_text:
+    #                 return jsonify({
+    #                     'message': 'invalid private_key',
+    #                     'code': 104033,
+    #                 }), 401
+    #
+    #             fd.write(key_text)
+    #             fd.seek(0)
+    #             options['private_key'] = fd.name
+    #
+    #         runner = AdHocRunner(hosts, options=options)
+    #         logger.info('run ansible-adhoc', extra={'hosts': hosts, 'options': options})
+    #         res = runner.run('all', tasks)
+    #         result = runner.format_result()
+    #
+    #         return jsonify({
+    #             'message': 'ok',
+    #             'code': 0,
+    #             'data': result
+    #         })
+    # else:
+    #     if not entry:
+    #         return jsonify({
+    #             'message': 'invalid entry',
+    #             'code': 114004,
+    #         }), 400
+    #
+    #     with NamedTemporaryFile('w+t', delete=True) as fd:
+    #         if private_key:
+    #             key_text = get_credential_content_by_id(private_key, 'private_key')
+    #             if not key_text:
+    #                 return jsonify({
+    #                     'message': 'invalid private_key',
+    #                     'code': 104033,
+    #                 }), 401
+    #
+    #             fd.write(key_text)
+    #             fd.seek(0)
+    #             options['private_key'] = fd.name
+    #
+    #         with NamedTemporaryFile('w+t', delete=True) as fh:
+    #             fh.write(entry)
+    #             fh.seek(0)
+    #             runner = PlayBookRunner(hosts, options)
+    #             logger.info('run ansible-playbook', extra={'hosts': hosts, 'options': options})
+    #             runner.run(fh.name)
+    #             result = runner.format_result()
+    #
+    #             return jsonify({
+    #                 'message': 'ok',
+    #                 'code': 0,
+    #                 'data': result
+    #             })
 

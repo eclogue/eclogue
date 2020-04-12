@@ -1,13 +1,16 @@
 #!/usr/bin/env python
 # coding=utf-8
+from gevent import monkey
+monkey.patch_all()
 
 import click
-from eclogue import create_app
+import os
+from eclogue import create_app, socketio
 from migrate import Migration
-from eclogue.tasks.system import register_schedule, scheduler
+from eclogue.tasks.system import register_schedule
 from eclogue.config import config
-from eclogue.tasks.dispatch import tiger
 from gevent.pywsgi import WSGIServer
+from circus import get_arbiter
 
 app = create_app(schedule=False)
 
@@ -42,8 +45,9 @@ def bootstrap(username=None, password=None):
 @click.command()
 def start():
     debug = config.debug
-    register_schedule()
-    app.run(debug=debug, host='0.0.0.0', port=5000)
+    # register_schedule()
+    app.debug = debug
+    socketio.run(app=app, host='0.0.0.0', port=5000)
 
 
 @click.command()
@@ -54,7 +58,18 @@ def server():
 
 @click.command()
 def worker():
-    tiger.run_worker()
+    cwd = os.path.abspath('.')
+    program = {
+        'name': 'worker',
+        'use': 'circus.plugins.redis_observer.RedisObserver',
+        'loop_rate': 5,
+        'cmd': '.venv/bin/python worker.py',
+        'working_dir': cwd,
+        'sample_rate': 2.0,
+        'application_name': 'eclogue-worker',
+    }
+    arbiter = get_arbiter(watchers=[program])
+    arbiter.start()
 
 
 eclogue.add_command(migrate)

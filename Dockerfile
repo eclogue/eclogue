@@ -1,5 +1,5 @@
 FROM python:3.6-stretch
-ADD sources/sources.list /etc/apt/
+ADD storage/sources /etc/apt/
 RUN apt-get update
 RUN apt-get install -y curl git wget zip unzip
 RUN cat /etc/os-release

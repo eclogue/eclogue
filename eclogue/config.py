@@ -4,6 +4,7 @@ import functools
 from collections import namedtuple
 from dotenv import load_dotenv, find_dotenv
 from jinja2 import Template
+from munch import Munch
 
 
 APP_ROOT = os.path.abspath(os.getcwd())
@@ -49,12 +50,12 @@ class Config(object):
     def load():
         load_dotenv(find_dotenv())
         env = os.getenv('ENV') or 'development'
-        cfg = {
+        _config = Munch({
             'app_root': APP_ROOT,
             'env': env,
-            'DEBUG': (True if env is 'development' else False)
-        }
-
+            'DEBUG': True if env is 'development' else False
+        })
+        _append = {}
         default_file = os.path.join(CONFIG_PATH, 'default.yaml')
         if os.path.isfile(default_file):
             with open(default_file, 'r') as stream:
@@ -62,8 +63,7 @@ class Config(object):
                 template = Template(template)
                 content = template.render(home_path=APP_ROOT)
                 default = yaml.load(content)
-                cfg = cfg.copy()
-                cfg.update(default)
+                _append.update(default)
 
         env_file = os.path.join(CONFIG_PATH, env + '.yaml')
         if os.path.isfile(env_file):
@@ -71,10 +71,10 @@ class Config(object):
                 template = stream.read()
                 template = Template(template)
                 content = template.render(home_path=APP_ROOT)
-                cnf = yaml.load(content)
-                cfg.update(cnf)
+                _append.update(yaml.load(content))
 
-        return namedtuple('Config', cfg.keys())(*cfg.values())
+        _config.update(_append)
+        return _config
 
     def export(self):
         return self._config

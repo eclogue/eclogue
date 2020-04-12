@@ -2,7 +2,7 @@ import os
 import time
 
 from eclogue.models.book import book
-from eclogue.models.playbook import playbook
+from eclogue.models.playbook import Playbook
 from eclogue.lib.workspace import Workspace
 
 
@@ -11,13 +11,13 @@ def check_playbook(book_id):
     if not record:
         raise Exception('invalid playbook')
 
-    records = playbook.collection.find({'book_id': book_id})
+    records = Playbook.find({'book_id': book_id})
     for item in records:
         parent = item.get('parent')
         if not item.get('parent'):
             continue
 
-        p_item = playbook.collection.find_one({'book_id': book_id, 'path': parent})
+        p_item = Playbook.find_one({'book_id': book_id, 'path': parent})
         if not p_item:
             p_path = os.path.dirname(parent)
             p_path = p_path if p_path != '/' else None
@@ -34,6 +34,6 @@ def check_playbook(book_id):
             meta = Workspace.get_meta(parent)
             data.update(meta)
             data['additions'] = meta
-            playbook.collection.insert(data)
+            Playbook.insert_one(data)
 
     return True

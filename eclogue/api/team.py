@@ -359,7 +359,7 @@ def get_team_info(_id):
         records = db.collection('role_menus').find(where)
         records = list(records)
         ids = list(map(lambda i: i['m_id'], records))
-        permissions = Menu().find_by_ids(ids)
+        permissions = Menu.find_by_ids(ids)
 
     members = db.collection('team_members').find({'team_id': _id}, projection=['user_id'])
     record['members'] = list(map(lambda i: i['user_id'], members))
@@ -370,7 +370,7 @@ def get_team_info(_id):
         'data': {
             'team': record,
             'roles': list(roles),
-            'permissions': permissions,
+            # 'permissions': permissions,
         }
     })
 

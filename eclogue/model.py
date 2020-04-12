@@ -1,18 +1,24 @@
-import json
 import time
+import json
 from pymongo import MongoClient
 from bson import ObjectId
 from eclogue.config import config
 from gridfs import GridFS, GridFSBucket
 from mimetypes import guess_type
+from pymongo.cursor import Cursor
+from munch import Munch
 
 
 class Mongo(object):
 
     def __init__(self, conf=None):
         self.config = conf or config.mongodb
-        self.client = MongoClient(self.config.get('uri'), connect=False)
+        # self.client = MongoClient(self.config.get('uri'), connect=False)
         self.db = self.client[self.config['db']]
+
+    @property
+    def client(self):
+        return MongoClient(self.config.get('uri'), connect=False)
 
     def get_db(self, dbname):
         return self.client[dbname]
@@ -50,11 +56,17 @@ class Mongo(object):
 class Model(object):
     name = ''
     indices = []
+    definitions = {}
 
-    def __init__(self, data=None, database=None):
-        self._attr = data or {}
-        self.db = database or db
+    def __init__(self, *args, **kwargs):
+        self._attr = Munch(*args, **kwargs)
+        self._change = Munch()
+        self.db = db
         self._collection = self.get_collection()
+        self.cursor = None
+
+    def set_db(self, database):
+        self.db = database
 
     @property
     def collection(self):
@@ -83,8 +95,28 @@ class Model(object):
             }
 
         }
+        result = model.find(where)
+        return model.load_result(result)
 
-        return list(model.find(where))
+    @classmethod
+    def count_documents(cls, where):
+        model = cls()
+        return model.collection.count(where)
+
+    def count(self):
+        return self.cursor.count()
+
+    @classmethod
+    def load_result(cls, cursor):
+        if isinstance(cursor, dict):
+            return cls(cursor)
+        bucket = []
+        items = cursor
+        if isinstance(cursor, Cursor):
+            items = cursor.clone()
+        for item in items:
+            bucket.append(cls(item))
+        return bucket
 
     @classmethod
     def find(cls, where, *args, **kwargs):
@@ -93,7 +125,8 @@ class Model(object):
             '$ne': -1
         }
 
-        return model.collection.find(where, *args, **kwargs)
+        cursor = model.collection.find(where, *args, **kwargs)
+        return cursor
 
     @classmethod
     def find_one(cls, where, *args, **kwargs):
@@ -102,7 +135,10 @@ class Model(object):
             '$ne': -1
         }
 
-        return model.collection.find_one(where, *args, **kwargs)
+        result = model.collection.find_one(where, *args, **kwargs)
+        if not result:
+            return None
+        return model.load_result(result)
 
     @classmethod
     def insert_one(cls, data, *args, **kwargs):
@@ -113,28 +149,38 @@ class Model(object):
         result = model.collection.insert_one(data, *args, **kwargs)
         record = data.copy()
         record['_id'] = result.inserted_id
+        msg = 'insert new record to {}, _id: {}'.format(model.name, record['_id'])
+        extra = {
+            'record': record,
+        }
+        model.report(msg, key=record['_id'], data=extra)
 
         return result
 
     @classmethod
     def update_one(cls, where, update, **kwargs):
         model = cls()
+        _id = None
         record = model.collection.find_one(where)
         if not record and not kwargs.get('upsert'):
             return False
 
         msg = 'update record from {}'.format(model.name)
         if record:
+            _id = record['_id']
             msg = msg + ', _id: %s' % record.get('_id')
 
         extra = {
             'record': record,
-            'change': update['$set'],
+            'change': update,
             'filter': where,
         }
-        model.report(msg, key=record['_id'], operation='update', data=extra)
 
-        return model.collection.update_one(where, update, **kwargs)
+        result = model.collection.update_one(where, update, **kwargs)
+        if kwargs.get('upsert'):
+            _id = result.upserted_id
+        model.report(msg, key=_id, data=extra)
+        return result
 
     @classmethod
     def delete_one(cls, where, force=True, **kwargs):
@@ -155,7 +201,7 @@ class Model(object):
             }
         }
 
-        model.report(msg, key=record['_id'], operation='delete', data=extra)
+        model.report(msg, key=record['_id'], data=extra)
         if not force:
             return model.collection.update_one(where, update=update, **kwargs)
 
@@ -171,13 +217,22 @@ class Model(object):
         return result
 
     def save(self):
-        if self._attr:
-            result = self.collection.insert_one(self._attr)
-            self._attr = {}
+        update = self._attr.copy()
+        update.update(self._change.copy())
+        if not update:
+            return False
+
+        if update['_id']:
+            _id = update.pop('_id')
+            model = self.find_by_id(_id)
+            for k, v in update:
+                if v == model.v:
+                    update.pop(k)
+            result = self.update_one({'_id': _id}, update)
+            self._attr.update(dict(model))
 
             return result
-
-        return None
+        self.insert_one(update)
 
     @classmethod
     def build_model(cls, name):
@@ -186,36 +241,64 @@ class Model(object):
 
         return model
 
-    def report(self, msg, key, operation, data):
+    def report(self, msg, key, data):
         record = {
             'msg': msg,
             'key': key,
-            'collection': self.name,
             'data': data,
-            'operation': operation,
             'created_at': time.time(),
 
         }
-        self.db.collection('action_logs').insert_one(record)
+        # print(record)
+        # self.db.collection('action_logs').insert_one(record)
+
+    def get(self, key, default=None):
+        result = self.mixins
+
+        return result.get(key) if key in result else default
+
+    def pop(self, key):
+        if key in self._attr:
+            self._attr.pop(key)
+        elif key in self._change:
+            self._change.pop(key)
+    @property
+    def mixins(self):
+        data = self._attr.copy()
+        data.update(self._change.copy())
+
+        return data
 
     def __setitem__(self, key, value):
-        self._attr[key] = value
+        self._change[key] = value
 
     def __getitem__(self, item):
-        return self._attr.get(item)
+        return self.mixins.get(item)
 
     def __delitem__(self, key):
         if key in self._attr:
-            return self._attr.pop(key)
+            self._attr.pop(key)
+        if key in self._change:
+            self._change.pop(key)
 
     def __iter__(self):
-        return iter(self._attr)
+        return iter(self.mixins)
 
     def __dict__(self):
-        return self._attr
+        data = self.mixins
+        return data
 
     def __str__(self):
-        return json.dumps(self._attr)
+        data = self.mixins
+        if data.get('_id'):
+            data['_id'] = str(data['_id'])
+        return str(data)
+
+    def __repr__(self):
+        return json.dumps(self.__dict__)
+
+    def to_dict(self):
+        return self.__dict__()
 
 
 db = Mongo()

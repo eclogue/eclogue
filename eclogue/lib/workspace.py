@@ -9,12 +9,12 @@ from contextlib import contextmanager
 from bson import ObjectId
 from eclogue.config import config
 from eclogue.model import db
-from eclogue.utils import is_edit, file_md5, md5, extract
+from eclogue.utils import is_edit, file_md5, md5, extract, get_meta
 from eclogue.ansible.vault import Vault
 from eclogue.models.book import Book
 from eclogue.models.configuration import Configuration
 from eclogue.model import Model
-from eclogue.lib.logger import logger
+from eclogue.models.playbook import Playbook
 
 
 class Workspace(object):
@@ -119,19 +119,35 @@ class Workspace(object):
             self.check_workspace(filename, file)
         return True
 
-    def import_book_from_dir(self, root_path, book_id, exclude=['*.retry'], links=False):
+    def import_book_from_dir(self, home_path, book_id, exclude=None, links=False, prefix='/'):
+        """
+        import dir file to db
+        @todo
+        """
+        book_id = str(book_id)
+        exclude = exclude or ['*.retry']
         bucket = []
         cursor = 0
-        parent = root_path
-        book_record = Book.find_one({'_id': ObjectId(book_id)})
+        home_path = home_path.rstrip('/')
+        parent = home_path
+        book_record = Book.find_by_id(book_id)
+        model = Model.build_model('playbook')
+        playbooks = model.find({'book_id': book_id})
+        paths = map(lambda i: i['path'], playbooks)
+        paths = list(paths)
         pattern = '|'.join(exclude).replace('*', '.*?')
-        for current, dirs, files in os.walk(root_path, topdown=True, followlinks=links):
-            pathname = current.replace(root_path, '') or '/'
+        home_path = '/'.join([home_path, ''])
+        for current, dirs, files in os.walk(home_path, topdown=True, followlinks=links):
+            pathname = current.replace(home_path, '')
+            if pathname != '/':
+                pathname = os.path.join(prefix, pathname)
             if exclude:
                 match = re.search(pattern, pathname)
                 if match:
                     continue
-
+            if pathname in paths:
+                index = paths.index(pathname)
+                paths.pop(index)
             dir_record = {
                 'book_id': str(book_record.get('_id')),
                 'path': pathname,
@@ -141,12 +157,11 @@ class Workspace(object):
                 'parent': None,
                 'created_at': int(time.time()),
             }
-            if not current == root_path:
+            if not current == home_path:
                 dir_record['parent'] = parent
-                meta = Workspace.get_meta(pathname=pathname)
+                meta = get_meta(pathname)
                 dir_record.update(meta)
                 dir_record['additions'] = meta
-
             parent = pathname
             bucket.append(dir_record)
             for file in files:
@@ -170,30 +185,32 @@ class Workspace(object):
                         file_record['content'] = fd.read()
                         file_record['md5'] = md5(file_record['content'])
                         file_record['is_encrypt'] = Vault.is_encrypted(file_record['content'])
-
-                meta = self.get_meta(file_record['path'])
-                file_record.update(meta)
+                meta = get_meta(file_record['path'])
                 file_record['additions'] = meta
+                file_record.update(meta)
                 bucket.append(file_record)
             cursor += 1
         is_entry = filter(lambda i: i.get('role') == 'entry', bucket)
         is_entry = list(is_entry)
+        # if not entry set book status to disable
         if not is_entry:
-            path = '/entry.yml'
-            entry = {
-                'book_id': str(book_record.get('_id')),
-                'path': path,
-                'is_dir': False,
-                'is_edit': True,
-                'seq_no': 0,
-                'content': '',
-                'parent': None,
-                'created_at': int(time.time()),
-            }
-            meta = self._get_role(path)
-            entry.update(meta)
-            entry['additions'] = meta
-            bucket.append(entry)
+            Book.update_one({'_id': ObjectId(book_id)}, {'$set': {'status': 0}})
+
+        for path in paths:
+            model.delete_one({'book_id': book_id, 'path': path})
+
+        mapping = {}
+        map(lambda i: {mapping['path']: i}, playbooks)
+        for item in bucket:
+            record = mapping.get(item['path'])
+            if not record:
+                model.insert_one(item)
+                continue
+            else:
+                # inherit old additions
+                if record['additions']:
+                    item['additions'].update(record['additions'])
+                model.update_one({'_id': record['_id']}, {'$set': item})
 
         return bucket
 
@@ -201,11 +218,11 @@ class Workspace(object):
         return '/'.join([self.book, name, entry])
 
     def get_book_space(self, name):
-        dir = self.book + '/' + name
-        if not os.path.exists(dir):
-            self.mkdir(dir)
+        directory = self.book + '/' + name
+        if not os.path.exists(directory):
+            self.mkdir(directory)
 
-        return dir
+        return directory
 
     def write_book_file(self, book_name, document):
         filename = document.get('path')
@@ -223,13 +240,11 @@ class Workspace(object):
         book = Book.find_one({'name': name})
         if not book:
             return False
-
         files = Model.build_model('playbook').find({'book_id': str(book['_id'])})\
             .sort([('is_edit', pymongo.ASCENDING), ('path', pymongo.ASCENDING)])
         files = list(files)
         if not files:
             return False
-
         if build_id:
             bookspace = os.path.join(self.book, md5(str(build_id)))
         else:
@@ -271,15 +286,13 @@ class Workspace(object):
                 record['content'] = yaml.safe_dump(content)
             except Exception as e:
                 print(e)
-
             return record
-
         self.check_workspace(path=self._check_make(bookspace))
         for item in files:
             item = parse_register(item)
-            if roles and item.get('project'):
-                project = item.get('project')
-                if project and project not in roles:
+            if roles and item.get('folder'):
+                folder = item.get('folder')
+                if folder and folder not in roles:
                     continue
             filename = bookspace + item.get('path')
             if item['is_dir']:
@@ -327,7 +340,7 @@ class Workspace(object):
         elif path_len >= 3:
             meta['role'] = path_split[2]
             meta['name'] = path_split[path_len - 1]
-            meta['project'] = path_split[1]
+            meta['folder'] = path_split[1]
         return meta
 
     @staticmethod
@@ -364,7 +377,7 @@ class Workspace(object):
             meta['role'] = filename
         elif path_len >= 3:
             meta['role'] = path_split[2]
-            meta['project'] = path_split[1]
+            meta['folder'] = path_split[1]
         return meta
 
     def build_book_from_history(self, build_id):
@@ -384,7 +397,7 @@ class Workspace(object):
         os.unlink(save_file)
 
         return bookspace
-    
+
     @staticmethod
     def remove_directory(directory):
         shutil.rmtree(directory)

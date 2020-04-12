@@ -2,6 +2,7 @@ from tasktiger import TaskTiger
 from eclogue.redis import redis_client
 from eclogue.config import config
 from eclogue.lib.logger import get_logger
+
 task_cfg = config.task
 
 

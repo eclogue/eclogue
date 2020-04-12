@@ -4,7 +4,6 @@ import datetime
 from flask import request, jsonify
 from bson import ObjectId
 from tempfile import NamedTemporaryFile
-from deepdiff import DeepDiff
 from eclogue.middleware import jwt_required, login_user
 from eclogue.model import db
 from eclogue.config import config
@@ -14,7 +13,7 @@ from eclogue.lib.helper import parse_cmdb_inventory, parse_file_inventory
 from eclogue.lib.player import setup
 from eclogue.ansible.host import parser_inventory
 from eclogue.lib.inventory import get_inventory_from_cmdb, get_inventory_by_book
-from eclogue.models.host import host_model, Host
+from eclogue.models.host import Host
 from eclogue.lib.logger import logger
 from eclogue.models.region import Region
 from eclogue.models.group import Group
@@ -93,18 +92,13 @@ def delete_inventory(_id):
         }
     }
 
-    host.collection.update_one({'_id': record['_id']}, update=update)
-    msg = 'delete inventory:, hostname: {}'.format(record.get('hostname'))
-    extra = {
-        'record': record,
-    }
-
-    logger.info(msg, extra=extra)
+    host.update_one({'_id': record['_id']}, update=update)
 
     return jsonify({
         'message': 'ok',
         'code': 0,
     })
+
 
 @jwt_required
 def explore():
@@ -199,7 +193,7 @@ def explore():
             item['state'] = 'active'
             where = {'ansible_ssh_host': item['ansible_ssh_host']}
             update = {'$set': item}
-            result = db.collection('machines').update_one(where, update, upsert=True)
+            result = Host.update_one(where, update, upsert=True)
             extra = item.copy()
             extra['_id'] = result.upserted_id
             logger.info('add machines hostname: '.format({item['hostname']}), extra={'record': data})
@@ -260,9 +254,9 @@ def explore():
         manager = runner.inventory
         hosts = parser_inventory(manager)
         records = []
-        default_region = db.collection('regions').find_one({'name': 'default'})
+        default_region = Region.find_one({'name': 'default'})
         if not default_region:
-            result = db.collection('regions').insert_one({
+            result = Region.insert_one({
                 'name': 'default',
                 'add_by': None,
                 'description': 'auto generate',
@@ -277,7 +271,7 @@ def explore():
             for group, host in hosts.items():
                 where = {'name': group}
                 # insert_data = {'$set': insert_data}
-                existed = db.collection('groups').find_one(where)
+                existed = Group.find_one(where)
                 if not existed:
                     insert_data = {
                         'name': group,
@@ -288,31 +282,27 @@ def explore():
                         'maintainer': None,
                         'created_at': int(time.time())
                     }
-                    insert_result = db.collection('groups').insert_one(insert_data)
-                    group = insert_result.inserted_id
+                    insert_result = Group.insert_one(insert_data)
+                    group = str(insert_result.inserted_id)
                 else:
-                    group = existed['_id']
-
+                    group = str(existed['_id'])
                 if host.get('name') == hostname:
                     vars = host.get('vars')
-                    node['ansible_ssh_host'] = vars.get('ansible_ssh_host')
+                    node['ansible_ssh_host'] = vars.get('ansible_ssh_host', hostname)
                     node['ansible_ssh_user'] = vars.get('ansible_ssh_user', 'root')
                     node['ansible_ssh_port'] = vars.get('ansible_ssh_port', '22')
                     node['group'] = [group]
                     node['add_by'] = login_user.get('username')
                     node['state'] = 'active'
-
+                    records.append(node)
                     break
-
-            records.append(node)
-
         for record in records:
             where = {'ansible_ssh_host': record['ansible_ssh_host']}
             update = {'$set': record}
-            result = db.collection('machines').update_one(where, update, upsert=True)
+            result = Host.update_one(where, update, upsert=True)
             extra = record.copy()
             extra['_id'] = result.upserted_id
-            logger.info('add machines hostname: '.format({record['hostname']}), extra={'record': data})
+            # logger.info('add machines hostname: '.format({record['hostname']}), extra={'record': data})
 
         return jsonify({
             'message': 'ok',
@@ -505,7 +495,7 @@ def groups():
     total = records.count()
     records = list(records)
     for group in records:
-        region = db.collection('regions').find_one({'_id': ObjectId(group['region'])})
+        region = Region.find_by_id(group['region'])
         group['region_name'] = region.get('name')
 
     return jsonify({
@@ -536,13 +526,13 @@ def add_group():
             'message': 'invalid params',
             'code': 124004
         }), 400
-    dc = db.collection('regions').find_one({'_id': ObjectId(region)})
+    dc = Region.find_one({'_id': ObjectId(region)})
     if not dc:
         return jsonify({
             'message': 'data center existed',
             'code': 124005,
         }), 400
-    check = db.collection('groups').find_one({'name': name})
+    check = Group.find_one({'name': name})
     if check:
         return jsonify({
             'message': 'group existed',
@@ -743,7 +733,7 @@ def get_devices():
             '$in': [group],
         }
 
-    result = db.collection('machines').find(where).skip(skip=skip).limit(limit)
+    result = Host.find(where).skip(skip=skip).limit(limit)
     total = result.count()
     result = list(result)
     collection = Group()
@@ -793,7 +783,7 @@ def get_host_groups(user_id):
 
 @jwt_required
 def get_node_info(_id):
-    record = host_model.find_by_id(_id)
+    record = Host.find_by_id(_id)
     if not record:
         return jsonify({
             'message': 'record not found',

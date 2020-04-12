@@ -95,21 +95,18 @@ def load_ansible_playbook(payload):
             'message': 'invalid params',
             'code': 104000,
         }
-
     name = template.get('name')
     if not name:
         return {
             'message': 'name required',
             'code': 104000,
         }
-
     entry = template.get('entry')
     if len(entry) < 2:
         return {
             'message': 'entry not found',
             'code': 104001,
         }
-
     book_id, entry_id = entry
     book_record = Book.find_by_id(book_id)
     if not book_record:
@@ -117,14 +114,12 @@ def load_ansible_playbook(payload):
             'message': 'book not found',
             'code': 1040011,
         }
-
     entry_record = Playbook.find_by_id(entry_id)
     if not entry_record:
         return {
             'message': 'entry not found',
             'code': 104001,
         }
-
     inventory_type = template.get('inventory_type', 'file')
     inventory = template.get('inventory', None)
     if not inventory:
@@ -132,7 +127,6 @@ def load_ansible_playbook(payload):
             'message': 'invalid param inventory',
             'code': 104002
         }
-
     if inventory_type == 'file':
         inventory_record = parse_file_inventory(inventory)
     else:
@@ -143,14 +137,12 @@ def load_ansible_playbook(payload):
             'message': 'illegal inventory',
             'code': 104002
         }
-
     group_name = inventory_record.keys()
     if not inventory_record:
         return {
             'message': 'invalid param inventory',
             'code': 104002
         }
-
     roles = template.get('roles')
     role_names = []
     if roles:
@@ -530,7 +522,26 @@ def get_meta(pathname):
         meta['role'] = filename
     elif path_len >= 3:
         meta['role'] = path_split[2]
-        meta['project'] = path_split[1]
-
+        meta['folder'] = path_split[1]
     return meta
+
+
+def check_playbook_node(node):
+    """
+    loop check playbook parent node
+    @param {dict} node
+    """
+    parent_path = os.path.dirname(node['path'])
+    record = Playbook.find_one({'book_id': node['book_id'], 'path': parent_path})
+    if not record:
+        current = node.copy()
+        current['path'] = parent_path
+        current['parent'] = None if parent_path == '/' else os.path.dirname(parent_path)
+        Playbook.insert_one(current)
+        return check_playbook_node(current)
+    where = {
+        'book_id': node['book_id'],
+        'path': node['path'],
+    }
+    return Playbook.update_one(where, node, upsert=True)
 

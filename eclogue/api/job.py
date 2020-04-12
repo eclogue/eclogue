@@ -8,6 +8,7 @@ from bson import ObjectId
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from flask import request, jsonify
 from jinja2 import Template
+from eclogue.ansible.parser import to_playbook_command
 
 from eclogue.model import db
 from eclogue.middleware import jwt_required, login_user
@@ -395,6 +396,12 @@ def job_detail(_id):
         book = Book.find_by_id(record.get('book_id'))
         record['book_name'] = book.get('name')
         template = record.get('template')
+        result = load_ansible_playbook(record)
+        if result['message'] == 'ok':
+            record['command'] = to_playbook_command(result)
+            command = to_playbook_command(result)
+        else:
+            record['command'] = 'invalid ansible command~!'
         if template:
             app_id = template.get('app')
             if app_id:
@@ -415,7 +422,7 @@ def job_detail(_id):
             if role_ids:
                 roles = Playbook.find_by_ids(role_ids)
                 template['roles'] = list(map(lambda i: i.get('name'), roles))
-
+            record['template'] = template
     page = int(query.get('page', 1))
     size = int(query.get('pageSize', 20))
     offset = (page - 1) * size

@@ -81,12 +81,14 @@ def get_profile(_id):
             'message': 'record not found',
             'code': 104040
         }), 404
-
-    relation = TeamUser().collection.find_one({'user_id': _id})
-    team = Team().find_by_id(relation.get('team_id'))
-    record['team'] = team
+    record = record.to_dict()
+    relation = TeamUser.find_one({'user_id': _id})
+    if relation:
+        team = Team.find_by_id(relation.get('team_id'))
+        record['team'] = team
+    else:
+        record['team'] = None
     record.pop('password')
-    record['team'] = team
     setting = db.collection('setting').find_one({})
     options = {
         'slack': True,
