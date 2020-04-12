@@ -9,6 +9,8 @@ from eclogue.models.book import Book
 import subprocess
 import paramiko
 from eclogue.lib.workspace import Workspace
+from eclogue.config import config
+from eclogue.tasks.book import dispatch
 
 import os
 
@@ -48,38 +50,47 @@ def ping(msg):
 
 @socketio.on('playbook', namespace='/socket')
 def playbook(payload):
-    try:
-        print('???---', payload)
-        payload = payload or {}
-        book_id = payload.get('book_id')
-        cmd = payload.get('cmd')
-        if not book_id and not cmd:
-            pass
-            # emit('playbook', {
-            #     'code': 1404,
-            #     'message': 'invalid params'
-            # })
-        book = Book.find_by_id(book_id)
-        if not book:
-            pass
-            # emit('playbook', {
-            #     'code': 1404,
-            #     'message': 'book not found'
-            # })
-        args = cmd.lstrip().split()
-        allow_cmd = ['ls', 'cat', 'ansible-playbook', 'cd', 'pwd']
-        if args[0] not in allow_cmd:
-            return emit('playbook', {
-                'code': 1403,
-                'message': 'invalid command'
-            })
+    print('???---', payload)
+    payload = payload or {}
+    book_id = payload.get('book_id')
+    cmd = payload.get('cmd')
+    if not book_id and not cmd:
+        emit('playbook', {
+            'code': 1404,
+            'message': 'invalid params'
+        })
+    book = Book.find_by_id(book_id)
+    if not book:
+        emit('playbook', {
+            'code': 1404,
+            'message': 'book not found'
+        })
+    args = cmd.lstrip().split()
+    allow_cmd = ['ls', 'll', 'cat', 'ansible-playbook', 'cd', 'pwd']
+    if args[0] not in allow_cmd:
+        return emit('playbook', {
+            'code': 1403,
+            'message': 'invalid command'
+        })
 
-        # with build_book_from_db(book.get('name')) as cwd:
-        cwd = payload.get('cwd') or ''
-        cwd = cwd.strip('/')
-        wk = Workspace()
-        book_space = wk.load_book_from_db(book['name'])
-        # base_dir = os.path.dirname(book_space)
+    # with build_book_from_db(book.get('name')) as cwd:
+    cwd = payload.get('cwd') or ''
+    cwd = cwd.strip('/')
+    wk = Workspace()
+    book_space = wk.load_book_from_db(book['name'])
+    try:
+        if args[0] == 'ansible-playbook':
+            task_id = dispatch(book_id, 'entry.yml', {'options': 'ansible-playbook -i hosts entry.yml -t test'})
+            return emit('playbook', {
+                'code': 0,
+                'type': 'task',
+                'message': 'waiting for task launch...',
+                'data': {
+                    'state': 'pending',
+                    'taskId': str(task_id),
+                }
+            })
+            pass
         cwd = os.path.join(book_space, cwd)
         if args[0] == 'cd':
             if not args[1]:
@@ -87,9 +98,11 @@ def playbook(payload):
                     'code': 1400,
                     'message': 'invalid args'
                 })
-            cwd = os.path.join(cwd, args[1])
+            cwd = os.path.join(cwd, './' + args[1])
+            cwd = os.path.realpath(cwd)
+            if len(cwd) < len(book_space):
+                cwd = book_space
             args = ['ls', '-a']
-        print('cwd', book_space, cwd, args)
         process = subprocess.Popen(args,
                                    cwd=cwd,
                                    stdin=subprocess.PIPE,
@@ -97,7 +110,6 @@ def playbook(payload):
                                    stderr=subprocess.PIPE,
                                    )
         stdout, stderr = process.communicate()
-        print('-----??????>>>>>>>>', cwd)
         emit('playbook', {
             'code': 0,
             'result': {
@@ -107,9 +119,10 @@ def playbook(payload):
             }
         })
     except Exception as err:
+        print(err)
         emit('playbook', {
             'code': 1500,
-            'message': str(err)
+            'message': str(err).replace(book_space, '')
         })
 
 

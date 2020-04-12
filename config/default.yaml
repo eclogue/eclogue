@@ -84,7 +84,7 @@ redis:
 
 task:
   history: 50
-  always_eager: true
+  always_eager: false
 
 api:
   prefix: ''

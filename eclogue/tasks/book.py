@@ -4,8 +4,9 @@ import os
 import sys
 
 from eclogue.models.book import Book
+from eclogue.models.playbook import Playbook
 from eclogue.vcs.versioncontrol import GitDownload
-from eclogue.ansible.runer import PlayBookRunner, AdHocRunner
+from eclogue.ansible.runer import PlayBookRunner, get_default_options
 from tasktiger import Task
 from eclogue.tasks.reporter import Reporter
 from eclogue.models.perform import Perform
@@ -13,25 +14,37 @@ from eclogue.tasks import tiger
 from eclogue.lib.logger import get_logger
 from eclogue.lib.builder import build_book_from_db
 from eclogue.ansible.host import parser_inventory
-
+from ansible.cli.playbook import PlaybookCLI
 
 
 logger = get_logger('console')
 
 
 def dispatch(book_id, entry, payload):
+    print('xxxx', book_id, entry, payload)
     book = Book.find_by_id(book_id)
     if not book:
         return False
 
-    options = payload.get('options')
     username = payload.get('username')
     run_id = payload.get('req_id') or str(uuid.uuid4())
     params = [book_id, run_id]
     options = payload.get('options')
     if not entry:
         return False
-
+    if type(options) == str:
+        args = options.split(' ')
+        pb = PlaybookCLI(args)
+        pb.init_parser()
+        options, args = pb.parser.parse_args(args[1:])
+        options, args = pb.post_process_args(options, args)
+        options = options.__dict__
+        options['entry'] = args
+        for i in options['inventory']:
+            if not os.path.isfile(i):
+                i = os.path.basename(i)
+                options['inventory'] = i
+                break
     queue_name = 'book_runtime'
     func = run
     task = Task(tiger, func=func, args=params, kwargs=options, queue=queue_name,
@@ -74,13 +87,19 @@ def run(book_id, run_id, **options):
                 logger.warning(result)
                 state = 'finish'
             else:
-                inventory = os.path.join(dest, options['inventory'])
+                inventory = options['inventory']
+                if type(inventory == str):
+                    inventory = os.path.join(dest, inventory)
+
                 entry = os.path.join(dest, options['entry'].pop())
-                options['tags'] = options['tags'].split(',')
+                if type(options['tags']) == str:
+                    options['tags'] = options['tags'].split(',')
                 options['basedir'] = dest
+                print('xxxxxxxxxxxxx????', inventory, options)
                 runner = PlayBookRunner(inventory, options)
                 runner.run([entry])
                 result = runner.get_result()
+                print('result', result)
                 state = 'finish'
     except Exception as err:
         result = str(err)
@@ -94,6 +113,7 @@ def run(book_id, run_id, **options):
         temp_stdout.close(True)
         sys.stdout = old_stdout
         sys.stderr = old_stderr
+        print(content)
         finish_at = time.time()
         update = {
             '$set': {
