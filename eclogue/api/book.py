@@ -22,6 +22,7 @@ from flask_log_request_id import current_request_id
 from eclogue.tasks.book import dispatch
 from eclogue.lib.builder import build_book_from_db
 from eclogue.ansible.lint import lint
+from eclogue.models.perform import Perform
 
 
 @jwt_required
@@ -583,4 +584,16 @@ def lint_book(_id):
         'message': 'ok',
         'code': 0,
         'data': result
+    })
+
+
+def run_history(book_id):
+    sort = ('_id', -1)
+    query = request.args
+    limit = query.get('size', 25)
+    number = query.get('number', 1)
+    skip = (number - 1) * limit
+    records = Perform.find({'book_id': book_id}, sort=sort, limit=limit, skip=skip)
+    return jsonify({
+        'message': 'ok'
     })

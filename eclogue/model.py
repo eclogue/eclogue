@@ -300,5 +300,9 @@ class Model(object):
     def to_dict(self):
         return self.__dict__()
 
+    def to_json(self):
+        self['_id'] = str(self.get('_id'))
+        return self.to_dict()
+
 
 db = Mongo()

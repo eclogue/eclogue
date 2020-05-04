@@ -11,6 +11,8 @@ import paramiko
 from eclogue.lib.workspace import Workspace
 from eclogue.config import config
 from eclogue.tasks.book import dispatch
+from eclogue.models.perform import Perform
+from eclogue.tasks.reporter import Reporter
 
 import os
 
@@ -50,8 +52,8 @@ def ping(msg):
 
 @socketio.on('playbook', namespace='/socket')
 def playbook(payload):
-    print('???---', payload)
     payload = payload or {}
+    print(payload)
     book_id = payload.get('book_id')
     cmd = payload.get('cmd')
     if not book_id and not cmd:
@@ -81,7 +83,12 @@ def playbook(payload):
     try:
         if args[0] == 'ansible-playbook':
             task_id = dispatch(book_id, 'entry.yml', {'options': 'ansible-playbook -i hosts entry.yml -t test'})
-            return emit('playbook', {
+            if not task_id:
+                return emit('playbook', {
+                    'message': ''
+                })
+            print('fuckkkkkkkkkkkkkk', task_id)
+            return emit('book_task', {
                 'code': 0,
                 'type': 'task',
                 'message': 'waiting for task launch...',
@@ -90,7 +97,6 @@ def playbook(payload):
                     'taskId': str(task_id),
                 }
             })
-            pass
         cwd = os.path.join(book_space, cwd)
         if args[0] == 'cd':
             if not args[1]:
@@ -126,25 +132,38 @@ def playbook(payload):
         })
 
 
-@socketio.on('ssh', namespace='/socket')
-def ssh(payload):
-    username = 'tommy'
-    hostname = 'localhost'
-    client = paramiko.SSHClient()
-    client.load_system_host_keys()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    # p_key = paramiko.RSAKey.from_private_key_file("./id_rsa")
-    # client.set_missing_host_key_policy(paramiko.WarningPolicy())
-    try:
-        client.connect(hostname=hostname, username=username, port=22)
-    except Exception as err:
-        return emit('ssh', {
-            'code': 4401,
-            'message': str(err)
+@socketio.on('fetch_task', namespace='/socket')
+def fetch_task(payload):
+    print('fetch task:++++++', payload)
+    payload = payload or {}
+    book_id = payload.get('bookId')
+    task_id = payload.get('taskId')
+    record = Perform.find_by_id(task_id)
+    if not record:
+        return emit('book_task', {
+            'code': 1404,
+            'message': 'record not found'
         })
-    # chan.send('ls -a')
-    # chan.close()
 
-
+    start = int(payload.get('page', 0))
+    end = -1
+    reporter = Reporter(task_id=book_id)
+    buffer = reporter.get_buffer(start=start, end=end)
+    if not buffer and record.get('trace'):
+        buffer = [record.get('trace')]
+    # record = record.to_dict()
+    print('xxx', record.to_json())
+    emit('book_task', {
+        'message': 'ok',
+        'code': 0,
+        'data': {
+            'bookId': book_id,
+            'taskId': task_id,
+            'buffer': buffer,
+            'page': start,
+            'state': record.get('state'),
+            'record': record.to_json()
+        }
+    })
 def get_auth_key(username):
     return 'ece:ss:auth:' + username
