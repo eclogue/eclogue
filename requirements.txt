@@ -1,4 +1,4 @@
-aiohttp==3.6.2
+aiohttp==3.7.4
 alabaster==0.7.12
 amqp==2.5.1
 aniso8601==8.0.0
